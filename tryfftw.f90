@@ -9,11 +9,11 @@ program testfft
 ! Example to call 1-D real FFT routine of FFTW
 
 
-  integer,parameter::    N=16        !! sample size
-  integer*8:: PLAN_FOR, PLAN_BAC     !! forward and backward plans
-  real*8,dimension(N)::IN,OUT,IN2    !! IN for input vector , OUT for output vector after FFT
-  real*8::twopi,xj
-  integer::j,k,mode
+  integer(C_INT),parameter::    N=16                 !! sample size
+  type(C_PTR):: PLAN_FOR, PLAN_BAC            !! forward and backward plans
+  real(C_DOUBLE),dimension(N)::IN,OUT,IN2     !! IN for input vector , OUT for output vector after FFT
+  real(C_DOUBLE)::twopi,xj
+  integer(C_INT)::j,k,mode
   
   twopi = 2.*acos(-1.)
   
@@ -64,16 +64,9 @@ program testfft
   
 end program testfft
 
-!!$I assume that you have compiled FFTW to include F77 wrappers and that you have read Chapter 6 "Calling FFTW from Fortran" in the FFTW manual.
-!!$
-!!$If you look inside the file fftw3.f, you will see that it contains only integer parameter declarations, so it is a file to be "included"; you cannot compile fftw3.f into a module file and "use" it.
-!!$
+
 !!$The simplest way to compile a Fortran program and statically link the FFTW library is to issue a command like this:
 !!$
-!!$ifort -o test-fftw3 test-fftw3.f90 -L/usr/local/lib -lfftw3
+!!$gfortran -o test-fftw3 test-fftw3.f90 -L/usr/local/lib -lfftw3
 !!$
 !!$where -L gives ifort the path that allows it to find libfftw3.a (change this if your FFTW is not installed in /usr/local/lib), and -lfftw3 tells ifort to link libfftw3.a into your program. Note that libfftw3.a is the double-precision FFTW library; if you need the single-precision FFTW library, specify -lfftw3f for libfftw3f.a . Both single- and double-precision FFTW libraries can be linked into the same program if both are needed. You can add other compiler flags; the above is the minimum.
-!!$
-!!$It seems to me in your post that you might also have problems calling FFTW in your Fortran program. You will need to read and understand Chapter 6 in the FFTW manual, and if you know how to program in C, read Chapter 2 before you read Chapter 6. Post back if you have a specific question.
-!!$
-!!$I have used FFTW 3.1 with ifort 9.1.040 and it does work. I haven't used FFTW 3.1.2 with ifort 9.1.040 (the latest versions for both) but I would expect it to work too.

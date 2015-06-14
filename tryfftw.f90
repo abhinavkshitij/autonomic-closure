@@ -9,7 +9,7 @@ program tryfft
 ! Example to call 1-D real FFT routine of FFTW
 
 
-  integer(C_INT),parameter::    N=16                      !! sample size
+  integer(C_INT),parameter::    N=32                      !! sample size
   type(C_PTR)::                 PLAN_FWD, PLAN_BCK        !! forward and backward plans
   real(C_DOUBLE),dimension(N):: IN,OUT,IN2                !! IN for input vector , OUT for output vector after FFT
   real(C_DOUBLE)::              twopi,xj
@@ -31,7 +31,7 @@ program tryfft
   
   do j=0,N-1
      xj = twopi*real(j) / real(N)
-     IN(j) = sin(xj)
+     IN(j) = sin(xj)+sin(2*xj)
      write(1,100) j,IN(j) 
   end do
 
@@ -51,19 +51,19 @@ program tryfft
 
   OUT = OUT / real(N,KIND=8) ! Normalize
 
- !! write(*,*) "Fourier coefficient after forward FFT"
+ !! write(*,*) "Fourier coefficients after forward FFT"
 
   do k=1,N
      mode=k-1
-     if(k > N/2+1) mode=N-k+1
+        if(k > N/2+1) mode=N-k+1
      write(2,100) mode,OUT(k)
   end do
 
- !! write (*,*) "applying filter at mode > 7"
+ !! write (*,*) "applying filter at mode 1,2 to test "
   do k=1,N
      mode=k-1
      if(k > N/2+1) mode=N-k+1
-     if (mode > 7) OUT(k) =0.
+     if (mode == 2) OUT(k) =0.
      write(3,100) mode,OUT(k)
   end do
   

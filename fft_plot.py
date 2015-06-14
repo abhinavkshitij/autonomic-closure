@@ -6,7 +6,7 @@ filenames = ('fft_F.csv','fft_mode.csv','fft_filter.csv','fft_B.csv')
 filenames = filenames[0:]
 for f in filenames:
     print f
-
+    
     data = np.loadtxt(fname=f, delimiter=',')
 
     fig = plt.figure(figsize=(5.0, 5.0))

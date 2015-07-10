@@ -1,85 +1,85 @@
 program tryfft
 
-!!$ By default the INCLUDE statement is used. Here we stick with the USE function.
-!!$  use, intrinsic :: iso_c_binding
-!!$  include 'fftw3.f03'
+  !! CODE AND CONVENTIONS FOR MODERN FORTRAN
   
   use fftw
- 
-! Example to call 1-D real FFT routine of FFTW
+  
 
-
-  integer(C_INT),parameter::    N=32                      !! sample size
-  type(C_PTR)::                 PLAN_FWD, PLAN_BCK        !! forward and backward plans
-  real(C_DOUBLE),dimension(N):: IN,OUT,IN2                !! IN for input vector , OUT for output vector after FFT
-  real(C_DOUBLE)::              twopi,xj
-  integer(C_INT)::              j,k,mode
+  integer, parameter                      :: GRID = 16          
+  integer(C_INT), parameter               :: M = GRID, N = GRID
+  
+  real(C_DOUBLE),dimension(0:M-1,0:N-1)           :: IN, IN2
+  complex(C_DOUBLE_COMPLEX),dimension(M/2+1,N):: OUT
+  type(C_PTR)                             :: plan_f, plan_b, data
+        
+             
+  real(KIND=8)                            :: twopi,x,y
+  integer                                 :: i,j,k,mode
   
   twopi = 2.*acos(-1.)
 
   call system ('clear')
-  
-  !! Discrete data of function f(x)=sin(2x)
-  !! Here an explicit function has been taken for the test case. The data will be read from directly fed to IN
-
+   
   100 format(i4,',',f12.5)
 
-  open (unit=1,file="fft_F.csv")
-  open (unit=2,file="fft_mode.csv")
-  open (unit=3,file="fft_filter.csv")
-  open (unit=4,file="fft_B.csv")
+!!$ ALLOCATE MEMORY:
+
+!!$  data = fftw_alloc_complex(int((M/2)+1 * N, C_SIZE_T))
+!!$  call c_f_pointer(data, IN, [2*(M/2+1),N])
+!!$  call c_f_pointer(data, OUT, [M/2+1, N])
+!!$  
+!!$ DEFINE FUNCTION:
   
-  do j=0,N-1
-     xj = twopi*real(j) / real(N)
-     IN(j) = sin(xj)+sin(2*xj)
-     write(1,100) j,IN(j) 
+do j=0,N-1
+   do i=0,M-1
+        x = twopi*real(j) / real(M)
+        y = twopi*real(i) / real(N)
+        
+        IN(i,j) = sin(x) + sin(y)
+        
+     write(*,*) i,j,IN(i,j) 
   end do
+end do
 
- !! write(*,*) "Original data"
+!!$ FORWARD FFT:
 
-!!$  do j=1,N
-!!$     write(*,100) j,IN(j)
-!!$  end do
+  plan_f = fftw_plan_dft_r2c_2d(N,M,IN,OUT,FFTW_ESTIMATE)
+  call fftw_execute_dft_r2c(plan_f,IN,OUT)
 
-
-
-  !! Forward transform
-  !! Plans are not saved on any variable!!
-  
-  call dfftw_plan_r2r_1d(PLAN_FWD,N,IN,OUT,FFTW_R2HC,FFTW_ESTIMATE)
-  call dfftw_execute_r2r(PLAN_FWD,IN,OUT)
-
-  OUT = OUT / real(N,KIND=8) ! Normalize
+  OUT = OUT / real(M*N,KIND=8) ! Normalize by MxN
 
  !! write(*,*) "Fourier coefficients after forward FFT"
 
   do k=1,N
      mode=k-1
-        if(k > N/2+1) mode=N-k+1
-     write(2,100) mode,OUT(k)
+     write(*,*) mode,OUT(1,k)
   end do
 
- !! write (*,*) "applying filter at mode 1,2 to test "
-  do k=1,N
-     mode=k-1
-     if(k > N/2+1) mode=N-k+1
-     if (mode == 2) OUT(k) =0.
-     write(3,100) mode,OUT(k)
-  end do
-  
+!!$ !! write (*,*) "applying filter at mode 1,2 to test "
+!!$  do k=1,N
+!!$     mode=k-1
+!!$     if(k > N/2+1) mode=N-k+1
+!!$     if (mode == 2) OUT(k) =0.
+!!$     write(*,*) mode,OUT(1,k)
+!!$  end do
+!!$  
   ! Backward transform
-  call dfftw_plan_r2r_1d(PLAN_BCK,N,OUT,IN2,FFTW_HC2R,FFTW_ESTIMATE)
-  call dfftw_execute_r2r(PLAN_BCK,OUT,IN2)
+
+
+  plan_b = fftw_plan_dft_c2r_2d(N,M,OUT,IN2,FFTW_ESTIMATE)
+  call fftw_execute_dft_c2r(plan_b,OUT,IN2)
 
  !! write(*,*) "Data after backward FFT"
 
-  do j=1,N
-     write(4,100) j,IN2(j)
+  do j=0,N-1
+     do i=0,M-1
+        write(*,*) i,j,IN2(i,j)
+     end do    
   end do
 
-  ! Destroy the plans
-  call dfftw_destroy_plan(PLAN_FWD)
-  call dfftw_destroy_plan(PLAN_BCK)
+  ! Destroy plans:
+  call fftw_destroy_plan(plan_f)
+  call fftw_destroy_plan(plan_b)
 
   close(1)
   close(2)

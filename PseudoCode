@@ -1,0 +1,294 @@
+  PSEUDO-CODE FOR PROGRAM to generate fields program gen_fields
+
+!! This program will compute T_ij from DNS data and save a sub-cube data (32x32x32)
+  
+1  Read u_i from Velocity1_460.bin
+                 Velocity2_460.bin
+                 Velocity3_460.bin
+	p   from Pressure_460.bin	 
+         -- binread.f90
+
+
+  a. allocate u1_DNS, u2_DNS, u3_DNS ,p_DNS
+  b. allocate u11_DNS,u12_DNS,u13_DNS, u22_DNS, u23_DNS, u33_DNS
+  c. allocate KE
+  
+The arrays can be stored in a structure. Test it with a small 3x3x3 set. TEST FOR ARRAY OF ARRAYS.
+  
+2 Compute products u_i*u_j -> uij. Can pass a structure instead of an array for the operation.
+      u11_DNS = u1_DNS * u1_DNS
+      u12_DNS = u1_DNS * u2_DNS
+      u13_DNS = u1_DNS * u3_DNS
+      u22_DNS = u2_DNS * u2_DNS
+      u23_DNS = u2_DNS * u3_DNS
+      u33_DNS = u3_DNS * u3_DNS
+
+3 Compute and plot E(k) field at DNS level
+   a. calculate:
+      KE = 0.5 * (u11_DNS + u22_DNS + u33_DNS)
+   b. call subroutine plot_Ek(KE,scale)
+
+    ******SUBROUTINE - plot_Ek******
+    real(kind=8)::E(1:128) !! Define E(k) vector
+    phi = fftn(KE)/L**3    !! CALL 3D FFT subroutine/function
+    
+    for k = 1,128	   !! radius
+    	for kz = 0,128     !! kz direction first due to FORTRAN order
+	for ky = 0,128
+	for kx = 0,128
+	    if ( (sqrt(kx**2+ky**2+kz**2).gt.(k-1)) && (sqrt(kx**2+ky**2+kz**2).lt.k)  ) then
+	       	 E(k) = E(k) + abs(phi(kx,ky,kz))
+	    end
+	end
+	end
+	end
+    E(k) = E(k) / (4.*pi*k**2) 	!! taking unit Shell thickness
+    end
+    
+   c. *****PLOTTING******
+   y-axis : E(k)  
+   x-axis : k		k {0,128} no data on k=0 since that is radius of 0
+   type   : log-log
+   scale  : X-3decades{0.001,0}
+   	    Y-5decades{0.00001,0}
+   slope  : -5/3 
+  	    
+   ******END SUBROUTINE******
+
+
+4  We have u_i and u_i*u_j as ui_DNS, uij_DNS. This will be used for filtering operation at LES scale
+  a. allocate u1_LES, u2_LES, u3_LES
+  b. allocate u11_LES , u12_LES , u13_LES, u22_LES,u23_LES,u33_LES
+
+5 Apply LES filter -- subroutine filter(u_i,scale).
+
+  ****** SUBROUTINE - filter(u_i,scale) ******
+  
+  ! The subroutine will call the fftn function.
+    	-forward_transform = fftn(u_i, scale) ---> complex quantity.
+	-perform scaling
+  * The fftn function is later defined in the another subroutine.
+    Read window files. This is to be prepared initially.
+    Multiply window and forward transform. This performs filtering operation.   
+	u_i_filtered = forward_transform * window
+    Now call ifftn function to perform backward transform.
+    	-backward_transform = real(ifftn(u_i_filtered)) ---> complex quantity
+	-perform scaling
+  ?*Take only the real part for the final filtered answer.
+    
+  
+     ******END SUBROUTINE ******
+
+
+      a. u1_LES = filter(u1_DNS,k_LES)
+         u2_LES = filter(u2_DNS,k_LES)
+         u3_LES = filter(u3_DNS,k_LES)
+         p_LES  = filter (p_DNS,k_LES) --*** PRESSURE
+	 
+      b. u11_LES = filter(u11_DNS,k_LES) 
+         u12_LES = filter(u12_DNS,k_LES) 
+         u13_LES = filter(u13_DNS,k_LES)
+         u22_LES = filter(u22_DNS,k_LES)
+         u23_LES = filter(u23_DNS,k_LES)
+         u33_LES = filter(u33_DNS,k_LES)
+
+      c. Repeat Step 3.
+      	 Calculate KE
+      	 Compute and plot Ek_LES
+         
+#6       deallocate u1_DNS , u2_DNS , u3_DNS , p_DNS
+         deallocate u11_DNS,u12_DNS,u13_DNS, u22_DNS, u23_DNS, u33_DNS
+         allocate u1u1_LES , u1u2_LES , u1u3_LES , u2u2_LES, u2u3_LES, u3u3_LES
+
+7   Compute products at LES scale
+         u1u1_LES = u1_LES*u1_LES
+         u1u2_LES = u1_LES*u2_LES
+         u1u3_LES = u1_LES*u3_LES
+         u2u2_LES = u2_LES*u2_LES
+         u2u3_LES = u2_LES*u3_LES
+         u3u3_LES = u3_LES*u3_LES
+
+         
+8   Compute stresses at LES scale -- true SGS stresses -- to compare with synthetic stresses
+         tau11_LES = u11_LES - u1u1_LES
+         tau12_LES = u12_LES - u1u2_LES
+         tau13_LES = u13_LES - u1u3_LES
+         tau22_LES = u22_LES - u2u2_LES
+         tau23_LES = u23_LES - u2u3_LES
+         tau33_LES = u33_LES - u3u3_LES
+
+#9       deallocate u11_LES, u12_LES, u13_LES, u22_LES, u23_LES, u33_LES         
+         allocate u1_TEST, u2_TEST, u3_TEST,p_TEST
+         allocate u11_TEST,u12_TEST,u13_TEST,u22_TEST,u23_TEST,u33_TEST
+         allocate u1u1_TEST,u1u2_TEST,u1u3_TEST,u2u2_TEST,u2u3_TEST,u3u3_TEST
+         
+10  Apply test filter -- subroutine filter (u_i, scale)
+      a. u1_TEST = filter(u1_LES,k_TEST)
+         u2_TEST = filter(u2_LES,k_TEST)
+         u3_TEST = filter(u3_LES,k_TEST)
+	 p_TEST  = filter (p_LES,k_TEST) -- *** PRESSURE
+
+      b. u11_TEST = filter(u11_LES,k_TEST) 
+         u12_TEST = filter(u12_LES,k_TEST) 
+         u13_TEST = filter(u13_LES,k_TEST)
+         u22_TEST = filter(u22_LES,k_TEST)
+         u23_TEST = filter(u23_LES,k_TEST)
+         u33_TEST = filter(u33_LES,k_TEST)
+
+      c. Repeat Step 3.
+      	 Calculate KE
+      	 Compute and plot Ek_TEST	 
+         
+11  Compute products
+
+      a. u1u1_TEST = u1_TEST*u1_TEST
+         u1u2_TEST = u1_TEST*u2_TEST
+         u1u3_TEST = u1_TEST*u3_TEST
+         u2u2_TEST = u2_TEST*u2_TEST
+         u2u3_TEST = u2_TEST*u3_TEST
+         u3u3_TEST = u3_TEST*u3_TEST
+
+   ?# b. Write and save in files ...  to be used to generate the A matrix.
+
+        -- Normalize by L, T all the quantities      
+        -- u1_TEST, u2_TEST, u3_TEST, p_TEST
+        -- u1u1_TEST, ... , u3u3_TEST 
+
+         
+12   Compute stresses at Test filter scale -- this data will be used in the b vector of the Ax=b system.
+     Check if the data is to be written and saved to a file.     
+
+     T_11 = u11_TEST - u1u1_TEST
+     T_12 = u12_TEST - u1u2_TEST
+     T_13 = u13_TEST - u1u3_TEST
+     T_22 = u22_TEST - u2u2_TEST
+     T_23 = u23_TEST - u2u3_TEST
+     T_33 = u33_TEST - u3u3_TEST
+
+13   Write and save to files - 
+			    Take a cutout of the grid from the center. We could have worked with this grid initially to save space but the number of sampling points would be insufficient for FFT.(32<<256)
+
+   --32x32x32 3D array(reindexed)
+
+a. cutout(1:32,1:32,1:32) = grid(112:143,112:143,112:143)
+b. Apply for - T_11,T_12,T_13,T_22,T_23,T_33
+     	     - u1u1_TEST,u1u2_TEST,u1u3_TEST,u2u2_TEST,u2u3_TEST,u3u3_TEST
+   
+15   ***Compute Test Stress*** --> better to write a separate program 
+ 
+      		
+a. Visit every other point in 32x32x32 cutout at point P(i_TEST,j_TEST,k_TEST),
+      such that we select a 16x16x16 sub-grid.
+
+-- create three vectors of odd numbers from 1 to 31 ---> 16 elements in each as shown below:
+   i_TEST = 2*i-1          i = 1,16    --> i_TEST{1,3,5,...,31}
+   j_TEST = 2*j-1	   j = 1,16    --> j_TEST{1,3,5,...,31}
+   k_TEST = 2*k-1	   k = 1,16    --> k_TEST{1,3,5,...,31}
+
+   	    		   OR
+PREFERRED METHOD:			   
+   do i_TEST = 1,32,2     ! later can write --> do i_TEST = 1,size(cutout,dim=1),test_scale
+   do j_TEST = 1,32,2
+   do k_TEST = 1,32,2
+
+   so i,j,k -> (odd,odd,odd) --> CORNERS. We visit every CORNER point. The CORNER points are the points on the test scale.
+
+b. At each point enter the loop to create a 8x8x8 bounding box
+    - call random_matrix to generate 377 random numbers.
+    - store in an ordered vector --> random
+    - initialize two counters:
+       	 	 - cell_count = 1
+		 - rand_count = 1
+    - calculate the first row of A matrix for the point(i_TEST,j_TEST,k_TEST)		    
+    - run the loop within the bounding box:(TEST SCALE)
+      i_BOX = i_TEST-(2*4),i_TEST+(2*3),2   ! later--> i_BOX = i_TEST-(test_scale*4),i_TEST+(test_scale*3),test_scale 
+      j_BOX = j_TEST-(2*4),j_TEST+(2*3),2
+      k_BOX = k_TEST-(2*4),k_TEST+(2*3),2
+
+       - random cell assignment for other 377 points in the box.
+       
+       if ((i_BOX.ne.0).and.(j_BOX.ne.0).and.(k_BOX.ne.0))then	!! Should not be the first point
+       	  if (cell_count.eq.random(rand_count)) then  		!! checks whether the point is on the list
+	       - calculate the next row of A matrix		!! 377 rows, each with 27*14 = 378 cols
+	       - also enter the T_11 value
+			b(row_index) = T_11(i_BOX,j_BOX,k_BOX)	!! populate b vector
+	       - col_index = 1 	    	     			!! reset counter to col 1
+	       
+c. 	         Create a 3x3x3 stencil around the cell
+	    i_STEN = i_BOX-(2*1),i_BOX+(2*1),2   ! later  ---> again replace 2 by test_scale
+	    j_STEN = j_BOX-(2*1),j_BOX+(2*1),2
+	    k_STEN = k_BOX-(2*1),k_BOX+(2*1),2
+	    	   - get the values at colocated points:
+		     ui(i_STEN,j_STEN,k_STEN) 	 3
+		     p(i_STEN,j_STEN,k_STEN)	 1
+		     
+		   - get second order products at colocated points:  
+		     uiuj(i_STEN,j_STEN,k_STEN)	 6
+		     uip(i_STEN,j_STEN,k_STEN)	 3
+		     pp(i_STEN,j_STEN,k_STEN)	 1
+		     
+		   - these data will run from col index 1,14.
+		     So use a counter col_index = col_index+1
+		     A(col_index) = <the values and products>
+
+		   - can increment after each data assignment.
+	      end STEN
+	      end STEN
+	      end STEN
+
+	      rand_count = rand_count + 1		!! pointer to the next random cell
+              row_index = row_index +1 			!! pointer to the next row index in b
+	      
+ 	    end if
+	 end if
+
+	 cell_count = cell_count + 1			!! increment to next cell
+	 
+      end BOX
+      end BOX
+      end BOX
+      
+d.      ----MATRIX INVERSION---
+      At this moment, we have a 378x378 matrix A. NEED FOR 6 TAU!!
+         -- determine condition number --it is in the code
+      	 --call a subroutine to invert the Ax = b (dgesv--using LAPACK)
+	 -- save x vector for all 6 tau
+
+e. PROJECTION:
+		We are still in the loop that runs for each point on the test scale.
+		For each point, we have the value of h -- 378*6 = 2278.
+		This is only for one CORNER point.
+		To interpolate the values for EDGE, FACE and BODY centers, refer to FIG 1
+		EDGE : average of 2 CORNER points.
+		FACE : average of 4 CORNER points or 4 EDGE centers. or BILINEAR interpolation
+		BODY : average of 8 CORNER points or 6 FACE centers. or TRILINEAR interpolation
+		
+
+
+
+        133 C------------E------------C 333
+           /            /            /|
+          /            /            / |
+         /            /            /  |
+        E------------F------------E   |
+       /            /|           /|   E
+      /            / |          / |  /|			Z  Y	
+     /            /  |         /  | / |	       	 	| /
+113 C------------E------------C   |/  |	       	 	|/
+    |       	 |   B--------|---F   |	       	 	0----X	
+    |		 |  /222      |  /|   C 331
+    |		 | /	      |	/ |  /		CORNER - (odd,odd,odd)		{111,113,...,333}  8 
+    |		 |/	      |/  | / 		EDGE   - (odd,odd,even) 3P1	{112,121,...,211}  12 
+112 E            F------------E	  |/ 		FACE   - (odd,even,even) 3P2	{221,223,...,322}  6
+    |		221 	      |   E		BODY   - (even,even,even)       {222}		   1   
+    |			      |	 /
+    |			      | /
+    |			      |/
+111 C------------E------------C	311		   
+
+
+    <----LES---->
+    <---------FILTER--------->
+					FIG 1
+
+   

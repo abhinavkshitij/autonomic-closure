@@ -5,7 +5,7 @@ program tryfft
   use fftw
   
 
-  integer, parameter                      :: GRID = 16          
+  integer, parameter                      :: GRID = 4          
   integer(C_INT), parameter               :: M = GRID, N = GRID
   
   real(C_DOUBLE),dimension(0:M-1,0:N-1)           :: IN, IN2
@@ -27,7 +27,8 @@ program tryfft
 !!$  data = fftw_alloc_complex(int((M/2)+1 * N, C_SIZE_T))
 !!$  call c_f_pointer(data, IN, [2*(M/2+1),N])
 !!$  call c_f_pointer(data, OUT, [M/2+1, N])
-!!$  
+!!$
+  
 !!$ DEFINE FUNCTION:
   
 do j=0,N-1
@@ -50,9 +51,11 @@ end do
 
  !! write(*,*) "Fourier coefficients after forward FFT"
 
-  do k=1,N
-     mode=k-1
+  do j=1,N
+     do i=1,M
+     mode=j-1
      write(*,*) mode,OUT(1,k)
+  end do
   end do
 
 !!$ !! write (*,*) "applying filter at mode 1,2 to test "

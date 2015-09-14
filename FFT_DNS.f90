@@ -20,7 +20,10 @@ program DNS
 open (unit=1,file='../Velocity1_0460.bin',form='unformatted', access='direct',&
            convert='big_endian',recl=4)
 
+
 count = 0
+
+
 
 !! READ DATA FROM BINARY FILES
 
@@ -29,7 +32,11 @@ do k=1,p
       do i=1,m
          count = count+1
          read (1,rec=count) x(i,j,k)
-  write(*,*) i ,'', j , '' , k, '' ,x(i,j,k)/100
+
+
+
+!! DEBUG MODE: write(*,*) i ,'', j , '' , k, '' ,x(i,j,k)/100
+
       end do
    end do
 end do

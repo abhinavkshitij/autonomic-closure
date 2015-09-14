@@ -3,4 +3,6 @@ FFT
 datafile.m
 matlab.sh
 *.csv
-
+*.o
+*.mod
+*.exe

@@ -5,9 +5,9 @@
 
 FC      = gfortran
 FFLAGS  = -O3
-OBJECTS = fourier.o readfile.o main.o 
-MODULES = fourier.mod 
-#This will have file_io
+OBJECTS = fourier.o fileio.o main.o 
+MODULES = fourier.mod fileio.mod
+
 .PHONY : ALES clean
 
 ALES : ALES.exe
@@ -21,6 +21,6 @@ ALES.exe: $(MODULES) $(OBJECTS)
 %.mod: %.f90
 	$(FC) $(FFLAGS) -c $<
 clean:
-	rm -f *.o *.exe *.mod *#
+	rm -f *.o *.exe  *.mod *# *~ 
 
 

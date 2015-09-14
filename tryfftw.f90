@@ -2,10 +2,9 @@ program tryfft
 
   !! CODE AND CONVENTIONS FOR MODERN FORTRAN
   
-  !use fftw
   use fourier
 
-  integer, parameter                      :: GRID = 4          
+  integer, parameter                      :: GRID = 16
   integer(C_INT), parameter               :: M = GRID, N = GRID
   
   real(C_DOUBLE),dimension(0:M-1,0:N-1)           :: IN, IN2
@@ -16,8 +15,8 @@ program tryfft
   real(KIND=8)                            :: twopi,x,y
   integer                                 :: i,j,k,mode
   
-  twopi = 2.d0 * pi
-
+ ! twopi = 2.d0*acos(-1.d0)
+twopi = 2.d0*pi
   call system ('clear')
    
   100 format(i4,',',f12.5)

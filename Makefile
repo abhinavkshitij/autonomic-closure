@@ -11,6 +11,7 @@ FFTW_LIB = -L$(FFTW_DIR)/lib -lfftw3 -lm
 
 FC      = gfortran
 FFLAGS  = -O3
+
 #OBJECTS = fourier.o fileio.o main.o 
 OBJECTS = fourier.o tryfftw.o
 #MODULES = fourier.mod fileio.mod

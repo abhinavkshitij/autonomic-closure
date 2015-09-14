@@ -2,8 +2,8 @@ program tryfft
 
   !! CODE AND CONVENTIONS FOR MODERN FORTRAN
   
-  use fftw
-  
+  !use fftw
+  use fourier
 
   integer, parameter                      :: GRID = 4          
   integer(C_INT), parameter               :: M = GRID, N = GRID

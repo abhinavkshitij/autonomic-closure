@@ -16,7 +16,7 @@ program tryfft
   real(KIND=8)                            :: twopi,x,y
   integer                                 :: i,j,k,mode
   
-  twopi = 2.*acos(-1.)
+  twopi = 2.d0 * pi
 
   call system ('clear')
    

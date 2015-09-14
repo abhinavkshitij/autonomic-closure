@@ -3,6 +3,8 @@ module fourier
 use, intrinsic :: iso_c_binding
 include '/opt/fftw-3.3.4/include/fftw3.f03'
 
+real(8),parameter :: pi = acos(-1.d0)
+
 contains
 
 subroutine window(GRID,scale,filter)

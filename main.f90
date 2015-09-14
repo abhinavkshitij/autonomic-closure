@@ -7,11 +7,12 @@ program main
 
 use fourier
 
+
 implicit none
 
 ! Define global parameters:
-!integer,parameter           :: GRID=32
-!integer,parameter           :: LES_scale=16, test_scale=16
+integer,parameter           :: GRID=32
+integer,parameter           :: LES_scale=8, test_scale=16
 
 ! Loop indices:
 integer                     :: i,j,k
@@ -20,11 +21,11 @@ integer                     :: i,j,k
 real,dimension(1:GRID,1:GRID,1:GRID) :: u1_DNS, u2_DNS, u3_DNS
 real,dimension(1:GRID,1:GRID,1:GRID) :: LES
 
-!call readfile(GRID,u1_DNS,u2_DNS,u3_DNS)
+call readfile(GRID,u1_DNS,u2_DNS,u3_DNS)
 
 call window(GRID,LES_scale,LES)
 
-call matrixview(LES)
+call matrixview(LES) ! Change the matrix size in the format!
 print *, '' ! Blank Line
 call fftshift (LES,GRID)
 

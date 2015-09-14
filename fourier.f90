@@ -1,8 +1,5 @@
 module fourier
 
-integer,parameter :: GRID=32
-integer, parameter :: LES_scale=16
-
 contains
 
 subroutine window(GRID,scale,filter)
@@ -67,12 +64,6 @@ print *, center
     end do
   end do
 
-! FORMAT TO PRINT MATRIX:
-!dims = shape(filter)
-!    do i=1,dims(1)
-!       write(*,20) int(filter(i,17,:)) ! Print the ith row
-!    end do
-! 20  format (33(i2))  
 
 !Sanity checks:
 print*, 'Sanity Checks:'
@@ -174,11 +165,6 @@ return
 end subroutine fftshift
 
 
-
-
-! To print results in matrix view:
-! Change format each time!!
-
 subroutine matrixview(array)
 implicit none
 
@@ -189,8 +175,9 @@ dims = shape(array)
     do i=1,dims(1)
        write(*,20) int(array(i,1,:)) ! Print the ith row                                                              
     end do
-20  format (33(i2))
-return
-end subroutine matrixview
+20  format (32(i2))
+    return
+  end subroutine matrixview
+
 
 end module fourier

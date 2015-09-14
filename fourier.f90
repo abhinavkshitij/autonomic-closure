@@ -1,7 +1,5 @@
 module fourier
 
-integer,parameter :: GRID=32
-integer, parameter :: LES_scale=16
 
 contains
 

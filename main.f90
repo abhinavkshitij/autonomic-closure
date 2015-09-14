@@ -10,8 +10,8 @@ use fourier
 implicit none
 
 ! Define global parameters:
-!integer,parameter           :: GRID=32
-!integer,parameter           :: LES_scale=16, test_scale=16
+integer,parameter           :: GRID=32
+integer,parameter           :: LES_scale=8, test_scale=16
 
 ! Loop indices:
 integer                     :: i,j,k

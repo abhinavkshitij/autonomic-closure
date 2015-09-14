@@ -1,8 +1,8 @@
 program main
 
 ! STATUS : Integrated with readfile.f90 as a subroutine. 9/11/2015 (Passed)
-!          Integrated with two .mod files. 9/13/2015.
-! Result : Testing
+!          Integrated with two .mod files. 9/13/2015.(Passed)
+! Result : Passed
  
 ! Notes  : 
 

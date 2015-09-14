@@ -3,6 +3,10 @@
 
 # Notes  : Runs with mpiexec -n 2 but reads the file twice.
 
+# Link with external libraries
+FFTW_DIR = /opt/fftw-3.3.4 
+FFTW_LIB = -L$(FFTW_DIR)/lib -lfftw3 -lm 
+
 FC      = gfortran
 FFLAGS  = -O3
 OBJECTS = fourier.o fileio.o main.o 

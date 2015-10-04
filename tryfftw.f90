@@ -1,61 +1,69 @@
 program tryfft
 
-  !! CODE AND CONVENTIONS FOR MODERN FORTRAN
-  
+ 
   use fourier
 
-  integer, parameter                      :: GRID = 16
-  integer(C_INT), parameter               :: M = GRID, N = GRID
+  integer(C_INT), parameter                      :: GRID = 8
+  integer(C_INT), parameter                      :: M = GRID, N = GRID
   
   real(C_DOUBLE),dimension(0:M-1,0:N-1)           :: IN, IN2
-  complex(C_DOUBLE_COMPLEX),dimension(M/2+1,N):: OUT
-  type(C_PTR)                             :: plan_f, plan_b, data
+  complex(C_DOUBLE_COMPLEX),dimension(0:M/2+1,0:N):: OUT
+  type(C_PTR)                                     :: plan_f, plan_b, data
         
              
   real(KIND=8)                            :: twopi,x,y
   integer                                 :: i,j,k,mode
   
  ! twopi = 2.d0*acos(-1.d0)
-twopi = 2.d0*pi
+  twopi = 2.d0*pi
   call system ('clear')
    
   100 format(i4,',',f12.5)
 
 !!$ ALLOCATE MEMORY:
 
-!!$  data = fftw_alloc_complex(int((M/2)+1 * N, C_SIZE_T))
-!!$  call c_f_pointer(data, IN, [2*(M/2+1),N])
-!!$  call c_f_pointer(data, OUT, [M/2+1, N])
-!!$
+! data = fftw_alloc_complex(int((M/2)+1 * N, C_SIZE_T))
+! call c_f_pointer(data, IN, [2*(M/2+1),N])
+! call c_f_pointer(data, OUT, [M/2+1, N])
+
   
 !!$ DEFINE FUNCTION:
   
 do j=0,N-1
    do i=0,M-1
-        x = twopi*real(j) / real(M)
-        y = twopi*real(i) / real(N)
+        x = twopi*real(i) / real(M)
+        y = twopi*real(j) / real(N)
         
-        IN(i,j) = sin(x) + sin(y)
+        IN(i,j) = cos(1.d0*x) + 2.d0*cos(2.d0*y) +1.
         
-     write(*,*) i,j,IN(i,j) 
+    ! write(*,*) i,j,IN(i,j) 
   end do
 end do
 
 !!$ FORWARD FFT:
 
-  plan_f = fftw_plan_dft_r2c_2d(N,M,IN,OUT,FFTW_ESTIMATE)
-  call fftw_execute_dft_r2c(plan_f,IN,OUT)
+ plan_f = fftw_plan_dft_r2c_2d(N,M,IN,OUT,FFTW_ESTIMATE)
+ call fftw_execute_dft_r2c(plan_f,IN,OUT)
+
+!plan_f = fftw_plan_dft_2d(N,M,IN,OUT,FFTW_ESTIMATE)  
+!call fftw_execute(plan_f,IN,OUT)
 
   OUT = OUT / real(M*N,KIND=8) ! Normalize by MxN
 
  !! write(*,*) "Fourier coefficients after forward FFT"
+mode =0
+  do j=0,size(OUT,dim=1)
+     do i=0,size(OUT,dim=2)
+!     mode=j-1
+     write(*,10) i,j,OUT(i,j)
+mode=mode+1
+!write(*,*) i,j,OUT(mod(i,8),mod(j,8))
+10 format (i5,i5,f16.8,f16.8) 
+  end do
+  end do
 
-  do j=1,N
-     do i=1,M
-     mode=j-1
-     write(*,*) mode,OUT(1,k)
-  end do
-  end do
+
+
 
 !!$ !! write (*,*) "applying filter at mode 1,2 to test "
 !!$  do k=1,N
@@ -73,11 +81,11 @@ end do
 
  !! write(*,*) "Data after backward FFT"
 
-  do j=0,N-1
-     do i=0,M-1
-        write(*,*) i,j,IN2(i,j)
-     end do    
-  end do
+!!$  do j=0,N-1
+!!$     do i=0,M-1
+!!$        write(*,*) i,j,IN2(i,j)
+!!$     end do    
+!!$  end do
 
   ! Destroy plans:
   call fftw_destroy_plan(plan_f)

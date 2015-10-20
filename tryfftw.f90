@@ -14,9 +14,10 @@ program tryfft
   real(C_DOUBLE_COMPLEX),dimension(N):: IN,OUT,IN2                !! IN for input vector , OUT for output vector after FFT
   real(C_DOUBLE)::              twopi,xj
   integer(C_INT)::              j,k,mode
-  
-  twopi = 2.*acos(-1.)
 
+  
+ ! twopi = 2.d0*acos(-1.d0)
+  twopi = 2.d0*pi
   call system ('clear')
   
   !! Discrete data of function f(x)=sin(2x)
@@ -27,13 +28,16 @@ program tryfft
   write(*,*) in(i)
 enddo
 
+
   do j=0,N-1
      xj = twopi*real(j) / real(N)
      IN(j) = sin(xj)
-     write(1,100) j,IN(j) 
+     write(1,100) j,IN(j)         
+
   end do
 
  !! write(*,*) "Original data"
+
 
 !!$  do j=1,N
 !!$     write(*,100) j,IN(j)
@@ -48,6 +52,7 @@ enddo
   call dfftw_execute_r2r(PLAN_FWD,IN,OUT)
 
   OUT = OUT / real(N,KIND=8) ! Normalize
+
 
  !! write(*,*) "Fourier coefficient after forward FFT"
 
@@ -71,9 +76,12 @@ enddo
 
  !! write(*,*) "Data after backward FFT"
 
+
   do j=1,N
      write(4,100) j,IN2(j)
   end do
+
+
 
   ! Destroy the plans
   call dfftw_destroy_plan(PLAN_FWD)

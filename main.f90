@@ -13,14 +13,14 @@ implicit none
 
 ! Define global parameters:
 integer,parameter           :: GRID=32
-integer,parameter           :: LES_scale=8, test_scale=16
+integer,parameter           :: LES_scale=8, test_scale=4
 
 ! Loop indices:
 integer                     :: i,j,k
 
 ! Define velocities:
 real,dimension(1:GRID,1:GRID,1:GRID) :: u1_DNS, u2_DNS, u3_DNS
-real,dimension(1:GRID,1:GRID,1:GRID) :: LES
+real,dimension(1:GRID,1:GRID,1:GRID) :: LES,test
 
 call readfile(GRID,u1_DNS,u2_DNS,u3_DNS)
 call window(LES,GRID,LES_scale)

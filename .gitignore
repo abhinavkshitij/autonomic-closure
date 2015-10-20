@@ -6,3 +6,4 @@ matlab.sh
 *.o
 *.mod
 *.exe
+*.h5

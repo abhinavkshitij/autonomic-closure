@@ -1,16 +1,18 @@
 module fourier
-  
+
 contains
 
 subroutine window(filter,GRID,scale)
 
 
-! STATUS : > Test for FFTW layout.
-!          > Passed test for center in spectral space 
+! STATUS : > Passed test for FFTW layout.
+!          > Passed test for center in spectral space.
 !          > Check for the axes -- should be in alignment with FFTW output.
-! Result :
+! Result : Passed
+!
 ! Notes  : 1) Create and define variables in a module. 
-!          2) Needs to be parallelized
+!          2) The filter creation can be parallelized (not needed right now).
+!          3) Include options for other filters.
 !      
 ! Layout: The center should lie at an unit offset from the geometric center.
 !         This is because the DC component occupies the first index. 
@@ -35,16 +37,15 @@ implicit none
  real,dimension(1:GRID,1:GRID,1:GRID),intent(inout):: filter
 
 !! Define local variables: 
-integer           :: center 
-real              :: distance
-
-real,allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
+ integer           :: center 
+ real              :: distance
+ real,allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
 
 ! Loop Indices:
   integer              :: i,j,k
 
 ! Initialize window :
-  filter = 1.d0
+  filter = 0.d0
   center = 0.5*GRID+1.d0
 
 print *, center
@@ -55,10 +56,10 @@ print *, center
       do i = 1,GRID
       
        distance = sqrt( real((i-center)**2) &
-                   +real((j-center)**2)&
-                   +real((k-center)**2) )
-   
-       if (distance.gt.scale) filter(i,j,k) = 0.d0
+                       +real((j-center)**2) &
+                       +real((k-center)**2) )
+       
+       if (distance.le.scale) filter(i,j,k) = 1.d0
          
       end do
     end do
@@ -75,6 +76,10 @@ write(*,*) filter(center,center-scale-1,center) ! should be 0
 
 return
 end subroutine window
+
+
+
+!----------------------------------------------------!
 
 
 

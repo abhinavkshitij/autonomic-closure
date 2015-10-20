@@ -23,8 +23,7 @@ real,dimension(1:GRID,1:GRID,1:GRID) :: u1_DNS, u2_DNS, u3_DNS
 real,dimension(1:GRID,1:GRID,1:GRID) :: LES
 
 call readfile(GRID,u1_DNS,u2_DNS,u3_DNS)
-
-call window(GRID,LES_scale,LES)
+call window(LES,GRID,LES_scale)
 
 call matrixview(LES) ! Change the matrix size in the format!
 print *, '' ! Blank Line

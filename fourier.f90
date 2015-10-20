@@ -1,8 +1,8 @@
 module fourier
-
+  
 contains
 
-subroutine window(GRID,scale,filter)
+subroutine window(filter,GRID,scale)
 
 
 ! STATUS : > Test for FFTW layout.

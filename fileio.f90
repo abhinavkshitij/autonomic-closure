@@ -10,11 +10,10 @@ subroutine readfile(GRID,u1_DNS,u2_DNS,u3_DNS)
   implicit none
   
 ! Define arguments:
-  integer,intent(in)  :: GRID
+  integer,intent(in)   :: GRID
   real,dimension(1:GRID,1:GRID,1:GRID),intent(inout):: u1_DNS ,u2_DNS, u3_DNS
 
 ! Define local variables:
-
   integer                             :: i,j,k,  fID, position
   real,allocatable,dimension(:,:,:)   :: temp 
 

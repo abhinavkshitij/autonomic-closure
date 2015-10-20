@@ -11,7 +11,7 @@ program tryfft
 
   integer(C_INT),parameter::    N=16                      !! sample size
   type(C_PTR)::                 PLAN_FWD, PLAN_BCK        !! forward and backward plans
-  real(C_DOUBLE),dimension(N):: IN,OUT,IN2                !! IN for input vector , OUT for output vector after FFT
+  real(C_DOUBLE_COMPLEX),dimension(N):: IN,OUT,IN2                !! IN for input vector , OUT for output vector after FFT
   real(C_DOUBLE)::              twopi,xj
   integer(C_INT)::              j,k,mode
   
@@ -22,13 +22,11 @@ program tryfft
   !! Discrete data of function f(x)=sin(2x)
   !! Here an explicit function has been taken for the test case. The data will be read from directly fed to IN
 
-  100 format(i4,',',f12.5)
+  do i=1,N
+  in(i) = cmplx(i,0.0)
+  write(*,*) in(i)
+enddo
 
-  open (unit=1,file="fft_F.csv")
-  open (unit=2,file="fft_mode.csv")
-  open (unit=3,file="fft_filter.csv")
-  open (unit=4,file="fft_B.csv")
-  
   do j=0,N-1
      xj = twopi*real(j) / real(N)
      IN(j) = sin(xj)

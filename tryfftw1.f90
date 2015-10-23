@@ -5,11 +5,11 @@ program tryfft1
 !!$  include 'fftw3.f03'
 
   !use, intrinsic :: iso_c_binding
-  use fftw
+ ! use fftw
   use fourier
  
 implicit none
-integer,parameter           :: GRID=16
+integer,parameter           :: GRID=256
 integer,parameter           :: LES_scale=4, test_scale=16
 integer(C_INT) :: n,i,j,k
 type(C_PTR)::plan
@@ -20,7 +20,7 @@ real(C_DOUBLE)::              twopi,xj
 real,dimension(1:GRID,1:GRID,1:GRID) :: LES
 
 
-n = 16
+n = 256
 twopi = 2.*acos(-1.)
 allocate(in(n,n,n))
 allocate(out(n,n,n))
@@ -32,7 +32,7 @@ do j=1,n
    do i=1,n
       in(i,j,k) = cmplx(2.*sin(real(2.*twopi*i/n)) + &
                            sin(real(twopi*j/n)) + &
-                       4.*sin(real(twopi*k/n)),0.0)
+                       4.*sin(real(8.*twopi*k/n)),0.0)
 enddo
 enddo
 enddo
@@ -44,7 +44,7 @@ enddo
 !!$enddo
 !!$enddo
 print*, real(in(10,10,10))
-
+print*, twopi*0.5d0
 ! Forward Fourier transform
 call dfftw_plan_dft_3d(plan,n,n,n,in,out,FFTW_FORWARD,FFTW_ESTIMATE)
 call dfftw_execute(plan)
@@ -62,13 +62,13 @@ print*, LES_cmplx(1,1,1)
 
 out = out*LES_cmplx
 
-do k=1,n
-do j=1,n
-do i=1,n
-  write(*,*) i,j,k,out(i,j,k)/n**3
-enddo
-enddo
-enddo
+!!$do k=1,n
+!!$do j=1,n
+!!$do i=1,n
+!!$  write(*,*) i,j,k,out(i,j,k)/n**3
+!!$enddo
+!!$enddo
+!!$enddo
  
 
 ! Inverse Fourier transform

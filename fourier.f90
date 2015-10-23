@@ -1,19 +1,17 @@
 module fourier
-
+  use fileio
+  use, intrinsic :: iso_c_binding
+  include '/opt/fftw-3.3.4/include/fftw3.f03' !! FOR KEYWORDS IN FFTW ARGUMENT LIST
 contains
 
-subroutine window(filter,GRID,scale)
-
-
+subroutine sharpFilter(filter,scale)
 ! STATUS : > Passed test for FFTW layout.
 !          > Passed test for center in spectral space.
 !          > Check for the axes -- should be in alignment with FFTW output.
 ! Result : Passed
-!
 ! Notes  : 1) Create and define variables in a module. 
 !          2) The filter creation can be parallelized (not needed right now).
-!          3) Include options for other filters.
-!      
+!          3) Include options for other filters.   
 ! Layout: The center should lie at an unit offset from the geometric center.
 !         This is because the DC component occupies the first index. 
 ! 
@@ -31,60 +29,45 @@ subroutine window(filter,GRID,scale)
 
     
 implicit none
+ integer, intent(in)                                 :: scale
+ real(kind=8),dimension(GRID,GRID,GRID),intent(inout):: filter
 
-! Define arguments:
- integer, intent(in)  :: GRID,scale
- real,dimension(1:GRID,1:GRID,1:GRID),intent(inout):: filter
+ integer                                   :: center 
+ real(kind=8)                              :: distance
+ real(kind=8),allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
+ integer                                   :: i,j,k
 
-!! Define local variables: 
- integer           :: center 
- real              :: distance
- real,allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
+! Initialize filter :
+  filter = 0.
+  center = 0.5*GRID+1.
 
-! Loop Indices:
-  integer              :: i,j,k
-
-! Initialize window :
-  filter = 0.d0
-  center = 0.5*GRID+1.d0
-
-print *, center
-
-! Create window:
+! Create spectrally sharp filter:
   do k = 1,GRID
     do j = 1,GRID
-      do i = 1,GRID
-      
+       do i = 1,GRID
+          
        distance = sqrt( real((i-center)**2) &
                        +real((j-center)**2) &
                        +real((k-center)**2) )
-       
-       if (distance.le.scale) filter(i,j,k) = 1.d0
+       if (distance.le.scale) filter(i,j,k) = 1.
          
       end do
     end do
   end do
 
-
 !Sanity checks:
-print*, 'Sanity Checks:'
-write(*,*) filter(center+scale+1,center,center) ! should be 0
-write(*,*) filter(center,center-scale,center)   ! should be 1
-write(*,*) filter(center+scale,center,center)   ! should be 1
-write(*,*) filter(center,center,center+scale)   ! should be 1
-write(*,*) filter(center,center-scale-1,center) ! should be 0
-
+!!$print*, 'Sanity Checks:'
+!!$write(*,20) filter(center+scale+1,center,center) ! should be 0
+!!$write(*,20) filter(center,center-scale,center)   ! should be 1
+!!$write(*,20) filter(center+scale,center,center)   ! should be 1
+!!$write(*,20) filter(center,center,center+scale)   ! should be 1
+!!$write(*,20) filter(center,center-scale-1,center) ! should be 0
+!!$20 format(f8.0)
 return
-end subroutine window
+end subroutine sharpFilter
 
 
-
-!----------------------------------------------------!
-
-
-
-subroutine fftshift(filter,GRID)
-
+subroutine fftshift(filter)
 ! fftshift:
 ! 
 ! Layout:                     k 
@@ -101,11 +84,10 @@ subroutine fftshift(filter,GRID)
 ! For fftshift, the swaps needed are:
 
 ! Define arguments:
-integer :: GRID
-real,dimension(1:GRID,1:GRID,1:GRID),intent(inout):: filter
+real(kind=8),dimension(GRID,GRID,GRID),intent(inout):: filter
 
 ! Define local variables: 
-real,allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
+real(kind=8),allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
 integer                           :: center
 
 
@@ -164,25 +146,46 @@ filter( 1:(center-1), center:GRID, center:GRID)   = F
 filter( 1:(center-1), center:GRID , 1:(center-1) )= G
 filter( 1:(center-1), 1:(center-1), 1:(center-1) )= H
 
-
 deallocate (temp,A,B,C,D,E,F,G,H)
 return
 end subroutine fftshift
 
 
-subroutine matrixview(array)
-implicit none
+function coarseGrain(array,filter)
+! STATUS : > Passed test with MATLAB results (10/21/2015).        
+! Result : Passed
+! Notes  : 1) Check for precision errors      
+  implicit none
+  
+  integer(C_INT)           :: n 
+  type(C_PTR)              :: plan
 
-real, dimension(:,:,:), intent(inout)::array
-integer :: i, dims(3)
+  real(kind=8),dimension(GRID,GRID,GRID)       :: array,filter,coarseGrain
+  double complex, allocatable,dimension(:,:,:) :: in_cmplx, out_cmplx
 
-dims = shape(array)
-    do i=1,dims(1)
-       write(*,20) int(array(i,1,:)) ! Print the ith row                                                              
-    end do
-20  format (32(i2))
-    return
-  end subroutine matrixview
+  n = GRID
+  allocate(in_cmplx(GRID,GRID,GRID))
+  allocate(out_cmplx(GRID,GRID,GRID))
+  in_cmplx = cmplx(array)
+  coarseGrain = 0.d0
+ 
+  ! Forward Fourier transform
+  call dfftw_plan_dft_3d(plan,n,n,n,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
+  call dfftw_execute(plan)
+  call dfftw_destroy_plan(plan)
+  
+  ! Apply filter
+  out_cmplx = out_cmplx * filter !! Complex matrix * real(kind=8) matrix
+ 
+  ! Inverse Fourier transform
+  call dfftw_plan_dft_3d(plan,n,n,n,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
+  call dfftw_execute(plan)
+  call dfftw_destroy_plan(plan)
+  
+  ! Normalization
+  coarseGrain = real(in_cmplx)/dble(n**3)
+  deallocate(in_cmplx,out_cmplx)
+end function coarseGrain
 
 
 end module fourier

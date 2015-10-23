@@ -1,38 +1,46 @@
 program main
-
 ! STATUS : Integrated with readfile.f90 as a subroutine. 9/11/2015 (Passed)
 !          Integrated with two .mod files. 9/13/2015.(Passed)
-! Result : Passed
- 
+! Result : Passed 
 ! Notes  : 
 
 use fourier
 use fileio
-
 implicit none
 
 ! Define global parameters:
-integer,parameter           :: GRID=32
-integer,parameter           :: LES_scale=8, test_scale=4
 
-! Loop indices:
-integer                     :: i,j,k
+integer,parameter           :: LES_scale=16, test_scale=4
+integer                     :: i,j,k,DIM
 
 ! Define velocities:
-real,dimension(1:GRID,1:GRID,1:GRID) :: u1_DNS, u2_DNS, u3_DNS
-real,dimension(1:GRID,1:GRID,1:GRID) :: LES,test
+real(kind=4),dimension(1:3,GRID,GRID,GRID) :: u_s
+real(kind=8),dimension(1:3,GRID,GRID,GRID) :: u
+real(kind=8),dimension(GRID,GRID,GRID) :: u1_t, u2_t, u3_t
+real(kind=8),dimension(GRID,GRID,GRID) :: u1_th, u2_th, u3_th
+real(kind=8),dimension(GRID,GRID,GRID) :: LES,test
 
-call readfile(GRID,u1_DNS,u2_DNS,u3_DNS)
-call window(LES,GRID,LES_scale)
 
-call matrixview(LES) ! Change the matrix size in the format!
-print *, '' ! Blank Line
-call fftshift (LES,GRID)
+call binRead(u_s,DIM=1)
+u = u_s/1.d2
 
-call matrixview(LES)
+print *, u_s(1,1,1,1) , u(1,1,1,1)
+print *, u_s(1,1,1,10) , u(1,1,1,10)
 
-!print *, u1_DNS(1,1,1)
-!print *, u2_DNS(128,128,128)
-!print *, u3_DNS(1,128,32)
+call hdf5Read()
+stop
+!!$call createFilter(LES,LES_scale)
+!!$call createFilter(test,test_scale)
+!!$call fftshift(LES)
+!!$call fftshift(test)
+!!$
+!!$u1_t = sharpFilter(u,LES)
+!!$u1_th = sharpFilter(u1_t,test)
+!!$
+!!$
+!!$print *, '' ! Blank Line
+!!$print *, u1(1,1,1,10)
+!!$print *, u1_t(1,1,1,10)
+!!$print *, u1_th(1,1,1,10)
  
 end program main

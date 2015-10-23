@@ -1,54 +1,31 @@
-# STATUS : Tested on 9/11/15. 
-# Result : Passed
+# STATUS : Operational 
+# Notes : Make the links more concise 
 
 # external library directories
 FFTW_DIR = /opt/fftw-3.3.4
 HDF5_DIR = /opt/hdf5-1.8.14
 
-# external library link and include commands
+# FFTW 
 FFTW_INC = -I$(FFTW_DIR)/include
 FFTW_LIB = -L$(FFTW_DIR)/lib -lfftw3 -lm
 
+# HDF5
 HDF5_INC = -I$(HDF5_DIR)/include
 HDF5_LIB = -L$(HDF5_DIR)/lib -lhdf5 -lhdf5_fortran
 
-# Link with external libraries
-FFTW_DIR = /opt/fftw-3.3.4
-
-FFTW_INC = -I$(FFTW_DIR)/include
-FFTW_LIB = -L$(FFTW_DIR)/lib -lfftw3 -lm 
-
 FC      = gfortran
+FFLAGS  = -O3
 
-FLIBS = $(FFTW_LIB) $(HDF5_LIB)
-FFLAGS  = -O3 $(HDF5_INC) $(FFTW_INC)
-OBJECTS_FFTW = fftw.o fourier.o tryfftw1.o
-OBJECTS_HDF5 = h5_crtdat.o
+.PHONY : main clean
 
-
-.PHONY : ALES h5test clean
-
-
-
-# MAIN:
 main : main.exe
 	./main.exe
 
-
-ALES.exe: $(OBJECTS_FFTW)
-	$(FC) $(OBJECTS_FFTW) -o ALES.exe $(FLIBS)
-
-h5test : h5test.exe
-	./h5test.exe
-
-h5test.exe: $(OBJECTS_HDF5)
-	$(FC) $(OBJECTS_HDF5) -o h5test.exe $(FLIBS)
+main.exe: fileio.o fourier.o main.o
+	$(FC) -o main.exe main.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB)
 
 %.o : %.f90
-	$(FC) $(FFLAGS) -c $<  
-#%.mod: %.f90
-#	$(FC) $(FFLAGS) -c $<
-
+	$(FC) $(FFLAGS) -c $< $(HDF5_INC) $(FFTW_INC)
 
 clean:
 	rm -f *.o *.exe  *.mod *# *~ 

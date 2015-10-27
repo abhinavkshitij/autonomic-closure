@@ -1,4 +1,4 @@
-# STATUS : Operational 
+# STATUS : Integrating LAPACK links
 # Notes : Make the links more concise 
 
 # external library directories
@@ -14,6 +14,7 @@ HDF5_INC = -I$(HDF5_DIR)/include
 HDF5_LIB = -L$(HDF5_DIR)/lib -lhdf5 -lhdf5_fortran
 
 FC      = gfortran
+LFLAGS  = -lblas -llapack
 FFLAGS  = -O3
 
 .PHONY : main clean
@@ -21,13 +22,12 @@ FFLAGS  = -O3
 main : main.exe
 	./main.exe
 
-main.exe: fileio.o fourier.o main.o
-	$(FC) -o main.exe main.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB)
+main.exe: fileio.o fourier.o linsolve.o main.o
+	$(FC) -o main.exe main.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB) linsolve.o
 
 %.o : %.f90
 	$(FC) $(FFLAGS) -c $< $(HDF5_INC) $(FFTW_INC)
 
 clean:
 	rm -f *.o *.exe  *.mod *# *~ 
-
 

@@ -8,12 +8,9 @@ integer                     :: i,j,k,DIM
 
 ! Define velocities:
 
-real(kind=8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
-real(kind=8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij,temp
-real(kind=8),allocatable,dimension(:,:,:) :: LES,test
-real(kind=8):: dev_t
+real(kind=8),allocatable,dimension(:,:,:,:) :: u
 integer :: n_u, n_uu
-integer,dimension(4) :: debug=(/0,1,1,1/)
+integer,dimension(4) :: debug=(/1,0,1,1/)
 
 
 !! Set debug flags for velocity components:
@@ -30,15 +27,18 @@ allocate(u(n_u,GRID,GRID,GRID))
 ! This is will result in a 16x16x16 test scale field
 ! This can be then safely used for a 8x8x8 field to find the h's
 
-call binRead(u,DIM=n_u)
-print*,shape(u)
-call cutout(u)
+if (debug(2).eq.1) then
+   call binRead(u,DIM=n_u)
+   print*,shape(u)
+   call cutout(u)
 
-print *, u(3,1,1,1)
-print *,shape(u)
+   print *, u(3,1,1,1)
+   print *,shape(u)
+   
+end if
 
-!call randAlloc()
-!stop
+call randAlloc()
+
 
 
 end program testCut

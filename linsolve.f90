@@ -22,7 +22,7 @@ subroutine init_random_seed()
 
   subroutine randAlloc()
 
-    ! Status: Under testing for repetition(10/24/2015)
+    ! Status:Begin testing for inverse random
     ! Notes: Need 378 random numbers from 1 to 512
     !      : Check for repetition
     implicit none

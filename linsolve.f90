@@ -1,7 +1,22 @@
 module linsolve
-  integer,parameter :: box = 8
-  integer,parameter :: boxCenter = (0.5*box+1)*(box**2) + (0.5*box)*(box)+ (0.5*box+1)
-  contains
+  ! Box attributes:
+  real , parameter  :: eps = 1e-3
+  integer,parameter :: box = 9
+  integer,parameter :: boxSize = box**3
+  integer,parameter :: bigHalf   = ceiling(0.5*real(box)+eps) ! for 8->5
+  integer,parameter :: smallHalf = floor(0.5*real(box)+eps)   ! for 8->4
+  integer,parameter :: boxCenter= smallHalf*box*(box+1) + bigHalf
+
+  ! Test field attributes:
+  integer,parameter :: testSize = 17
+  integer,parameter :: testcutSize = 2*(testSize+box)+1
+
+  ! Stencil attributes:
+  integer,parameter :: coloc2 = 27*14   ! For a 3x3x3 stencil
+  
+  
+contains
+
 subroutine init_random_seed()
     integer :: i, n, clock
     integer, dimension(:), allocatable :: seed
@@ -16,48 +31,38 @@ subroutine init_random_seed()
   end subroutine init_random_seed
 
 
-  subroutine randAlloc()
+  subroutine randAlloc(num)
 
-    ! Status:Begin testing for inverse random
-    ! Notes: Need 378 random numbers from 1 to 512
-    !      : Check for repetition
+    ! Status: Integrating with bounding box.
+    ! Notes: Creates a mask to skip cells randomly.
+    !      : Always retains the center point.
     implicit none
-    integer, parameter     :: nmax = 1000
-    integer, parameter     :: rand_n = box**3-378
-    real(kind=8) :: x    
-    integer      :: num(rand_n)
-    integer,dimension(box,box,box)::randomMatrix
-    integer      :: i,j,k,index,randomNum,c
 
-    c=0;num = 0 ; i=0
+    real(kind=8)            :: x 
+    integer, parameter      :: n = boxSize - coloc2 ! n=(512-378) = 134
+    integer                 :: randomNum, num(n)
+    integer,dimension(box,box,box):: randomMatrix
+    integer                 :: i, j, k, index, c
+    logical,parameter       :: debug = .false.
+
+    num = 0 ; i=0
+    
     call init_random_seed()
     do
        call random_number(x)
-       randomNum = nint(511*x)+1     !! 511*x + 1
+       randomNum = nint( (boxSize-1) * x ) + 1    
       
-       if(any(num.eq.randomNum).or.(randomNum.eq.boxCenter)) then
-          c = c+1
-          cycle
-       end if
-       
-
-     
+       if(any(num.eq.randomNum).or.(randomNum.eq.boxCenter)) cycle
+          
        num(i) = randomNum
        i = i+1
-       if (i.gt.rand_n)exit
-       
+       if (i.gt.n) exit   
     end do
 
-     
-    
-
-    print *, "         x   -initial      "
-    print *, num
-    
     call bubblesort(num)
-     print *, "         x -after unique sort        "
-     print *, num
 
+    !!$    ! Activate for debugging:
+    if (debug) then
     c=0;index=1;randomMatrix=0
     do k=1,box
        do j=1,box
@@ -70,20 +75,26 @@ subroutine init_random_seed()
           enddo
        enddo
     enddo
-    print*,'randomMatrix'
-    do k=1,box
-    do i=1,box
-       print*,randomMatrix(i,:,k)
-    end do
-       print*,''
-    end do
+
+
+       print*,'randomMatrix'
+       do k=1,box
+          do i=1,box
+             print*,randomMatrix(i,:,k)
+          end do
+          print*,''
+       end do
+       print*,'boxCenter',boxCenter
+    end if
  
-    print*,count(randomMatrix.gt.0.)
-    
+!! Check for runtime errors:
+    !if(randomMatrix(293).ne.0) print*,'Error: Random number generation'
+     
   return       
   end subroutine randAlloc
   
 
+  
   subroutine bubblesort(array)
     implicit none
     integer, dimension(:)::array
@@ -103,6 +114,11 @@ subroutine init_random_seed()
     return
   end subroutine bubblesort
 
+
+
+
+
+  
   
 end module linsolve
 

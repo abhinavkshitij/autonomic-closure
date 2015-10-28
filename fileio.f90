@@ -1,6 +1,6 @@
 module fileio  
   use HDF5  
-  integer, parameter :: GRID=256 , cutSize =32
+  integer, parameter :: GRID=256
 contains
   
 subroutine binRead(u_dpk,DIM) 
@@ -109,24 +109,7 @@ integer :: i, lim, fileID
   return
   end subroutine matrixview
 
-  subroutine cutout(array)
-    implicit none
-   
-    real(kind=8), allocatable, dimension(:,:,:,:) :: array,temp
-    integer :: lBound,uBound,n_u=3
-
-    lBound = 0.5*(GRID-cutSize)
-    uBound = 0.5*(GRID +cutSize)-1
-    print*, array(3,112,112,112)
-    print*, lBound , uBound
-    allocate (temp(n_u,cutSize,cutSize,cutSize))
-    temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
-    deallocate(array)
-    allocate(array(n_u,cutSize,cutSize,cutSize))
-    array = temp
-    print *, array(3,1,1,1)
-    return
-  end subroutine cutout
+  
   
 
 end module fileio

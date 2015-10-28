@@ -1,9 +1,10 @@
 module linsolve
+  use fileio
 
   integer,parameter :: stride = 2
   
   ! Stencil attributes:
-  integer,parameter :: coloc2 = 27*14   ! For a 3x3x3 stencil
+  integer,parameter :: coloc2 = 27*10   ! For a 3x3x3 stencil
   
   ! Box attributes:
   real , parameter  :: eps = 1e-3
@@ -11,20 +12,46 @@ module linsolve
   integer,parameter :: boxSize = box**3
   integer,parameter :: bigHalf   = ceiling(0.5*real(box)+eps) ! for 8->5
   integer,parameter :: smallHalf = floor(0.5*real(box)+eps)   ! for 8->4
-  integer,parameter :: boxCenter = smallHalf*box*(box+1) + bigHalf
-  integer,parameter :: boxLower =  stride*(bigHalf-1)
-  integer,parameter :: boxUpper =  stride*(box-bigHalf)
+  integer,parameter :: boxCenter = smallHalf * box*(box+1) + bigHalf
+  integer,parameter :: boxLower =  stride * (bigHalf-1)
+  integer,parameter :: boxUpper =  stride * (box-bigHalf)
 
   ! Test field attributes: 
-  integer,parameter :: testSize = 10
-  integer,parameter :: testcutSize = stride*(testSize+box)+1
-  integer,parameter :: testLower = stride*bigHalf+1
-  integer,parameter :: testUpper = stride*(bigHalf-1+testSize)+1
- 
+  integer,parameter :: testSize = 17
+  integer,parameter :: testcutSize = stride*(testSize+box) + 1
+  integer,parameter :: testLower = stride*bigHalf + 1
+  integer,parameter :: testUpper = stride*(bigHalf-1+testSize) + 1
 
+ 
+ 
   
 contains
 
+subroutine cutout(array,n_u)
+    implicit none
+   
+    real(kind=8), allocatable, dimension(:,:,:,:),intent(inout) :: array
+    integer, intent(in) :: n_u
+    
+    real(kind=8), allocatable, dimension(:,:,:,:):: temp
+    integer :: lBound,uBound
+
+    lBound = 0.5*(GRID - testcutSize)
+    uBound = 0.5*(GRID + testcutSize) - 1
+    
+    print*, array(n_u,lBound,lBound,lBound)
+    print*, 'lBound',lBound , 'uBound',uBound
+    
+    allocate (temp(n_u,testcutSize,testcutSize,testcutSize))
+    temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
+    deallocate(array)
+    allocate(array(n_u,testcutSize,testcutSize,testcutSize))
+    array = temp
+    
+    print *, array(n_u,1,1,1)
+    return
+  end subroutine cutout
+  
 subroutine init_random_seed()
     integer :: i, n, clock
     integer, dimension(:), allocatable :: seed
@@ -71,7 +98,7 @@ subroutine init_random_seed()
      call bubblesort(num) ! Remove in real case.Keep for testing
 
     !!$    ! Activate for debugging:
-    if (debug) then
+  if (debug) then
     c=0;index=1;randomMatrix=0
     do k=1,box
        do j=1,box
@@ -84,8 +111,7 @@ subroutine init_random_seed()
           enddo
        enddo
     enddo
-
-
+ 
        print*,'randomMatrix'
        do k=1,box
           do i=1,box
@@ -94,7 +120,7 @@ subroutine init_random_seed()
           print*,''
        end do
        print*,'boxCenter',boxCenter
-    end if
+  end if
      
   return       
   end subroutine randAlloc

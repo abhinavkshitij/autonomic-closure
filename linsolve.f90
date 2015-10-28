@@ -1,19 +1,27 @@
 module linsolve
-  ! Box attributes:
-  real , parameter  :: eps = 1e-3
-  integer,parameter :: box = 9
-  integer,parameter :: boxSize = box**3
-  integer,parameter :: bigHalf   = ceiling(0.5*real(box)+eps) ! for 8->5
-  integer,parameter :: smallHalf = floor(0.5*real(box)+eps)   ! for 8->4
-  integer,parameter :: boxCenter= smallHalf*box*(box+1) + bigHalf
 
-  ! Test field attributes:
-  integer,parameter :: testSize = 17
-  integer,parameter :: testcutSize = 2*(testSize+box)+1
-
+  integer,parameter :: stride = 2
+  
   ! Stencil attributes:
   integer,parameter :: coloc2 = 27*14   ! For a 3x3x3 stencil
   
+  ! Box attributes:
+  real , parameter  :: eps = 1e-3
+  integer,parameter :: box = 8
+  integer,parameter :: boxSize = box**3
+  integer,parameter :: bigHalf   = ceiling(0.5*real(box)+eps) ! for 8->5
+  integer,parameter :: smallHalf = floor(0.5*real(box)+eps)   ! for 8->4
+  integer,parameter :: boxCenter = smallHalf*box*(box+1) + bigHalf
+  integer,parameter :: boxLower =  stride*(bigHalf-1)
+  integer,parameter :: boxUpper =  stride*(box-bigHalf)
+
+  ! Test field attributes: 
+  integer,parameter :: testSize = 10
+  integer,parameter :: testcutSize = stride*(testSize+box)+1
+  integer,parameter :: testLower = stride*bigHalf+1
+  integer,parameter :: testUpper = stride*(bigHalf-1+testSize)+1
+ 
+
   
 contains
 
@@ -59,7 +67,8 @@ subroutine init_random_seed()
        if (i.gt.n) exit   
     end do
 
-    call bubblesort(num)
+    
+     call bubblesort(num) ! Remove in real case.Keep for testing
 
     !!$    ! Activate for debugging:
     if (debug) then
@@ -86,9 +95,6 @@ subroutine init_random_seed()
        end do
        print*,'boxCenter',boxCenter
     end if
- 
-!! Check for runtime errors:
-    !if(randomMatrix(293).ne.0) print*,'Error: Random number generation'
      
   return       
   end subroutine randAlloc

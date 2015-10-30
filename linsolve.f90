@@ -4,7 +4,7 @@ module linsolve
   integer,parameter :: stride = 2
   
   ! Stencil attributes:
-  integer,parameter :: coloc2 = 27*9   ! For a 3x3x3 stencil
+  integer, parameter :: coloc2 = 27*9   ! For a 3x3x3 stencil
   
   ! Box attributes:
   real , parameter  :: eps = 1e-3
@@ -21,10 +21,7 @@ module linsolve
   integer,parameter :: testcutSize = stride*(testSize+box) + 1
   integer,parameter :: testLower = stride*bigHalf + 1
   integer,parameter :: testUpper = stride*(bigHalf-1+testSize) + 1
-
  
- 
-  
 contains
 
 subroutine cutout(array,n_u)
@@ -126,6 +123,79 @@ subroutine init_random_seed()
   end subroutine randAlloc
   
 
+  subroutine condition(A)
+    implicit none
+
+    integer, parameter :: n = coloc2
+    real(kind=8), dimension(n,n) :: A
+    real(kind=8), dimension(n) :: x,b
+    real(kind=8), dimension(:),allocatable ::work
+    
+    real(kind=8) :: errnorm, xnorm, rcond, anorm, colsum
+    integer :: i, info, lda, ldb, nrhs, j
+    integer, dimension(:),allocatable :: ipiv
+    integer, dimension(:),allocatable :: iwork
+    character, dimension(1) :: norm
+
+   
+    allocate(ipiv(n))
+    b = 1.d0
+    
+    ! compute 1-norm needed for condition number
+
+    anorm = 0.d0
+    do j=1,n
+        colsum = 0.d0
+        do i=1,n
+            colsum = colsum + abs(a(i,j))
+            enddo
+        anorm = max(anorm, colsum)
+        enddo
+    
+    nrhs = 1 ! number of right hand sides in b
+    lda = n  ! leading dimension of a
+    ldb = n  ! leading dimension of b
+
+    call dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
+
+    ! compute 1-norm of error
+    errnorm = 0.d0
+    xnorm = 0.d0
+    do i=1,n
+        errnorm = errnorm + abs(x(i)-b(i))
+        xnorm = xnorm + abs(x(i))
+    enddo
+
+    ! relative error in 1-norm:
+    errnorm = errnorm / xnorm
+
+
+    ! compute condition number of matrix:
+    ! note: uses A returned from dgesv with L,U factors:
+
+    allocate(work(4*n))
+    allocate(iwork(n))
+    norm = '1'  ! use 1-norm
+    call dgecon(norm,n,a,lda,anorm,rcond,work,iwork,info)
+
+    if (info /= 0) then
+        print *, "*** Error in dgecon: info = ",info
+        endif
+
+    print 201, n, 1.d0/rcond, errnorm
+201 format("For n = ",i4," the approx. condition number is ",e10.3,/, &
+           " and the relative error in 1-norm is ",e10.3)    
+
+    deallocate(ipiv)
+    deallocate(work,iwork)
+
+  end subroutine condition
+  
+
+
+
+
+  
   
   subroutine bubblesort(array)
     implicit none

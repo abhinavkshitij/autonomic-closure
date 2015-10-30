@@ -15,7 +15,7 @@ integer :: n_u
 integer :: n_uu
 integer :: randMask(boxSize-coloc2) !512-378=134; 512-270=240
 
-integer :: debug(4)=(/0,1,0,1/) 
+integer :: debug(4)=(/0,1,1,0/) 
 integer :: test_cut(testcutSize,testcutSize,testcutSize)
 integer :: i_test,   j_test,   k_test
 integer :: i_box,    j_box,    k_box
@@ -83,9 +83,9 @@ end if
 !!$      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
 
- do k_test = lim,testUpper,stride
-   do j_test = lim,testUpper,stride
-      do i_test = lim,testUpper,stride
+ do k_test = lim,lim,stride
+   do j_test = lim,lim,stride
+      do i_test = lim,lim,stride
          
          test_cut   = 0   
          rand_count = 0 
@@ -188,7 +188,7 @@ end do
 
 end if
 
-                        
+   call condition(A)                     
                            
                            
 

@@ -4,7 +4,7 @@ module linsolve
   integer,parameter :: stride = 2
   
   ! Stencil attributes:
-  integer,parameter :: coloc2 = 27*10   ! For a 3x3x3 stencil
+  integer,parameter :: coloc2 = 27*9   ! For a 3x3x3 stencil
   
   ! Box attributes:
   real , parameter  :: eps = 1e-3

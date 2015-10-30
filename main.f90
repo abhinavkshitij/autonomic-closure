@@ -11,7 +11,7 @@ use fileio
 use linsolve
 implicit none
 
-integer,parameter           :: LES_scale=64, test_scale=32
+integer,parameter           :: LES_scale=40, test_scale=20
 integer                     :: i,j,k,DIM
 
 ! Define velocities:
@@ -43,12 +43,12 @@ else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
 
-print*,shape(u)
-call cutout(u)
+!!$print*,shape(u)
+!!$call cutout(u)
 
 print *, u(3,1,1,1)
 print *,shape(u)
-stop
+
 
 !! Create LES and test scale sharp filters:
 allocate(LES(GRID,GRID,GRID))
@@ -70,9 +70,9 @@ filter:do i=1,n_u
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
 end do filter
 print *, '' ! Blank Line
-print *,'u', u(1,15,24,10)
-print *,'u_f', u_f(1,15,24,10)
-print *, 'u_t',u_t(1,15,24,10)
+print *,'u', u(3,200,156,129)
+print *,'u_f', u_f(3,200,156,129)
+print *, 'u_t',u_t(3,200,156,129)
 print*,''
 
 
@@ -100,13 +100,13 @@ deallocate(LES,test)
 
 
 !! Print tau_ij and T_ij to check:
-if (debug(1).eq.0)then
-   dev_t = (tau_ij(1,15,24,10)+tau_ij(4,15,24,10)+tau_ij(6,15,24,10))/3.d0
-   print*, tau_ij(1,15,24,10)-dev_t
+if (debug(3).eq.0)then
+   dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
+   print*, 'w/ deviatoric:',tau_ij(4,200,156,129)-dev_t
 else
-   print*, tau_ij(1,15,24,10)
+   print*, tau_ij(4,200,156,129)
 end if
-print*, T_ij(1,15,24,10)
+print*, T_ij(4,200,156,129)
 
 ! Take a cutout of the field(32x32x32)
 ! This is will result in a 16x16x16 test scale field

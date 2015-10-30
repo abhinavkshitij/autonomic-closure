@@ -9,7 +9,7 @@ integer                     :: i,j,k,p,DIM
 ! Define velocities:
 
 real(kind=8),allocatable,dimension(:,:,:,:) :: u,uu
-real(kind=8),dimension(coloc2,coloc2) :: A=0
+real(kind=8),dimension(coloc2,coloc2) :: A
 
 integer :: n_u
 integer :: n_uu
@@ -87,7 +87,7 @@ end if
    do j_test = lim,lim,stride
       do i_test = lim,lim,stride
          
-         test_cut   = 0   
+         A   = 0   
          rand_count = 0 
          row_index  = 0 ! Reset pointer to the first position after moving
                         ! to the next cell.

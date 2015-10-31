@@ -17,7 +17,7 @@ FC      = gfortran
 LFLAGS  = -lblas -llapack
 FFLAGS  = -O3
 
-.PHONY : main clean
+.PHONY : main clean rmpic
 
 main : main.exe
 	./main.exe
@@ -30,4 +30,7 @@ main.exe: fileio.o fourier.o linsolve.o main.o
 
 clean:
 	rm -f *.o *.exe  *.mod *# *~ 
+
+rmpic:
+	rm -f *.jpg *.png
 

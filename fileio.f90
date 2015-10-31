@@ -1,6 +1,7 @@
 module fileio  
   use HDF5  
   integer, parameter :: GRID=256
+ 
 contains
   
 subroutine binRead(u_dpk,DIM) 
@@ -19,7 +20,8 @@ subroutine binRead(u_dpk,DIM)
   
   ! fID -- is the counter for the file number.
   ! fIndex -- char cast from int(fID).      
-    
+
+   
   variableName='Velocity'; time = '0460'
   PATH = '/Users/Kshitij/Desktop/ALES/DNS_Data/'
 

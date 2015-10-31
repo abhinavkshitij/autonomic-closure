@@ -35,6 +35,7 @@ allocate(u(n_u,GRID,GRID,GRID))
 
 
 
+
 ! Take a cutout of the field(32x32x32)
 ! This is will result in a 16x16x16 test scale field
 ! This can be then safely used for a 8x8x8 field to find the h's
@@ -78,14 +79,14 @@ else
    lim=testLower
 end if
 
-!!$do k_test = testLower, testUpper, stride 
-!!$   do j_test = testLower, testUpper, stride
-!!$      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
+do k_test = testLower, testUpper, stride 
+   do j_test = testLower, testUpper, stride
+      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
 
- do k_test = lim,lim,stride
-   do j_test = lim,lim,stride
-      do i_test = lim,lim,stride
+!!$ do k_test = lim,lim,stride
+!!$   do j_test = lim,lim,stride
+!!$      do i_test = lim,lim,stride
          
          test_cut   = 0   
          rand_count = 0 
@@ -93,7 +94,7 @@ end if
                         ! to the next cell.
 
          call randAlloc(randMask)
-         do k_box = k_test-boxLower, k_test+boxUpper,stride
+          do k_box = k_test-boxLower, k_test+boxUpper,stride
             do j_box = j_test-boxLower, j_test+boxUpper,stride
                do i_box = i_test-boxLower,i_test+boxUpper,stride ! i_box = 3,49,2
                   
@@ -105,12 +106,12 @@ end if
                   
                   col_index = 0 ! Reset pointer to the first column after each stencil operation
                   row_index = row_index + 1
-                  
-                  do k_stencil = k_box-stride,k_box+stride,stride
+
+                   do k_stencil = k_box-stride,k_box+stride,stride
                      do j_stencil = j_box-stride,j_box+stride,stride
                         do i_stencil = i_box-stride,i_box+stride,stride
                            
-                           test_cut(i_stencil,j_stencil,k_stencil) = 2 ! Flag in stencil-->check:first cell
+                   !        test_cut(i_stencil,j_stencil,k_stencil) = 2 ! Flag in stencil-->check:first cell
                            
                            
                            do u_comp = 1,n_u ! 1 to 3
@@ -121,26 +122,27 @@ end if
                               col_index = col_index+1
                               A(row_index,col_index)=uu(uu_comp,i_stencil,j_stencil,k_stencil)
                            end do
-                           
+
+                          
                         
                         end do
                      end do
-                  end do
+                  end do !stencil
                   
-                  
-                  
+                                  
                   
                end do
             end do
-         end do
-         
-
-        
+         end do !box
+         p=p+1
+         if(p.eq.1.or.p.eq.100.or.p.eq.200)  call condition(A)     
          
       end do
    end do
-end do
+end do ! test
 
+if(debug(4).eq.1) then
+   
 print*,''
 print*, 'Exclusion list:'
 print*, randMask
@@ -152,47 +154,25 @@ print*, 'Check for last cell:',test_cut(testcutSize,testcutSize,testcutSize)
 print*,''
 
 print*,'Last limit of test array:',i_test-stride 
-print*,'Last limit of bounding box:',i_box-stride
+print*,'Last limit of bounding box:',i_box-stride ! This one will always count till the end.
 print*,'Last limit of stencil:',i_stencil-stride
 print*,''
 
-print*,uu(6,51,51,51),A(coloc2,coloc2) !--> check for the last cell 
-print*,uu(6,51,49,51),A(coloc2,coloc2) !--> check for the last cell
-
-if(debug(4).eq.1) then
-   
-print*,'Testing for A:'
-
-k=0 ; p=0
-do k_stencil = 3-stride,3+stride,stride
-   do j_stencil = 3-stride,3+stride,stride
-      do i_stencil = 3-stride,3+stride,stride
-         p=p+1
-         print*,p
-
-do i=1,n_u
-      k=k+1
-      print*, 'u',i,i_stencil,j_stencil,k_stencil,u(i,i_stencil,j_stencil,k_stencil),'A:',k,A(1,k)
-   end do
-
-   do i=1,n_uu
-      k=k+1
-      print*, 'uu',i,i_stencil,j_stencil,k_stencil,uu(i,i_stencil,j_stencil,k_stencil),'A:',k,A(1,k)
-   end do
-   print*,''
-         
-         
-      end do
-   end do
-end do
+print*,uu(6,testcutSize,testcutSize,testcutSize),A(coloc2,coloc2) !--> check for the last cell 
+print*,uu(6,testcutSize,testcutSize-stride,testcutSize),A(coloc2,coloc2) !--> check for the last cell
 
 end if
 
-   call condition(A)                     
-                           
-                           
 
+open(1,file="eig.dat")
+do j=1,243
+   write(1,202) A(j,:)
+end do
 
+     
+202 format(243f16.4)               
+                           
+close(1)                       
 
 end program testCut
 

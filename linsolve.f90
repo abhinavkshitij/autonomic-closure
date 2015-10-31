@@ -139,7 +139,8 @@ subroutine init_random_seed()
 
    
     allocate(ipiv(n))
-    b = 1.d0
+    
+    b = 1.d0 ; x = 1.d0  !! change this for real b,x
     
     ! compute 1-norm needed for condition number
 
@@ -182,9 +183,14 @@ subroutine init_random_seed()
         print *, "*** Error in dgecon: info = ",info
         endif
 
-    print 201, n, 1.d0/rcond, errnorm
-201 format("For n = ",i4," the approx. condition number is ",e10.3,/, &
-           " and the relative error in 1-norm is ",e10.3)    
+        !print 201, n, 1.d0/rcond, errnorm
+        !201 format("For n = ",i4," the approx. condition number is ",e10.3,/, &
+        !   " and the relative error in 1-norm is ",e10.3)    
+
+        print 202, 1.d0/rcond
+        202 format(e10.3)
+              
+
 
     deallocate(ipiv)
     deallocate(work,iwork)

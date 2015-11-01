@@ -29,30 +29,22 @@ module linsolve
  
 contains
 
-subroutine cutout(array,dim)
+subroutine cutout(array,n)
     implicit none
-   
+
+    integer, intent(in) :: n
     real(kind=8), allocatable, dimension(:,:,:,:),intent(inout) :: array
-    integer, intent(in) :: dim
-    
     real(kind=8), allocatable, dimension(:,:,:,:):: temp
+
     
-    print*, 'lBound',lBound , 'uBound',uBound
-    print*, 'u_t(1,1,1)', array(1,lBound,lBound,lBound)
-    print*, 'Shape(u_t):', shape(array)
-    
-    print*, "Begin cutout ..."
-    
-    allocate (temp(dim,testcutSize,testcutSize,testcutSize))
+    allocate (temp(n,testcutSize,testcutSize,testcutSize))
     temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
     deallocate(array)
-    allocate(array(dim,testcutSize,testcutSize,testcutSize))
+    
+    allocate(array(n,testcutSize,testcutSize,testcutSize))
     array = temp
-
-    print*, ''
-    print*, "Done cutout ..."
-    print*, 'u_t(1,1,1)',array(1,1,1,1)
-    print*, 'Shape(u_t):',shape(array)
+    
+    deallocate(temp)
     return
   end subroutine cutout
 
@@ -99,11 +91,10 @@ subroutine init_random_seed()
        if (i.gt.n) exit   
     end do
 
-    
-     call bubblesort(num) ! Remove in real case.Keep for testing
-
-    !!$    ! Activate for debugging:
-  if (debug) then
+        
+    ! Activate for debugging:
+    if (debug) then
+    call bubblesort(num) ! Remove in real case.Keep for testing
     c=0;index=1;randomMatrix=0
     do k=1,box
        do j=1,box
@@ -155,13 +146,12 @@ subroutine init_random_seed()
     integer :: row_index, col_index
     integer :: u_comp,    uu_comp
 
-    integer,dimension(4) :: debug=(/0,1,0,1/)
+    integer,dimension(4) :: debug=(/0,1,0,0/)
 
     integer :: i,j,k,p,DIM
   
   ! call cutout(u,n_u)
    print*, 'Transfer to synStress ... check first element'
-   print *, 'u(1,1,1) ',u(1,1,1,1)
    print *, 'shape u cutout: ',shape(u)
 
    allocate(uu(n_uu,testcutSize,testcutSize,testcutSize))
@@ -193,8 +183,8 @@ subroutine init_random_seed()
       print*, u(1,uBound,uBound,uBound)
    else
       lim=testLower
-      print*, 'Check for the first element... (11,11,11)'
-      print*, u(1,1,1,1)
+      print*, 'Check for the first element...(11,11,11)'
+      print*, u(1,testLower,testLower,testLower)
    end if
 
 !!$do k_test = testLower, testUpper, stride 
@@ -251,7 +241,7 @@ subroutine init_random_seed()
             end do
          end do !box
          
-         p=p+1
+         p = p+1
          print*,'Begin Inverse operation:'
          if(p.eq.1.or.p.eq.100.or.p.eq.200) then
             print*,'Check A(5,5):',A(5,5)
@@ -275,10 +265,13 @@ print*, randMask
 print*,''
 print *, 'Number of random cells sampled:',rand_count
 
-print*, 'Check for first cell flag:',cell_flag(1,1,1)
-print*, 'Check for last cell:',cell_flag(testcutSize,testcutSize,testcutSize)
-        
-print*,''
+if (any(randMask.eq.rand_count)) then
+if ((i_stencil-stride).eq.testCutSize)then
+   print*, "Error : Flag in last stencil cell!"
+   error = 1
+end if
+end if
+
 
 print*,'Last limit of test array:',i_test-stride 
 print*,'Last limit of bounding box:',i_box-stride ! This one will always count till the end.

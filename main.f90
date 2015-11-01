@@ -112,7 +112,9 @@ end if
 ! This can be then safely used for a 8x8x8 field to find the h's
 
 print*,'Shape before cutout:',shape(u_t)
+print*, u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
 call cutout(u_t,n_u)
+print*, u_t(1,testLower,testLower,testLower)
 !call cutout(T_ij,n_u)
 
 call synStress(u_t,n_u,n_uu)

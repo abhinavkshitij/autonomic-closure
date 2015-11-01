@@ -272,16 +272,6 @@ if ((i_stencil-stride).eq.testCutSize)then
 end if
 end if
 
-
-print*,'Last limit of test array:',i_test-stride 
-print*,'Last limit of bounding box:',i_box-stride ! This one will always count till the end.
-print*,'Last limit of stencil:',i_stencil-stride
-print*,''
-
-
-!print*,uu(6,testcutSize,testcutSize,testcutSize),A(coloc2,coloc2) !--> check for the last cell 
-!print*,uu(6,testcutSize,testcutSize-stride,testcutSize),A(coloc2,coloc2) !--> check for the last cell
-
 end if
 
 deallocate(uu)
@@ -292,8 +282,7 @@ deallocate(uu)
 !!$end do     
 !!$202 format(243f16.4)                                          
 !!$close(1)                       
-
-  
+ 
     return
   end subroutine synStress
 

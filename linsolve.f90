@@ -3,53 +3,52 @@ module linsolve
 
   integer,parameter :: stride = 2
   
-  ! Stencil attributes:
-  integer, parameter :: coloc2 = 27*9   ! For a 3x3x3 stencil
+  ! Stencil parameters:
+  integer,parameter :: coloc2 = 27*9   ! For a 3x3x3 stencil
   
-  ! Box attributes:
-  real , parameter  :: eps = 1e-3
+  ! Box parameters:
+  real,   parameter :: eps = 1e-3
   integer,parameter :: box = 8
   integer,parameter :: boxSize = box**3
   integer,parameter :: bigHalf   = ceiling(0.5*real(box)+eps) ! for 8->5
   integer,parameter :: smallHalf = floor(0.5*real(box)+eps)   ! for 8->4
   integer,parameter :: boxCenter = smallHalf * box*(box+1) + bigHalf
-  integer,parameter :: boxLower =  stride * (bigHalf-1)
-  integer,parameter :: boxUpper =  stride * (box-bigHalf)
+  integer,parameter :: boxLower  = stride * (bigHalf-1)
+  integer,parameter :: boxUpper  = stride * (box-bigHalf)
 
-  ! Test field attributes: 
+  ! Test field parameters: 
   integer,parameter :: testSize = 17
   integer,parameter :: testcutSize = stride*(testSize+box) + 1
   integer,parameter :: testLower = stride*bigHalf + 1
   integer,parameter :: testUpper = stride*(bigHalf-1+testSize) + 1
 
-  ! Cutout atributes:
+  ! Cutout parameters:
   integer,parameter :: lBound = 0.5*(GRID - testcutSize)
   integer,parameter :: uBound = 0.5*(GRID + testcutSize) - 1
 
- 
 contains
-
-subroutine cutout(array,n)
+  
+  subroutine cutout(array,n)
     implicit none
 
     integer, intent(in) :: n
     real(kind=8), allocatable, dimension(:,:,:,:),intent(inout) :: array
     real(kind=8), allocatable, dimension(:,:,:,:):: temp
-
-    
+   
     allocate (temp(n,testcutSize,testcutSize,testcutSize))
     temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
     deallocate(array)
     
     allocate(array(n,testcutSize,testcutSize,testcutSize))
-    array = temp
-    
+    array = temp   
     deallocate(temp)
+    
     return
   end subroutine cutout
 
   
-subroutine init_random_seed()
+  ! RANDOM NUMBER GENERATION
+  subroutine init_random_seed()
     integer :: i, n, clock
     integer, dimension(:), allocatable :: seed
   
@@ -62,16 +61,14 @@ subroutine init_random_seed()
     return
   end subroutine init_random_seed
 
-
   subroutine randAlloc(num)
-
     ! Status: Integrating with bounding box.
     ! Notes: Creates a mask to skip cells randomly.
     !      : Always retains the center point.
     implicit none
 
     real(kind=8)            :: x 
-    integer, parameter      :: n = boxSize - coloc2 ! n=(512-378) = 134
+    integer, parameter      :: n = boxSize - coloc2 ! 512-378 = 134
     integer                 :: randomNum, num(n)
     integer,dimension(box,box,box):: randomMatrix
     integer                 :: i, j, k, index, c
@@ -82,8 +79,8 @@ subroutine init_random_seed()
     call init_random_seed()
     do
        call random_number(x)
-       randomNum = nint( (boxSize-1) * x ) + 1    
-      
+       randomNum = nint( (boxSize-1) * x ) + 1
+       ! Enforce element uniqueness and keep boxCenter -> see Notes
        if(any(num.eq.randomNum).or.(randomNum.eq.boxCenter)) cycle
           
        num(i) = randomNum
@@ -92,7 +89,7 @@ subroutine init_random_seed()
     end do
 
         
-    ! Activate for debugging:
+   !! ******************DEBUG*************************
     if (debug) then
     call bubblesort(num) ! Remove in real case.Keep for testing
     c=0;index=1;randomMatrix=0
@@ -117,14 +114,14 @@ subroutine init_random_seed()
        end do
        print*,'boxCenter',boxCenter
   end if
-     
+  !! ***********************************************
+  
   return       
   end subroutine randAlloc
 
 
-
-
-
+  ! SGS STRESS
+  
   subroutine synStress(u,n_u,n_uu)
     implicit none
 
@@ -136,7 +133,6 @@ subroutine init_random_seed()
     integer :: n_uu
 
     integer :: randMask(boxSize-coloc2) !512-378=134; 512-270=240
-    integer :: cell_flag(testcutSize,testcutSize,testcutSize)
 
     integer :: i_test,    j_test,    k_test
     integer :: i_box,     j_box,     k_box
@@ -150,9 +146,9 @@ subroutine init_random_seed()
 
     integer :: i,j,k,p,DIM
   
-  ! call cutout(u,n_u)
-   print*, 'Transfer to synStress ... check first element'
-   print *, 'shape u cutout: ',shape(u)
+ 
+   print*, 'Computing SGS stress...'
+   print *,'shape u cutout: ',shape(u)
 
    allocate(uu(n_uu,testcutSize,testcutSize,testcutSize))
    print*,'shape uu cutout:',shape(uu)
@@ -168,11 +164,7 @@ subroutine init_random_seed()
       end do
    end do
 
-   print*,''
-   print*,'boxCenter index:',boxCenter
-   print*,'smallHalf,bighalf:',smallHalf,bigHalf
-
-
+   
 
 ! 2*(5+1)-1 for 8 = 11 ; 5 for box,1 for stencil
    ! As a modification, it should be independent of stride=2 , as well
@@ -209,7 +201,6 @@ subroutine init_random_seed()
                   rand_count = rand_count+1
                   if (any(randMask.eq.rand_count)) cycle   ! Skip if the point is listed in randMask
                     
-                  ! cell_flag(i_box,j_box,k_box) = 1
                   
                   col_index = 0 ! Reset pointer to the first column after each stencil operation
                   row_index = row_index + 1
@@ -218,7 +209,6 @@ subroutine init_random_seed()
                      do j_stencil = j_box-stride,j_box+stride,stride
                         do i_stencil = i_box-stride,i_box+stride,stride
                            
-                          cell_flag(i_stencil,j_stencil,k_stencil) = 2 ! Flag in stencil-->check:first cell
                                                     
                            do u_comp = 1,n_u ! 1 to 3
                               col_index = col_index+1
@@ -257,6 +247,9 @@ subroutine init_random_seed()
    end do
 end do ! test
 
+
+
+!! ***************DEBUG********************
 if(debug(4).eq.1) then
    
 print*,''
@@ -273,6 +266,8 @@ end if
 end if
 
 end if
+!! ****************************************
+
 
 deallocate(uu)
 
@@ -366,9 +361,6 @@ deallocate(uu)
 
   end subroutine inverse
   
-
-
-
 
   
   

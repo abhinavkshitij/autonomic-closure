@@ -31,7 +31,7 @@ n_u=3; n_uu = 6
 if (debug(1).eq.1) then
    n_u = 1
    n_uu = 3
-   print*, 'Debug mode for velocity components... TRUE'
+   print*, 'Debug mode for velocity components...'
 end if
 
 
@@ -71,7 +71,6 @@ print *,   'u(1,1,1)'  , u (1,lBound,lBound,lBound)
 print *,  'u_f(1,1,1)' , u_f(1,lBound,lBound,lBound)
 print *,  'u_t(1,1,1)' , u_t(1,lBound,lBound,lBound)
 print*,''
-
 
 
 

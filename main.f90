@@ -67,9 +67,9 @@ filter:do i=1,n_u
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
 end do filter
 print *, '' ! Blank Line
-print *,   'u(1,1,1)'  , u (1,lBound,lBound,lBound)
-print *,  'u_f(1,1,1)' , u_f(1,lBound,lBound,lBound)
-print *,  'u_t(1,1,1)' , u_t(1,lBound,lBound,lBound)
+print *,   'u(1,1,1)'  , u (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
+print *,  'u_f(1,1,1)' , u_f(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
+print *,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,''
 
 

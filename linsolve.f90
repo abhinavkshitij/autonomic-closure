@@ -246,7 +246,9 @@ contains
       end do
    end do
 end do ! test
-
+do j=1,8
+   write(*,"(8(F10.4) )") A(j,1:8)
+end do     
 
 
 !! ***************DEBUG********************
@@ -325,7 +327,10 @@ deallocate(uu)
 
     call dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
 
-    print*,'a(5,5)',a(5,5)
+   do j=1,8
+      write(*,"(8(F10.4) )") A(j,1:8)
+   end do
+   
     ! compute 1-norm of error
     errnorm = 0.d0
     xnorm = 0.d0
@@ -350,8 +355,8 @@ deallocate(uu)
        print *, "*** Error in dgecon: info = ",info
     endif
 
-    print 201, n, 1.d0/rcond, errnorm
-    201 format("For n = ",i4," the approx. condition number is ",e10.3,/, &
+    !print 201, n, 1.d0/rcond, errnorm
+    !201 format("For n = ",i4," the approx. condition number is ",e10.3,/, &
            " and the relative error in 1-norm is ",e10.3)    
 
 

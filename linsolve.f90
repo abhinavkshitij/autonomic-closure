@@ -87,11 +87,11 @@ contains
        i = i+1
        if (i.gt.n) exit   
     end do
-
+    !call bubblesort(num) ! Remove in real case.Keep for testing
         
    !! ******************DEBUG*************************
     if (debug) then
-    call bubblesort(num) ! Remove in real case.Keep for testing
+    
     c=0;index=1;randomMatrix=0
     do k=1,box
        do j=1,box
@@ -144,7 +144,7 @@ contains
 
     integer,dimension(4) :: debug=(/0,1,0,0/)
 
-    integer :: i,j,k,p,DIM
+    integer :: i,j,k,p
   
  
    print*, 'Computing SGS stress...'
@@ -230,14 +230,15 @@ contains
                end do
             end do
          end do !box
+
          
-         p = p+1
+         !p = p+1
          print*,'Begin Inverse operation:'
-         if(p.eq.1.or.p.eq.100.or.p.eq.200) then
-            print*,'Check A(5,5):',A(5,5)
+         !if(p.eq.1.or.p.eq.100.or.p.eq.200) then
+            print*,'Check A(2,1):',A(2,1),A(2,4)
             call inverse(A)
-            print*,'Check A(5,5):',A(5,5)
-         end if
+            print*,'Check A(2,1):',A(2,1),A(2,4)
+         !end if
          
          ! Compute SGS stress:
          
@@ -246,9 +247,35 @@ contains
       end do
    end do
 end do ! test
-do j=1,8
-   write(*,"(8(F10.4) )") A(j,1:8)
-end do     
+
+print*, randMask   
+print*,'Testing for A:'
+i_stencil=0;j_stencil=0;k_stencil=0
+k=0 ; p=0
+do k_stencil = 3-stride,3+stride,stride
+   do j_stencil = 3-stride,3+stride,stride
+      do i_stencil = 5-stride,5+stride,stride
+         p=p+1
+         print*,p
+
+do i=1,n_u
+      k=k+1
+      print*, 'u',i,i_stencil,j_stencil,k_stencil,u(i,i_stencil,j_stencil,k_stencil),'A:',k,A(2,k)
+   end do
+
+   do i=1,n_uu
+      k=k+1
+      print*, 'uu',i,i_stencil,j_stencil,k_stencil,uu(i,i_stencil,j_stencil,k_stencil),'A:',k,A(2,k)
+   end do
+   print*,''
+         
+         
+      end do
+   end do
+end do
+
+
+
 
 
 !! ***************DEBUG********************
@@ -308,6 +335,10 @@ deallocate(uu)
     
     a = A_arr
     b = 1.d0 ; x = 1.d0  !! change this for real b,x
+
+    do j=1,8
+      write(*,"(27(F8.2) )") A_arr(j,1:27)
+   end do
     
     ! compute 1-norm needed for condition number
 
@@ -327,8 +358,9 @@ deallocate(uu)
 
     call dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
 
+   Print*,"LU:"
    do j=1,8
-      write(*,"(8(F10.4) )") A(j,1:8)
+      write(*,"(27(F8.2) )") a(j,1:27)
    end do
    
     ! compute 1-norm of error
@@ -357,7 +389,7 @@ deallocate(uu)
 
     !print 201, n, 1.d0/rcond, errnorm
     !201 format("For n = ",i4," the approx. condition number is ",e10.3,/, &
-           " and the relative error in 1-norm is ",e10.3)    
+     !      " and the relative error in 1-norm is ",e10.3)    
 
 
     deallocate(a,x,b,ipiv,work,iwork)

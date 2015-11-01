@@ -12,7 +12,7 @@ use linsolve
 implicit none
 
 integer,parameter           :: LES_scale=40, test_scale=20
-integer                     :: i,j,k,DIM
+integer                     :: i,j,k,d=0
 
 ! Define velocities:
 
@@ -73,7 +73,7 @@ print *,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+
 print*,''
 
 
-
+if (d.eq.1) then
 
 !! Compute tau_ij and T_ij:
 allocate(tau_ij(n_uu,GRID,GRID,GRID))
@@ -109,7 +109,7 @@ end if
 ! Take a cutout of the field(32x32x32)
 ! This is will result in a 16x16x16 test scale field
 ! This can be then safely used for a 8x8x8 field to find the h's
-
+end if
 print*,'Shape before cutout:',shape(u_t)
 print*, u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
 call cutout(u_t,n_u)

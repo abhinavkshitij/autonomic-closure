@@ -24,30 +24,27 @@ integer :: n_u, n_uu
 integer,dimension(4) :: debug=(/0,1,1,1/)
 
 
-!call randAlloc()
-!stop
 
 
 !! Set debug flags for velocity components:
 n_u=3; n_uu = 6
-if (debug(1).eq.1) n_u = 1
-if (debug(1).eq.1) n_uu = 3
+if (debug(1).eq.1) then
+   n_u = 1
+   n_uu = 3
+   print*, 'Debug mode for velocity components... TRUE'
+end if
 
 
 
 !! Select file to read:
 allocate(u(n_u,GRID,GRID,GRID))
+
 fileSelect:if (debug(2).eq.1) then
    call binRead(u,DIM=n_u)
 else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
 
-!!$print*,shape(u)
-!!$call cutout(u)
-
-print *, u(3,1,1,1)
-print *,shape(u)
 
 
 !! Create LES and test scale sharp filters:
@@ -70,9 +67,9 @@ filter:do i=1,n_u
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
 end do filter
 print *, '' ! Blank Line
-print *,'u', u(3,200,156,129)
-print *,'u_f', u_f(3,200,156,129)
-print *, 'u_t',u_t(3,200,156,129)
+print *,   'u(1,1,1)'  , u (1,lBound,lBound,lBound)
+print *,  'u_f(1,1,1)' , u_f(1,lBound,lBound,lBound)
+print *,  'u_t(1,1,1)' , u_t(1,lBound,lBound,lBound)
 print*,''
 
 
@@ -104,15 +101,21 @@ if (debug(3).eq.0)then
    dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
    print*, 'w/ deviatoric:',tau_ij(4,200,156,129)-dev_t
 else
-   print*, tau_ij(4,200,156,129)
+  ! print*, tau_ij(4,200,156,129)
 end if
-print*, T_ij(4,200,156,129)
+!print*, T_ij(4,200,156,129)
+
+!print*,'T_11(11,11,11)',T_ij(1,112,112,112)
 
 ! Take a cutout of the field(32x32x32)
 ! This is will result in a 16x16x16 test scale field
 ! This can be then safely used for a 8x8x8 field to find the h's
 
+print*,'Shape before cutout:',shape(u_t)
+call cutout(u_t,n_u)
+!call cutout(T_ij,n_u)
 
+call synStress(u_t,n_u,n_uu)
 
 
 

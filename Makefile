@@ -23,7 +23,7 @@ main : main.exe
 	./main.exe
 
 main.exe: fileio.o fourier.o linsolve.o main.o
-	$(FC) -o main.exe main.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB) linsolve.o
+	$(FC) -o main.exe main.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB) linsolve.o $(LFLAGS)
 
 %.o : %.f90
 	$(FC) $(FFLAGS) -c $< $(HDF5_INC) $(FFTW_INC)

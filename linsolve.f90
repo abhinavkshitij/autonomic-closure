@@ -188,7 +188,7 @@ contains
    do j_test = lim,lim,stride
       do i_test = lim,lim,stride
          
-         cell_flag  = 0   
+         
          rand_count = 0 
          row_index  = 0 ! Reset pointer to the first position after moving
                         ! to the next cell.
@@ -261,7 +261,6 @@ print *, 'Number of random cells sampled:',rand_count
 if (any(randMask.eq.rand_count)) then
 if ((i_stencil-stride).eq.testCutSize)then
    print*, "Error : Flag in last stencil cell!"
-   error = 1
 end if
 end if
 

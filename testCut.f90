@@ -15,7 +15,7 @@ integer :: n_u
 integer :: n_uu
 integer :: randMask(boxSize-coloc2) !512-378=134; 512-270=240
 
-integer :: debug(4)=(/0,1,1,0/) 
+integer :: debug(4)=(/0,1,0,1/) 
 integer :: test_cut(testcutSize,testcutSize,testcutSize)
 integer :: i_test,   j_test,   k_test
 integer :: i_box,    j_box,    k_box
@@ -166,18 +166,18 @@ print*,'Testing for A:'
 k=0 ; p=0
 do k_stencil = 3-stride,3+stride,stride
    do j_stencil = 3-stride,3+stride,stride
-      do i_stencil = 3-stride,3+stride,stride
+      do i_stencil = 5-stride,5+stride,stride
          p=p+1
          print*,p
 
 do i=1,n_u
       k=k+1
-      print*, 'u',i,i_stencil,j_stencil,k_stencil,u(i,i_stencil,j_stencil,k_stencil),'A:',k,A(1,k)
+      print*, 'u',i,i_stencil,j_stencil,k_stencil,u(i,i_stencil,j_stencil,k_stencil),'A:',k,A(2,k)
    end do
 
    do i=1,n_uu
       k=k+1
-      print*, 'uu',i,i_stencil,j_stencil,k_stencil,uu(i,i_stencil,j_stencil,k_stencil),'A:',k,A(1,k)
+      print*, 'uu',i,i_stencil,j_stencil,k_stencil,uu(i,i_stencil,j_stencil,k_stencil),'A:',k,A(2,k)
    end do
    print*,''
          

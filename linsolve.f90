@@ -89,7 +89,7 @@ contains
     end do
     !call bubblesort(num) ! Remove in real case.Keep for testing
         
-   !! ******************DEBUG*************************
+   !! ******************DEBUG**********************
     if (debug) then
     
     c=0;index=1;randomMatrix=0

@@ -12,7 +12,7 @@ use linsolve
 implicit none
 
 integer,parameter           :: LES_scale=40, test_scale=20
-integer                     :: i,j,k,d=0
+integer                     :: i,j,k,d=1
 
 ! Define velocities:
 
@@ -23,8 +23,9 @@ real(kind=8):: dev_t
 integer :: n_u, n_uu
 integer,dimension(4) :: debug=(/0,1,1,1/)
 
-
-
+call system('clear')
+call printParams()
+stop
 
 !! Set debug flags for velocity components:
 n_u=3; n_uu = 6
@@ -110,14 +111,19 @@ end if
 ! This is will result in a 16x16x16 test scale field
 ! This can be then safely used for a 8x8x8 field to find the h's
 end if
+
 print*,'Shape before cutout:',shape(u_t)
 print*, u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
+
 call cutout(u_t,n_u)
+call cutout(u_f,n_u)
+call cutout(T_ij,n_uu)
+call cutout(tau_ij,n_uu)
+
 print*, u_t(1,testLower,testLower,testLower)
-!call cutout(T_ij,n_u)
 
-call synStress(u_t,n_u,n_uu)
-
+call synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
+!print*,'tau_ij',tau_ij(1,testLower,testLower,testLower)
 
 
 

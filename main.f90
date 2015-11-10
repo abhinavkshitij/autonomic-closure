@@ -25,7 +25,7 @@ integer,dimension(4) :: debug=(/0,1,1,1/)
 
 call system('clear')
 call printParams()
-stop
+
 
 !! Set debug flags for velocity components:
 n_u=3; n_uu = 6
@@ -67,8 +67,10 @@ filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
 end do filter
+
+
 print *, '' ! Blank Line
-print *,   'u(1,1,1)'  , u (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
+print *,  'u(1,1,1)'   , u (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print *,  'u_f(1,1,1)' , u_f(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print *,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,''
@@ -94,6 +96,16 @@ do j=1,n_u
    end do
 end do
 deallocate(LES,test)
+
+open(1,file='../plots/tau_f.dat')
+open(2,file='../plots/tau_t.dat')
+do i=1,256
+   write(1,*) tau_ij(1,i,:,128)
+   write(2,*) T_ij(1,i,:,128)
+end do
+close(1)
+close(2)
+stop
 
 
 !! Print tau_ij and T_ij to check:

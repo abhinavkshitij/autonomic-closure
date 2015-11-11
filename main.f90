@@ -11,17 +11,17 @@ use fileio
 use linsolve
 implicit none
 
-integer,parameter           :: LES_scale=40, test_scale=20
+integer,parameter           :: LES_scale=64, test_scale=32
 integer                     :: i,j,k,DIM
 
 ! Define velocities:
 
 real(kind=8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
 real(kind=8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij,temp
-real(kind=8),allocatable,dimension(:,:,:) :: LES,test
-real(kind=8):: dev_t
+real(kind=8),allocatable,dimension(:,:,:) :: LES,test,dev_t
+!real(kind=8):: dev_t
 integer :: n_u, n_uu
-integer,dimension(4) :: debug=(/0,1,1,1/)
+integer,dimension(4) :: debug=(/0,1,0,1/)
 
 
 !call randAlloc()
@@ -42,6 +42,8 @@ fileSelect:if (debug(2).eq.1) then
 else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
+print *,'u', u(1,15,24,10)
+
 
 !!$print*,shape(u)
 !!$call cutout(u)
@@ -53,6 +55,7 @@ print *,shape(u)
 !! Create LES and test scale sharp filters:
 allocate(LES(GRID,GRID,GRID))
 allocate(test(GRID,GRID,GRID))
+allocate(dev_t(GRID,GRID,GRID))
 call createFilter(LES,LES_scale)
 call createFilter(test,test_scale)
 call fftshift(LES)
@@ -90,7 +93,7 @@ do j=1,n_u
          tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),LES)     &
               - u_f(i,:,:,:)*u_f(j,:,:,:)
          Print *, 'T(', i, ',', j, ')'
-         T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:)*u_f(j,:,:,:),test)    &
+         T_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),test)    &
               - u_t(i,:,:,:)*u_t(j,:,:,:)
          k = k+1
       end if
@@ -101,12 +104,23 @@ deallocate(LES,test)
 
 !! Print tau_ij and T_ij to check:
 if (debug(3).eq.0)then
-   dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
-   print*, 'w/ deviatoric:',tau_ij(4,200,156,129)-dev_t
-else
-   print*, tau_ij(4,200,156,129)
+   dev_t = (T_ij(1,:,:,:)+T_ij(4,:,:,:)+T_ij(6,:,:,:))/3.d0
+   T_ij(1,:,:,:) = T_ij(1,:,:,:)-dev_t
+!else
+   !print*, T_ij(4,200,156,129)
+    print*, T_ij(1,15,24,10)
 end if
-print*, T_ij(4,200,156,129)
+
+
+
+!!$open(1,file='../plots/tau_t_dev.dat')
+!!$do i=1,GRID
+!!$   write(1,*) T_ij(1,i,:,128)  
+!!$end do
+!!$close(1)
+
+deallocate(dev_t)
+
 
 ! Take a cutout of the field(32x32x32)
 ! This is will result in a 16x16x16 test scale field

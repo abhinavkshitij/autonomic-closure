@@ -21,7 +21,9 @@ real(kind=8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij,temp
 real(kind=8),allocatable,dimension(:,:,:) :: LES,test
 real(kind=8):: dev_t
 integer :: n_u, n_uu
-integer,dimension(4) :: debug=(/0,1,1,1/)
+
+integer,dimension(4) :: debug=(/1,1,1,1/)
+real :: tic, toc
 
 call system('clear')
 call printParams()
@@ -63,16 +65,20 @@ call fftshift(test)
 allocate(u_f(n_u,GRID,GRID,GRID))
 allocate(u_t(n_u,GRID,GRID,GRID))
 print *, 'FFT- u_ij:'
+call cpu_time(tic)
 filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
 end do filter
+call cpu_time(toc)
 
+print*,'CPU time for sharpFilter:',(toc-tic)
 
-print *, '' ! Blank Line
-print *,  'u(1,1,1)'   , u (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
-print *,  'u_f(1,1,1)' , u_f(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
-print *,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
+stop
+print*, '' ! Blank Line
+print*,  'u(1,1,1)'   , u (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
+print*,  'u_f(1,1,1)' , u_f(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
+print*,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,''
 
 

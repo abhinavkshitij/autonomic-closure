@@ -22,7 +22,7 @@ real(kind=8),allocatable,dimension(:,:,:) :: LES,test
 real(kind=8):: dev_t
 integer :: n_u, n_uu
 
-integer,dimension(4) :: debug=(/1,1,1,1/)
+integer,dimension(4) :: debug=(/0,1,1,1/)
 real :: tic, toc
 
 call system('clear')
@@ -65,16 +65,16 @@ call fftshift(test)
 allocate(u_f(n_u,GRID,GRID,GRID))
 allocate(u_t(n_u,GRID,GRID,GRID))
 print *, 'FFT- u_ij:'
-call cpu_time(tic)
+
 filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
 end do filter
-call cpu_time(toc)
 
-print*,'CPU time for sharpFilter:',(toc-tic)
 
-stop
+
+
+
 print*, '' ! Blank Line
 print*,  'u(1,1,1)'   , u (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,  'u_f(1,1,1)' , u_f(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
@@ -103,15 +103,7 @@ do j=1,n_u
 end do
 deallocate(LES,test)
 
-open(1,file='../plots/tau_f.dat')
-open(2,file='../plots/tau_t.dat')
-do i=1,256
-   write(1,*) tau_ij(1,i,:,128)
-   write(2,*) T_ij(1,i,:,128)
-end do
-close(1)
-close(2)
-stop
+
 
 
 !! Print tau_ij and T_ij to check:
@@ -122,7 +114,6 @@ else
   ! print*, tau_ij(4,200,156,129)
 end if
 !print*, T_ij(4,200,156,129)
-
 !print*,'T_11(11,11,11)',T_ij(1,112,112,112)
 
 ! Take a cutout of the field(32x32x32)
@@ -138,7 +129,31 @@ call cutout(u_f,n_u)
 call cutout(T_ij,n_uu)
 call cutout(tau_ij,n_uu)
 
+print*, "Done cutout..."
 print*, u_t(1,testLower,testLower,testLower)
+
+! Write velocities & stresses to files
+open(1,file='./testOpt/bin4020/u_f.dat',status="new")
+open(2,file='./testOpt/bin4020/u_t.dat',status="new")
+open(3,file='./testOpt/bin4020/tau_ij.dat',status="new")
+open(4,file='./testOpt/bin4020/T_ij.dat',status="new")
+
+ write(1,*) u_f
+ write(2,*) u_t
+ write(3,*) tau_ij
+ write(4,*) T_ij
+
+ !! For testing correct read/write
+
+ print*,"Testing read/write at T_ij (3,2,1,4):"
+ print*,T_ij(3,2,1,4)
+
+close(1)
+close(2)
+close(3)
+close(4)
+stop
+
 
 call synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
 !print*,'tau_ij',tau_ij(1,testLower,testLower,testLower)

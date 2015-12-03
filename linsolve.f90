@@ -1,12 +1,16 @@
 module linsolve
+
+  !! Linsolve is a collection of subroutines that perform linear algebra operations
+  !! and related operations to solve the inverse problem.
+ 
   use fileio
 
   integer,parameter :: stride = 2
   
   ! Stencil parameters:
-  integer,parameter :: coloc2 = 27*10   ! For a 3x3x3 stencil
+  integer,parameter :: coloc2 = 27*9   ! For a 3x3x3 stencil
   
-  ! Box parameters:
+  ! Bounding Box parameters:
   real,   parameter :: eps = 1e-3
   integer,parameter :: box = 8
   integer,parameter :: boxSize = box**3
@@ -74,6 +78,7 @@ contains
   
   ! RANDOM NUMBER GENERATION
   subroutine init_random_seed()
+      
     integer :: i, n, clock
     integer, dimension(:), allocatable :: seed
   
@@ -161,8 +166,8 @@ contains
 
     integer :: randMask(boxSize-coloc2) !512-378=134; 512-270=240
 
-    integer :: i_test,    j_test,    k_test
-    integer :: i_box,     j_box,     k_box
+    integer :: i_test,    j_test,    k_test 
+    integer :: i_box,     j_box,     k_box  
     integer :: i_stencil, j_stencil, k_stencil
     integer :: i_sgs,     j_sgs,     k_sgs
     
@@ -295,17 +300,17 @@ do k_test = testLower, testUpper, stride
 end do ! test
 
 
-open(1,file="T_SGS.dat")
-do j=1,33
-   do i=1,33
-      if (T_SGS(1,i,j,testLower).ne.0) then
-         T_res(i,j) = T_SGS(1,i,j,testLower)
-        write(1,*) T_res(i,j)
-      end if
-   end do
-   
-end do
-close(1)
+!!$open(1,file="T_SGS.dat")
+!!$do j=1,33
+!!$   do i=1,33
+!!$      if (T_SGS(1,i,j,testLower).ne.0) then
+!!$         T_res(i,j) = T_SGS(1,i,j,testLower)
+!!$        write(1,*) T_res(i,j)
+!!$      end if
+!!$   end do
+!!$   
+!!$end do
+!!$close(1)
    
 ! Comprison of results:
 !!$open(1,file="T_SGS.dat")
@@ -444,8 +449,7 @@ end if
 
 
 
-  
-
+ 
    
    
 !!$    ! compute 1-norm of error

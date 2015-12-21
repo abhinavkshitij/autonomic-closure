@@ -12,7 +12,7 @@ use linsolve
 implicit none
 
 integer,parameter           :: LES_scale=40, test_scale=20
-integer                     :: i,j,k,d=1
+integer                     :: i,j,k,d=0
 
 ! Define velocities:
 
@@ -123,14 +123,17 @@ end if
 
 print*,'Shape before cutout:',shape(u_t)
 print*, u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
+call matrixview(u_t(1,:,:,:),frameLim=5,z=testLower+lBound-1)
 
 call cutout(u_t,n_u)
 call cutout(u_f,n_u)
-call cutout(T_ij,n_uu)
-call cutout(tau_ij,n_uu)
+!call cutout(T_ij,n_uu)
+!call cutout(tau_ij,n_uu)
 
 print*, "Done cutout..."
 print*, u_t(1,testLower,testLower,testLower)
+call matrixview(u_t(1,:,:,:),frameLim=11,z=testLower)
+stop
 
 ! Write velocities & stresses to files
 open(1,file='./testOpt/bin4020/u_f.dat',status="new")

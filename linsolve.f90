@@ -150,15 +150,15 @@ contains
   end subroutine randAlloc
 
 
-  ! SGS STRESS
+  SGS STRESS
   
   subroutine synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
     implicit none
 
     real(kind=8),dimension(:,:,:,:),intent(in)  :: u_f, u_t ,tau_ij,T_ij
-    real(kind=8),allocatable,dimension(:,:,:,:) :: uu_t,uu_f,T_SGS
-    real(kind=8),dimension(coloc2,coloc2) :: A = 0.
-    real(kind=8),dimension(coloc2) :: b = 0.
+    real(kind=8),allocatable,dimension(:,:,:,:) :: uu_t,uu_f,TijOpt,TijEst
+    real(kind=8),dimension(coloc2,coloc2) :: V = 0. ! Is the non-linear combination of the velocities.
+    real(kind=8),dimension(coloc2) :: b = 0. , h_ij = 0. ! B takes the T_ij values and copies to h_ij in inverse().
     real(kind=8),dimension(33,33) :: T_res
     
     integer :: n_u
@@ -185,9 +185,10 @@ contains
 
    allocate(uu_t(n_uu,testcutSize,testcutSize,testcutSize))
    allocate(uu_f(n_uu,testcutSize,testcutSize,testcutSize))
-   allocate(T_SGS(n_uu,testcutSize,testcutSize,testcutSize))
+   allocate(TijOpt(n_uu,testcutSize,testcutSize,testcutSize)) ! review the dimensions...this should change
+   allocate(TijEst(n_uu,testcutSize,testcutSize,testcutSize)) ! review the dimensions...this should change
    print*,'shape uu cutout:',shape(uu_t)
-   T_SGS = 0.
+   TijOpt = 0.
 
    print*, 'Compute velocity products:'
    k=0
@@ -206,24 +207,24 @@ contains
 ! 2*(5+1)-1 for 8 = 11 ; 5 for box,1 for stencil
    ! As a modification, it should be independent of stride=2 , as well
 
-!!$   if(debug(3).eq.1)then
-!!$      lim=testUpper
-!!$      print*, 'Check for the last element..(43,43,43)'
-!!$      print*, u_t(1,uBound,uBound,uBound)
-!!$   else
-!!$      lim=testLower
-!!$      print*, 'Check for the first element...(11,11,11)'
-!!$      print*, u_t(1,testLower,testLower,testLower)
-!!$   end if
+   if(debug(3).eq.1)then
+      lim=testUpper
+      print*, 'Check for the last element..(43,43,43)'
+      print*, u_t(1,uBound,uBound,uBound)
+   else
+      lim=testLower
+      print*, 'Check for the first element...(11,11,11)'
+      print*, u_t(1,testLower,testLower,testLower)
+   end if
 
-do k_test = testLower, testUpper, stride 
-   do j_test = testLower, testUpper, stride
-      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
+!!$do k_test = testLower, testUpper, stride 
+!!$   do j_test = testLower, testUpper, stride
+!!$      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
 
-!!$ do k_test = lim,lim,stride
-!!$   do j_test = lim,lim,stride
-!!$      do i_test = lim,lim,stride         
+ do k_test = lim,lim,stride
+   do j_test = lim,lim,stride
+      do i_test = lim,lim,stride         
         
          rand_count = 0 
          row_index  = 0 
@@ -244,55 +245,68 @@ do k_test = testLower, testUpper, stride
                      do j_stencil = j_box-stride,j_box+stride,stride
                        do i_stencil = i_box-stride,i_box+stride,stride
 
-                          ! Compute non-linear combinations:
+                          ! Compute non-linear combinations to generate V matrix:
+                          ! Get all three velocity components for the V matrix
                            do u_comp = 1,n_u ! 1 to 3
                               col_index = col_index+1
-                              A(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                              V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
                            end do
+                           ! Get all six velocity products for the V matrix:                  
                            do uu_comp = 1,n_uu ! 1 to 6
                               col_index = col_index+1
-                              A(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                              V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
                            end do                     
-                        
+
+                           
                         end do
                      end do
                   end do !stencil
-                  
-                  b(row_index) = T_ij(1,i_box,j_box,k_box)
+
+                  ! At this point, the V matrix generated can be used to
+                  ! determine Volterra coefficients for all six ij components.
+                  ! For testing, only 11 component evaluated. Later extend to all 6 ij's
+                  b(row_index) = T_ij(1,i_box,j_box,k_box)  ! Testing for T_11
                   
                end do
             end do
          end do !box
+
+         ! Until here, the mechanism to compute the coefficient matrix
+         ! is tested and verified. There are no issues with the basic mechanism.
+         ! Only variable strides, for more than 2 is to be adjusted in the code later.
          
-         ! Solve the inverse problem
-         call inverse(A,b)
+         ! SOLVE THE INVERSE PROBLEM:
+         ! inverse takes in b as T_ij for each of the point in the bounding box.
+         call inverse(V,b,h_ij)
          
 !!$         p = p+1 !should be --> 4913
 !!$         if(p.eq.1.or.p.eq.10.or.p.eq.20.or.p.eq.40)
 
 
-         ! Compute SGS stress: NEEDS REVISION and TESTS
-         col = 0
-         do k_sgs = k_test-1,k_test+1
-            do j_sgs = j_test-1,j_test+1
-               do i_sgs = i_test-1,i_test+1 
+         ! Check if h_ij computed gives close value for T_ij:
+         ! This is done at test scale
+         col = 0; 
+         do k_sgs = k_test-1,k_test+1,stride
+            do j_sgs = j_test-1,j_test+1,stride
+               do i_sgs = i_test-1,i_test+1,stride
                   
                   do u_comp = 1,n_u ! 1 to 3
                      col = col+1
-                      T_SGS(1,i_test,j_test,k_test) = T_SGS(1,i_test,j_test,k_test)&
-                           + u_f(u_comp,i_sgs,j_sgs,k_sgs)*b(col)
+                      TijOpt(1,i_test,j_test,k_test) = TijOpt(1,i_test,j_test,k_test)&
+                           + u_f(u_comp,i_sgs,j_sgs,k_sgs)*h_ij(col)
                    end do
                    do uu_comp = 1,n_uu ! 1 to 6
                       col = col+1
-                      T_SGS(1,i_test,j_test,k_test) = T_SGS(1,i_test,j_test,k_test)&
-                           + uu_f(uu_comp,i_sgs,j_sgs,k_sgs)*b(col)
+                      TijOpt(1,i_test,j_test,k_test) = TijOpt(1,i_test,j_test,k_test)&
+                           + uu_f(uu_comp,i_sgs,j_sgs,k_sgs)*h_ij(col)
                    end do
                 end do
              end do
-          end do ! SGS
+          end do ! Test scale
 
-!!$          print*,'T_SGS', T_SGS(1,i_test,j_test,k_test)
-!!$          print*,'tau_ij',tau_ij(1,i_test,j_test,k_test)
+          print*,'Tij',T_ij(1,i_test,j_test,k_test)
+          print*,'TijOpt', TijOpt(1,i_test,j_test,k_test)
+          print*,'tau_ij',tau_ij(1,i_test,j_test,k_test)
 !!$       end if
  
       end do
@@ -300,11 +314,11 @@ do k_test = testLower, testUpper, stride
 end do ! test
 
 
-!!$open(1,file="T_SGS.dat")
+!!$open(1,file="TijOpt.dat")
 !!$do j=1,33
 !!$   do i=1,33
-!!$      if (T_SGS(1,i,j,testLower).ne.0) then
-!!$         T_res(i,j) = T_SGS(1,i,j,testLower)
+!!$      if (TijOpt(1,i,j,testLower).ne.0) then
+!!$         T_res(i,j) = TijOpt(1,i,j,testLower)
 !!$        write(1,*) T_res(i,j)
 !!$      end if
 !!$   end do
@@ -313,14 +327,14 @@ end do ! test
 !!$close(1)
    
 ! Comprison of results:
-!!$open(1,file="T_SGS.dat")
+!!$open(1,file="TijOpt.dat")
 !!$open(2,file="tau_ij.dat")                                       
 !!$      
-!!$! T_SGS FIELD:
+!!$! TijOpt FIELD:
 !!$
 !!$do j=testLower,testUpper
 !!$   do i=testLower, testUpper
-!!$      write(1,*) T_SGS(1,i,j,testLower)
+!!$      write(1,*) TijOpt(1,i,j,testLower)
 !!$      write(2,*) tau_ij(1,i,j,testLower)
 !!$   end do
 !!$end do
@@ -346,23 +360,23 @@ end if
 end if
 
 print*, randMask   
-print*,'Testing for A:'
+print*,'Testing for V:'
 i_stencil=0;j_stencil=0;k_stencil=0
 k=0 ; p=0
 do k_stencil = 3-stride,3+stride,stride
    do j_stencil = 3-stride,3+stride,stride
-      do i_stencil = 5-stride,5+stride,stride
+      do i_stencil = 3-stride,3+stride,stride
          p=p+1
          print*,p
 
 do i=1,n_u
       k=k+1
-      print*, 'u_t',i,i_stencil,j_stencil,k_stencil,u_t(i,i_stencil,j_stencil,k_stencil),'A:',k,A(1,k)
+      print*, 'u_t',i,i_stencil,j_stencil,k_stencil,u_t(i,i_stencil,j_stencil,k_stencil),'V:',k,V(1,k)
    end do
 
    do i=1,n_uu
       k=k+1
-      print*, 'uu_t',i,i_stencil,j_stencil,k_stencil,uu_t(i,i_stencil,j_stencil,k_stencil),'A:',k,A(2,k)
+      print*, 'uu_t',i,i_stencil,j_stencil,k_stencil,uu_t(i,i_stencil,j_stencil,k_stencil),'V:',k,V(2,k)
    end do
    print*,''
          
@@ -375,11 +389,11 @@ end if
 !! ****************************************
 
 
-deallocate(uu_t,uu_f,T_SGS)
+deallocate(uu_t,uu_f,TijOpt)
 
 !!$open(1,file="eig.dat")
 !!$do j=1,243
-!!$   write(1,202) A(j,:)
+!!$   write(1,202) V(j,:)
 !!$end do     
 !!$202 format(243f16.4)                                          
 !!$close(1)                       
@@ -391,32 +405,38 @@ deallocate(uu_t,uu_f,T_SGS)
 
 
   
-  subroutine inverse(A_arr,b)
+  subroutine inverse(V,T_ij,h_ij)
     implicit none
 
-    integer, parameter :: n = coloc2
-    real(kind=8), dimension(n,n),intent(in) :: A_arr
-    real(kind=8), dimension(n),intent(inout) :: b
-     real(kind=8), dimension(:),allocatable :: x
-    real(kind=8), dimension(:,:),allocatable :: a
-    real(kind=8), dimension(:),allocatable :: work
+    integer, parameter :: n = coloc2 ! coloc2 is calculated right in the beginning
+    real(kind=8), dimension(n,n),intent(in) :: V 
+    real(kind=8), dimension(n),intent(inout) :: T_ij , h_ij
+    
+    real(kind=8), dimension(:,:),allocatable :: a,eye
+    real(kind=8), dimension(:),allocatable :: b,work
+
+    real(kind=8), parameter :: lambda = 0.1d0
     
     real(kind=8) :: errnorm, xnorm, rcond, anorm, colsum
-    integer :: i, info, lda, ldb, nrhs, j
+    integer :: i,info, lda, ldb, nrhs, j
     integer, dimension(:),allocatable :: ipiv
     integer, dimension(:),allocatable :: iwork
+    integer :: d
     character, dimension(1) :: norm
-    logical :: debug = .false.
+    logical :: debug = .true.
 
-    allocate(a(n,n))
-    allocate(x(n),ipiv(n))
+    allocate(a(n,n),eye(n,n))
+    allocate(b(n),ipiv(n))
+
+    ! Create matrix for computing the direct inverse:
+    forall(d = 1:n) eye(d,d) = 1.d0 ! create Identity matrix
     
-    a = A_arr
-    x = 0.
+    a = matmul(transpose(V),V)+lambda*eye ! V'V + lambda*I
+    b = matmul(transpose(V),T_ij) ! Pass initial value from T_ij to h_ij for LU decomposition
 
     if (debug) then
     do j=1,18
-      write(*,"(4(F16.2) )") A_arr(j,1:3),b(j)
+      write(*,"(4(F16.2) )") V(j,1:3),T_ij(j)
    end do
 end if
 
@@ -432,32 +452,35 @@ end if
         anorm = max(anorm, colsum)
         enddo
 
-        ! extend upto 6 for 6 tau_ijs
-    nrhs = 1 ! number of right hand sides in b 
+       
+    nrhs = 1 ! number of right hand sides in T_ij  ! extend upto 6 for 6 tau_ijs
     lda = n  ! leading dimension of a
-    ldb = n  ! leading dimension of b
+    ldb = n  ! leading dimension of T_ij
 
+    ! dgesv destroys the orginal matrix. So V is copied into 'a' matrix. This is the LU product matrix.
+    ! dgesv returns x vector. First it copies the values from 'T_ij' vector and then computes 'h_ij'.
+    ! 'h_ij' is the h_ij vector.
+    
     call dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
+    h_ij =b
 
     if (debug) then
-   Print*,"LU:"
+   Print*,"After dgesv operation:"
    do j=1,18
-      write(*,"(4(F16.4) )") a(j,1:3),b(j)
+      write(*,"(5(F16.4) )") a(j,1:3),T_ij(j),h_ij(j)
    end do
 end if
 
 
 
-
  
-   
    
 !!$    ! compute 1-norm of error
 !!$    errnorm = 0.d0
 !!$    xnorm = 0.d0
 !!$    do i=1,n
-!!$        errnorm = errnorm + abs(x(i)-b(i))
-!!$        xnorm = xnorm + abs(x(i))
+!!$        errnorm = errnorm + abs(h_ij(i)-T_ij(i))
+!!$        xnorm = xnorm + abs(h_ij(i))
 !!$    enddo
 !!$
 !!$    ! relative error in 1-norm:
@@ -465,7 +488,7 @@ end if
 
 
     ! compute condition number of matrix:
-    ! note: uses A returned from dgesv with L,U factors:
+    ! note: uses V returned from dgesv with L,U factors:
 
     allocate(work(4*n))
     allocate(iwork(n))
@@ -483,7 +506,7 @@ end if
  end if
  
 
-    deallocate(a,x,ipiv,work,iwork)
+    deallocate(a,b,ipiv,work,iwork)
         
 
   end subroutine inverse

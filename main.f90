@@ -9,13 +9,12 @@ program main
 use fourier
 use fileio
 use linsolve
-implicit none
 
+implicit none
 integer,parameter           :: LES_scale=40, test_scale=20
 integer                     :: i,j,k,d=0
 
 ! Define velocities:
-
 real(kind=8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
 real(kind=8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij,temp
 real(kind=8),allocatable,dimension(:,:,:) :: LES,test
@@ -27,7 +26,6 @@ real :: tic, toc
 
 call system('clear')
 call printParams()
-
 
 !! Set debug flags for velocity components:
 n_u=3; n_uu = 6
@@ -59,8 +57,6 @@ call fftshift(LES)
 call fftshift(test)
 
 
-
-
 !! Take LES and test filtered fields:
 allocate(u_f(n_u,GRID,GRID,GRID))
 allocate(u_t(n_u,GRID,GRID,GRID))
@@ -70,9 +66,6 @@ filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
 end do filter
-
-
-
 
 
 print*, '' ! Blank Line
@@ -105,7 +98,6 @@ deallocate(LES,test)
 
 
 
-
 !! Print tau_ij and T_ij to check:
 if (debug(3).eq.0)then
    dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
@@ -127,12 +119,13 @@ call matrixview(u_t(1,:,:,:),frameLim=5,z=testLower+lBound-1)
 
 call cutout(u_t,n_u)
 call cutout(u_f,n_u)
-!call cutout(T_ij,n_uu)
-!call cutout(tau_ij,n_uu)
+call cutout(T_ij,n_uu)
+call cutout(tau_ij,n_uu)
 
 print*, "Done cutout..."
 print*, u_t(1,testLower,testLower,testLower)
-call matrixview(u_t(1,:,:,:),frameLim=11,z=testLower)
+print*, u_t(1,testLower+6,testLower+6,testLower)
+call matrixview(u_t(1,:,:,:),frameLim=17,z=testLower)
 stop
 
 ! Write velocities & stresses to files

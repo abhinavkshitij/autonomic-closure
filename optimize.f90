@@ -12,8 +12,8 @@ implicit none
 
 ! Define velocities:
 
-real(kind=8), dimension(3,51,51,51):: u_f    , u_t
-real(kind=8), dimension(6,51,51,51):: tau_ij , T_ij
+real(kind=8), dimension(3,testcutSize,testcutSize,testcutSize):: u_f    , u_t
+real(kind=8), dimension(6,testcutSize,testcutSize,testcutSize):: tau_ij , T_ij
 
 integer :: n_u=3, n_uu=6
 integer :: i,j,k,d=1
@@ -50,7 +50,7 @@ close(4)
 
 
 
-call synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
+call synStress(u_f, u_t, tau_ij, T_ij, n_u, n_uu)
 
 
 

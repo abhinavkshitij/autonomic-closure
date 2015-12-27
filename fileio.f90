@@ -1,7 +1,7 @@
 module fileio  
   use HDF5  
-  integer, parameter :: GRID=1024
- 
+  integer, parameter :: GRID=256
+
 contains
   
 subroutine binRead(u_dpk,DIM) 
@@ -117,7 +117,6 @@ subroutine hdf5Read()
 
      lowerIndex = lowerIndex + 96
      upperIndex = upperIndex + 96
-
   end do
   call h5close_f(error)
   return

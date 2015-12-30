@@ -158,9 +158,10 @@ contains
     real(8),allocatable,dimension(:,:,:,:) :: uu_t,uu_f,TijOpt,tau_ijOpt
     real(8),dimension(coloc2,coloc2) :: V = 0. ! Is the non-linear combination of the velocities.
     real(8),dimension(coloc2) :: T = 0. , h_ij = 0. ! T takes the T_ij values and copies to h_ij in inverse().
-    
-    character(50)::  PATH="./testResults/dampedLeast/"
-    character(10)::  l_val = "l_1d0/"
+    real(8) :: lambda 
+
+    character(50)::  PATH="./testResults/dampedLeast/bin4020/"
+    character(10)::  l_val = "l_4000/" ! l_var stands for variable lambda.
     character(4) ::  z_plane
     integer :: n_u
     integer :: n_uu
@@ -181,7 +182,7 @@ contains
     integer,dimension(4) :: debug=(/0,1,0,0/)
 
     integer :: i,j,k,p=0,z,vizPlaneC, vizPlaneF
-     
+    logical :: writeFile=.false.
  
    print*, 'Computing SGS stress...'
    print *,'shape tau_ij cutout: ',shape(tau_ij)
@@ -222,27 +223,33 @@ contains
 
 !    if(debug(3).eq.1)then
 !       lim=testUpper
-!       print*, 'Check for the last element..(43,43,43)'
-!       print*, u_t(1,uBound,uBound,uBound)
+! !      print*, 'Check for the last element..(43,43,43)'
+! !      print*, u_t(1,uBound,uBound,uBound)
 !    else
 !       lim=testLower
-!       print*, 'Check for the first element...(11,11,11)'
-!       print*, T_ij(1,testLower,testLower,testLower)
+! !      print*, 'Check for the first element...(11,11,11)'
+!       print*, T_ij(1,testLower,testLower,testLower),         &
+!             tau_ij(1,testLower,testLower,testLower)
+!       print*,''
 !    end if
 
 !   print*, T_ij(1,27,27,27)
 !   lim = 27
 
    
-   do k_test = testLower, testUpper, stride 
-   do j_test = testLower, testUpper, stride
-   do i_test = testLower, testUpper, stride ! i_test = 11,43,2
+    do k_test = testLower, testUpper, stride 
+    do j_test = testLower, testUpper, stride
+    do i_test = testLower, testUpper, stride ! i_test = 11,43,2
+
 
   ! do k_test = lim,lim,stride
 !   do j_test = lim,lim,stride
 !   do i_test = lim,lim,stride 
-     
-  
+!      do i=1,10
+!         TijOpt = 0.
+!         tau_ijOpt = 0.
+
+     lambda = 4000.             !initialize lambda
      rand_count = 0 
      row_index  = 0 
 
@@ -293,7 +300,8 @@ contains
 
      ! SOLVE THE INVERSE PROBLEM:
      ! inverse takes in T as T_ij for each of the point in the bounding box.
-     call inverse(V,T,h_ij)
+   
+     call inverse(V,T,h_ij,lambda)
 
  !!$         p = p+1 !should be --> 4913
  !!$         if(p.eq.1.or.p.eq.10.or.p.eq.20.or.p.eq.40)
@@ -339,6 +347,14 @@ contains
 
      ! FINE STENCIL : Calculate the SGS stress with determined features
      ! and this will be compared with the original tau_ij
+
+     ! Begin auto-tune : Compute tau_ijOpt and determine if it is good enough for the point
+     ! or not. Calculate bias and varience and repeat until both are minimized.
+     ! Establish metrics to compute the figure of merit. Compute R-value, and change lambda
+     ! to see when it apporaches the "right" value for each of the point.
+     ! 
+     ! Need a error measuring parameter. From Hastie, it is the EPE (Expected
+     ! Prediction Error). Now EPE is related with Bayesian probabilistic distributions.
      col = 0 
      do k_opt = k_test-1, k_test+1
      do j_opt = j_test-1, j_test+1
@@ -359,11 +375,14 @@ contains
      end do
      end do 
 
-     ! print'(9i5,4f12.4)',i_test,j_test,k_test,&
+!      print'(9i5,4f12.4)',i_test,j_test,k_test,&
 !           i_box,j_box,k_box,&
 !           i_proj,j_proj,k_proj,&
 !           maxval(h_ij),minval(h_ij),maxval(V),minval(V)
 
+
+!print*, TijOpt(1,i_proj,j_proj,k_proj),tau_ijOpt(1,i_proj,j_proj,k_proj)
+!end do
      ! print*,'Tij',      T_ij     (1,i_test,j_test,k_test)
 !      print*,'TijOpt',   TijOpt   (1,i_proj,j_proj,k_proj)
 !      print*,'tau_ij',   tau_ij   (1,i_test,j_test,k_test)
@@ -378,7 +397,8 @@ contains
 
  ! Files to save results in:
 
-  do z=3,3
+  if(writeFile) then
+  do z=1,3
    vizPlaneC = nint(0.25*z*testSize)  
    vizPlaneF = (vizPlaneC-1)*2+testLower
    write(z_plane, '(i1)'), z
@@ -399,18 +419,13 @@ contains
     close(3)
     close(4)
   end do
-
-  
-
-
-
+  end if
 
 
 
 
 !! ***************DEBUG********************
   if(debug(4).eq.1) then
-
   print*,''
   print*, 'Exclusion list:'
   print*, randMask
@@ -465,17 +480,17 @@ contains
 
 
   
-  subroutine inverse(V,T_ij,h_ij)
+  subroutine inverse(V,T_ij,h_ij,lambda)
     implicit none
 
     integer, parameter :: n = coloc2 ! coloc2 is calculated right in the beginning
     real(8), dimension(n,n),intent(in) :: V 
-    real(8), dimension(n),intent(in) :: T_ij 
+    real(8), dimension(n),intent(in) :: T_ij
+    real(8), intent(in) :: lambda
     real(8), dimension(n),intent(out) :: h_ij
     real(8), dimension(n,n) :: a,eye
     real(8), dimension(n)   :: b,work
 
-    real(8), parameter :: lambda = 0.1
     real(8) :: errnorm, xnorm, rcond, anorm, colsum
     integer :: i,info, lda, ldb, nrhs, j
     integer, dimension(n) :: ipiv
@@ -483,7 +498,6 @@ contains
     integer :: d
     character, dimension(1) :: norm
     logical :: debug = .false., print_h = .false.
-
 
     ! Create matrix for computing the direct inverse:
     forall(d = 1:n) eye(d,d) = 1.d0 ! create Identity matrix

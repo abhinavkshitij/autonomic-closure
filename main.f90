@@ -11,7 +11,7 @@ use fileio
 use linsolve
 
 implicit none
-integer,parameter           :: LES_scale=40, test_scale=20
+integer,parameter           :: LES_scale=64, test_scale=32
 integer                     :: i,j,k,d=0
 
 ! Define velocities:
@@ -21,6 +21,11 @@ real(kind=8),allocatable,dimension(:,:,:) :: LES,test
 real(kind=8):: dev_t
 integer :: n_u, n_uu
 
+! DEBUG FLAGS:
+! 1- To select only one velocity component and 3 velocity products.
+! 2- Choose between NRL database or JHU(HDF5) database
+! 3- Compute stresses.
+! 4- Compute deviatoric stress. This may not be needed. But keep it for future. 
 integer,dimension(4) :: debug=(/0,1,1,1/)
 real :: tic, toc
 
@@ -75,7 +80,7 @@ print*,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+t
 print*,''
 
 
-if (d.eq.1) then
+if (debug(3).eq.1) then
 
 !! Compute tau_ij and T_ij:
 allocate(tau_ij(n_uu,GRID,GRID,GRID))
@@ -99,7 +104,7 @@ deallocate(LES,test)
 
 
 !! Print tau_ij and T_ij to check:
-if (debug(3).eq.0)then
+if (debug(4).eq.0)then
    dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
    print*, 'w/ deviatoric:',tau_ij(4,200,156,129)-dev_t
 else
@@ -126,13 +131,13 @@ print*, "Done cutout..."
 print*, u_t(1,testLower,testLower,testLower)
 print*, u_t(1,testLower+6,testLower+6,testLower)
 call matrixview(u_t(1,:,:,:),frameLim=17,z=testLower)
-stop
+!stop
 
 ! Write velocities & stresses to files
-open(1,file='./testOpt/bin4020/u_f.dat',status="new")
-open(2,file='./testOpt/bin4020/u_t.dat',status="new")
-open(3,file='./testOpt/bin4020/tau_ij.dat',status="new")
-open(4,file='./testOpt/bin4020/T_ij.dat',status="new")
+open(1,file='./testOpt/bin6432/u_f.dat',status="new")
+open(2,file='./testOpt/bin6432/u_t.dat',status="new")
+open(3,file='./testOpt/bin6432/tau_ij.dat',status="new")
+open(4,file='./testOpt/bin6432/T_ij.dat',status="new")
 
  write(1,*) u_f
  write(2,*) u_t

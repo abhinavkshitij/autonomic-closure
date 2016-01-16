@@ -104,21 +104,23 @@ contains
     integer                 :: i, j, k, index, c
     logical,parameter       :: debug = .false.
 
-    num = 0 ; i=0
+    num = 0 ; i=1
 
     call init_random_seed()
     do
        call random_number(x)
        randomNum = nint( (boxSize-1) * x ) + 1
+       
        ! Enforce element uniqueness and keep boxCenter -> see Notes
        if(any(num.eq.randomNum).or.(randomNum.eq.boxCenter)) cycle
-          
-       num(i) = randomNum
-       i = i+1
+       
+       num(i) = randomNum       
+       i = i+1   
+       
        if (i.gt.n) exit   
     end do
-    !call bubblesort(num) ! Remove in real case.Keep for testing
-        
+    call bubblesort(num) ! Remove in real case.Keep for testing
+    print*,num    
    !! ******************DEBUG**********************
     if (debug) then
     c=0;index=1;randomMatrix=0
@@ -158,7 +160,7 @@ contains
     real(8),allocatable,dimension(:,:,:,:) :: uu_t,uu_f,TijOpt,tau_ijOpt
     real(8),dimension(coloc2,coloc2) :: V = 0. ! Is the non-linear combination of the velocities.
     real(8),dimension(coloc2) :: T = 0. , h_ij = 0. ! T takes the T_ij values and copies to h_ij in inverse().
-    real(8) :: lambda 
+    real(8) :: lambda(5) = (/ 1.d4, 1.1d2, 1.2d2, 1.3d2, 1.4d2 /) 
 
     character(50)::  PATH="./testResults/dampedLeast/bin4020/"
     character(10)::  l_val = "l_4000/" ! l_var stands for variable lambda.
@@ -182,7 +184,7 @@ contains
     integer,dimension(4) :: debug=(/0,1,0,0/)
 
     integer :: i,j,k,p=0,z,vizPlaneC, vizPlaneF
-    logical :: writeFile=.false.
+    logical :: writeStress=.false.
  
    print*, 'Computing SGS stress...'
    print *,'shape tau_ij cutout: ',shape(tau_ij)
@@ -221,46 +223,46 @@ contains
 ! 2*(5+1)-1 for 8 = 11 ; 5 for box,1 for stencil
    ! As a modification, it should be independent of stride=2 , as well
 
-!    if(debug(3).eq.1)then
-!       lim=testUpper
-! !      print*, 'Check for the last element..(43,43,43)'
-! !      print*, u_t(1,uBound,uBound,uBound)
-!    else
-!       lim=testLower
-! !      print*, 'Check for the first element...(11,11,11)'
-!       print*, T_ij(1,testLower,testLower,testLower),         &
-!             tau_ij(1,testLower,testLower,testLower)
-!       print*,''
-!    end if
+   if(debug(3).eq.1)then
+      lim=testUpper
+!      print*, 'Check for the last element..(43,43,43)'
+!      print*, u_t(1,uBound,uBound,uBound)
+   else
+      lim=testLower
+!      print*, 'Check for the first element...(11,11,11)'
+!      print*, T_ij(1,testLower,testLower,testLower),         &
+!            tau_ij(1,testLower,testLower,testLower)
+      print*,''
+   end if
 
-!   print*, T_ij(1,27,27,27)
-!   lim = 27
+   lim = 11
+   print*, T_ij(1,lim,lim,lim), tau_ij(1,lim,lim,lim)
+   print*, ''
+   
 
    
-    do k_test = testLower, testUpper, stride 
-    do j_test = testLower, testUpper, stride
-    do i_test = testLower, testUpper, stride ! i_test = 11,43,2
+!     do k_test = testLower, testUpper, stride 
+!     do j_test = testLower, testUpper, stride
+!     do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
 
-  ! do k_test = lim,lim,stride
-!   do j_test = lim,lim,stride
-!   do i_test = lim,lim,stride 
-!      do i=1,10
-!         TijOpt = 0.
-!         tau_ijOpt = 0.
-
-     lambda = 4000.             !initialize lambda
-     rand_count = 0 
-     row_index  = 0 
+  do k_test = lim,lim,stride
+  do j_test = lim,lim,stride
+  do i_test = lim,lim,stride 
 
      call randAlloc(randMask)   !Each point will have different stencil-center points.
+     rand_count = 0 
+     row_index  = 0 
+     
+     open(111,file='./testResults/h_ij/randomPoints.csv',status='replace') !Save random point co-od on CSV file to plot in Paraview
+
      do k_box = k_test-boxLower, k_test+boxUpper, stride
      do j_box = j_test-boxLower, j_test+boxUpper, stride
      do i_box = i_test-boxLower, i_test+boxUpper, stride ! i_box = 3,49,2
         rand_count = rand_count + 1
         ! Skip if the point is listed in randMask
         if (any(randMask.eq.rand_count)) cycle
-
+        write(111,*) rand_count
         ! Reset pointer to the first column after each stencil operation
         col_index = 0 
         row_index = row_index + 1
@@ -293,6 +295,8 @@ contains
      end do
      end do
      end do !box
+     
+     close(111)                 !111 is the code for CSV files
 
      ! Until here, the mechanism to compute the coefficient matrix
      ! is tested and verified. There are no issues with the basic mechanism.
@@ -300,8 +304,11 @@ contains
 
      ! SOLVE THE INVERSE PROBLEM:
      ! inverse takes in T as T_ij for each of the point in the bounding box.
-   
-     call inverse(V,T,h_ij,lambda)
+     lam:do i=1,1
+        TijOpt = 0.d0
+        tau_ijOpt = 0.d0
+        
+        call inverse(V,T,h_ij,lambda(i))
 
  !!$         p = p+1 !should be --> 4913
  !!$         if(p.eq.1.or.p.eq.10.or.p.eq.20.or.p.eq.40)
@@ -380,9 +387,11 @@ contains
 !           i_proj,j_proj,k_proj,&
 !           maxval(h_ij),minval(h_ij),maxval(V),minval(V)
 
-
-!print*, TijOpt(1,i_proj,j_proj,k_proj),tau_ijOpt(1,i_proj,j_proj,k_proj)
-!end do
+     
+     print*, 'TijOpt:',TijOpt(1,i_proj,j_proj,k_proj),&
+          'tau_ij:',tau_ijOpt(1,i_proj,j_proj,k_proj)
+     print*,'M:', row_Index
+  end do lam
      ! print*,'Tij',      T_ij     (1,i_test,j_test,k_test)
 !      print*,'TijOpt',   TijOpt   (1,i_proj,j_proj,k_proj)
 !      print*,'tau_ij',   tau_ij   (1,i_test,j_test,k_test)
@@ -397,7 +406,7 @@ contains
 
  ! Files to save results in:
 
-  if(writeFile) then
+  if(writeStress) then
   do z=1,3
    vizPlaneC = nint(0.25*z*testSize)  
    vizPlaneF = (vizPlaneC-1)*2+testLower
@@ -497,7 +506,7 @@ contains
     !integer, dimension(:),allocatable :: iwork
     integer :: d
     character, dimension(1) :: norm
-    logical :: debug = .false., print_h = .false.
+    logical :: debug = .false., print_h = .false., cond=.false.
 
     ! Create matrix for computing the direct inverse:
     forall(d = 1:n) eye(d,d) = 1.d0 ! create Identity matrix
@@ -507,21 +516,23 @@ contains
     b = matmul(transpose(V),T_ij) ! Pass initial value from T_ij to h_ij for LU decomposition
 
     if (debug) then
-    do j=1,18
-      write(*,"(4(F16.2))") V(j,1:3),T_ij(j)
-   end do
-   end if
+       do j=1,18
+          write(*,"(4(F16.2))") V(j,1:3),T_ij(j)
+       end do
+    end if
 
     
     ! compute 1-norm needed for condition number
-    anorm = 0.d0
-    do j=1,n
-        colsum = 0.d0
-        do i=1,n
+   if(cond)then
+      anorm = 0.d0
+      do j=1,n
+         colsum = 0.d0
+         do i=1,n
             colsum = colsum + abs(a(i,j))
-            enddo
-        anorm = max(anorm, colsum)
-        enddo
+         enddo
+         anorm = max(anorm, colsum)
+      enddo
+   end if
 
        
     nrhs = 1 ! number of right hand sides in T_ij  ! extend upto 6 for 6 tau_ijs
@@ -535,14 +546,20 @@ contains
     call dgesv(n, nrhs, a, lda, ipiv, b, ldb, info)
     h_ij = b
 
-    if(print_h) print*,h_ij(128)
+    if(print_h) then
+       print*,'lambda',lambda
+       do j=1,n
+          write(*,"(i3,',',f22.15)") j,h_ij(j)
+       end do
+       print*,''
+    end if
 
     if (debug) then
-   Print*,"After dgesv operation:"
-   do j=1,18
-      write(*,"(5(F16.4) )") a(j,1:3),T_ij(j),h_ij(j)
-   end do
-end if
+       print*,"After dgesv operation:"
+       do j=1,18
+          write(*,"(5(F16.4) )") a(j,1:3),T_ij(j),h_ij(j)
+       end do
+    end if
 
 
 

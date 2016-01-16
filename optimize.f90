@@ -22,7 +22,7 @@ integer,dimension(4) :: debug=(/0,1,1,1/)
 real :: tic, toc
 
 call system('clear')
-!call printParams()
+call printParams()
 
 
 !! Select file to read:

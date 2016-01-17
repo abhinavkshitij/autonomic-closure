@@ -7,8 +7,7 @@ contains
 subroutine binRead(u_dpk,DIM) 
  ! STATUS : Added capablity in matrixView() , hdf5read()
  ! Result : 
-  implicit none
-  
+  implicit none  
   
   integer,intent(in)                         :: DIM
   real,dimension(:,:,:),allocatable          :: u_spk ! Data is stored in single precision kind.
@@ -20,7 +19,6 @@ subroutine binRead(u_dpk,DIM)
   
   ! fID -- is the counter for the file number.
   ! fIndex -- char cast from int(fID).      
-
    
   variableName='Velocity'; time = '0460'
   PATH = '/Users/Kshitij/Desktop/ALES/DNS_Data/'
@@ -37,14 +35,14 @@ do fID = 1,DIM
 
     position = 0
     do k=1,GRID
-       do j=1,GRID
-          do i=1,GRID
-             position = position+1
-             read (fID,rec=position) u_spk(i,j,k)
-          end do
-       end do
+    do j=1,GRID
+    do i=1,GRID
+       position = position+1
+       read (fID,rec=position) u_spk(i,j,k)
     end do
-  u_dpk(fID,:,:,:) = u_spk*1d-2 ! Multiply original data by 0.01.
+    end do
+    end do
+  u_dpk(fID,:,:,:) = u_spk*1d-2 ! scale  original data by 1/100
 close(fID)
 end do
 deallocate(u_spk)
@@ -56,7 +54,7 @@ end subroutine binRead
 subroutine hdf5Read()
   implicit none
 
-  integer , parameter :: n=3 ! n is the number of files to be loaded.
+  integer , parameter :: n_files=3 ! n is the number of files to be loaded.
 
   character(LEN=20),parameter :: PATH = "./h5/"
   character(LEN=30),parameter :: fName = "isotropic1024coarse"
@@ -68,7 +66,7 @@ subroutine hdf5Read()
   integer(HID_T) :: dset_id       ! Dataset identifier
 
 !  real(kind=8), dimension(1,1024,1024,96) :: dset_data
-  real(kind=8), dimension(1:3,1024,1024,96*n) :: u ! Data buffers
+  real(kind=8), dimension(1:3,1024,1024,96*n_files) :: u ! Data buffers
   integer(HSIZE_T), dimension(4) :: data_dims
   
   integer     ::   error 
@@ -87,7 +85,7 @@ subroutine hdf5Read()
   ! I cannot find a way to read multiple files right now.
   ! So I am fixing it by using an IF condition.
 
-  do fCount=1,n
+  do fCount=1,n_files
      if (fCount.eq.1) then
         write(L_Index,'(i1)') lowerIndex
         write(U_Index,'(i2)') upperIndex
@@ -121,6 +119,7 @@ subroutine hdf5Read()
   call h5close_f(error)
   return
 end subroutine hdf5Read
+
 
 subroutine matrixview(array,frameLim,x,y,z,fID)
 implicit none

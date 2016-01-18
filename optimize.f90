@@ -21,7 +21,7 @@ integer,dimension(4) :: debug=(/0,0,0,0/)
 
 
 call system('clear')
-call printParams()
+!call printParams()
 
 open(1,file='./testOpt/bin4020/u_f.dat') ! 3 components
 open(2,file='./testOpt/bin4020/u_t.dat') ! 3 components

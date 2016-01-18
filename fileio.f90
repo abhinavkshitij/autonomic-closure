@@ -7,23 +7,24 @@ contains
 subroutine binRead(u_dpk,DIM) 
  ! STATUS : Added capablity in matrixView() , hdf5read()
  ! Result : 
-  implicit none  
-  
-  integer,intent(in)                         :: DIM
-  real,dimension(:,:,:),allocatable          :: u_spk ! Data is stored in single precision kind.
-  real(kind=8),dimension(DIM,GRID,GRID,GRID) :: u_dpk ! Data read in will be double precision kind.
-  integer                                    :: fID, position
-  integer :: i,j,k
-  character(LEN=16) variableName, time, fIndex
-  character(LEN=100)PATH
-  
-  ! fID -- is the counter for the file number.
-  ! fIndex -- char cast from int(fID).      
-   
-  variableName='Velocity'; time = '0460'
-  PATH = '/Users/Kshitij/Desktop/ALES/DNS_Data/'
+implicit none  
 
-  allocate(u_spk(GRID,GRID,GRID))
+integer,intent(in)                         :: DIM
+real,dimension(:,:,:),allocatable          :: u_spk ! Data is stored in single precision kind.
+real(kind=8),dimension(DIM,GRID,GRID,GRID) :: u_dpk ! Data read in will be double precision kind.
+integer                                    :: fID, position
+integer :: i,j,k
+character(LEN=16) variableName, time, fIndex
+character(LEN=100)PATH
+
+! fID -- is the counter for the file number.
+! fIndex -- char cast from int(fID).      
+
+! CHANGE PATH HERE TO READ IN DATA:
+variableName='Velocity'; time = '0460'
+PATH = '/Users/Kshitij/Desktop/ALES/DNS_Data/'
+
+allocate(u_spk(GRID,GRID,GRID))
   
 do fID = 1,DIM
    print 10, fID
@@ -42,48 +43,47 @@ do fID = 1,DIM
     end do
     end do
     end do
-  u_dpk(fID,:,:,:) = u_spk*1d-2 ! scale  original data by 1/100
-close(fID)
+    u_dpk(fID,:,:,:) = u_spk*1d-2 ! scale  original data by 1/100
+    close(fID)
 end do
 deallocate(u_spk)
-
 return
 end subroutine binRead
 
 
 subroutine hdf5Read()
-  implicit none
+implicit none
 
-  integer , parameter :: n_files=3 ! n is the number of files to be loaded.
+integer , parameter :: n_files=3 ! n is the number of files to be loaded.
 
-  character(LEN=20),parameter :: PATH = "./h5/"
-  character(LEN=30),parameter :: fName = "isotropic1024coarse"
-  character(LEN=100) :: filename
-  character(LEN=4) :: L_Index, U_Index
-  character(LEN=10)  :: dset_u = "u10240", dset_p = "p10240", fL_Index, fU_Index  
+character(LEN=20),parameter :: PATH = "./h5/"
+character(LEN=30),parameter :: fName = "isotropic1024coarse"
+character(LEN=100) :: filename
+character(LEN=4) :: L_Index, U_Index
+character(LEN=10)  :: dset_u = "u10240", dset_p = "p10240", fL_Index, fU_Index  
 
-  integer(HID_T) :: file_id       ! File identifier
-  integer(HID_T) :: dset_id       ! Dataset identifier
+integer(HID_T) :: file_id       ! File identifier
+integer(HID_T) :: dset_id       ! Dataset identifier
 
 !  real(kind=8), dimension(1,1024,1024,96) :: dset_data
-  real(kind=8), dimension(1:3,1024,1024,96*n_files) :: u ! Data buffers
-  integer(HSIZE_T), dimension(4) :: data_dims
-  
-  integer     ::   error 
-  integer     ::   i, j, fCount
-  integer     ::   lowerIndex, upperIndex
- 
-  !
-  ! Initilize file indices:
-  !
-  lowerIndex = 0
-  upperIndex = 95
- 
-  
-  call h5open_f(error)   ! Begin HDF5
+real(kind=8), dimension(1:3,1024,1024,96*n_files) :: u ! Data buffers
+integer(HSIZE_T), dimension(4) :: data_dims
 
-  ! I cannot find a way to read multiple files right now.
-  ! So I am fixing it by using an IF condition.
+integer     ::   error 
+integer     ::   i, j, fCount
+integer     ::   lowerIndex, upperIndex
+
+!
+! Initilize file indices:
+!
+lowerIndex = 0
+upperIndex = 95
+ 
+  
+call h5open_f(error)   ! Begin HDF5
+
+  ! Cannot find a way to read multiple files right now.
+  ! Fix by using an IF condition.
 
   do fCount=1,n_files
      if (fCount.eq.1) then
@@ -152,5 +152,18 @@ implicit none
 
   return
 end subroutine matrixview
+
+  subroutine printmatrix2(matrix,M,N)
+    implicit none
+    
+    integer,intent(in) :: M,N
+    real(8),dimension(M,N),intent(inout) :: matrix
+    character(4) :: form2
+    integer :: i
+
+    write(form2,'(i4)') N
+    write(*, '('//trim(form2)//'f30.15)'), ( matrix(i,1:N), i=1,M ); print*, ''
+    print*,''
+  end subroutine printmatrix2
 
 end module fileio

@@ -1,5 +1,4 @@
-# STATUS : Integrating LAPACK links
-# Notes : Make the links more concise 
+# USE THIS MAKEFILE TO RUN main.exe THAT WILL TAKE THE FFT AND SAVE ON AN EXTERNAL FILE.
 
 # external library directories
 FFTW_DIR = /opt/fftw-3.3.4

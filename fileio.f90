@@ -79,11 +79,8 @@ integer     ::   lowerIndex, upperIndex
 lowerIndex = 0
 upperIndex = 95
  
-  
+ 
 call h5open_f(error)   ! Begin HDF5
-
-  ! Cannot find a way to read multiple files right now.
-  ! Fix by using an IF condition.
 
   do fCount=1,n_files
      if (fCount.eq.1) then
@@ -153,17 +150,17 @@ implicit none
   return
 end subroutine matrixview
 
-  subroutine printmatrix2(matrix,M,N)
-    implicit none
-    
-    integer,intent(in) :: M,N
-    real(8),dimension(M,N),intent(inout) :: matrix
-    character(4) :: form2
-    integer :: i
+subroutine printmatrix2(matrix,M,N)
+implicit none
 
-    write(form2,'(i4)') N
-    write(*, '('//trim(form2)//'f30.15)'), ( matrix(i,1:N), i=1,M ); print*, ''
-    print*,''
-  end subroutine printmatrix2
+integer,intent(in) :: M,N
+real(8),dimension(M,N),intent(inout) :: matrix
+character(4) :: form2
+integer :: i
+
+write(form2,'(i4)') N
+write(*, '('//trim(form2)//'f30.15)'), ( matrix(i,1:N), i=1,M ); print*, ''
+print*,''
+end subroutine printmatrix2
 
 end module fileio

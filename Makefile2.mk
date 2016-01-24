@@ -1,9 +1,7 @@
-# STATUS : Integrating LAPACK links
-# Notes : Make the links more concise 
+# USE THIS MAKEFILE TO CONDUCT REPEATED TESTS ON THE CUTOUT FIELDS.
 
 # external library directories
 HDF5_DIR = /opt/hdf5-1.8.14
-
 
 # HDF5
 HDF5_INC = -I$(HDF5_DIR)/include
@@ -16,7 +14,7 @@ FFLAGS  = -O3
 .PHONY : optimize clean
 
 optimize : optimize.exe
-	./optimize.exe
+	time ./optimize.exe
 
 optimize.exe: fileio.o linsolve.o optimize.o
 	$(FC) -o optimize.exe optimize.o fileio.o $(HDF5_LIB) linsolve.o $(LFLAGS)

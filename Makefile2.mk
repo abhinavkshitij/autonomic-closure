@@ -14,10 +14,10 @@ FFLAGS  = -O3
 .PHONY : optimize clean
 
 optimize : optimize.exe
-	time ./optimize.exe
+	time ./$<
 
 optimize.exe: fileio.o linsolve.o optimize.o
-	$(FC) -o optimize.exe optimize.o fileio.o $(HDF5_LIB) linsolve.o $(LFLAGS)
+	$(FC) -o $@ optimize.o fileio.o $(HDF5_LIB) linsolve.o $(LFLAGS)
 
 %.o : %.f90
 	$(FC) $(FFLAGS) -c $< $(HDF5_INC)

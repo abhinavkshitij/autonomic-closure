@@ -1,0 +1,52 @@
+REQUIRED DEPENDENCIES:
+1) HDF5 
+2) FFTW
+
+Since it takes a long time to run codes, the whole process has been broken into two parts. 
+Each phase has its own Makefile associated with it. 
+
+1) In the first phase, the dataset is filtered at LES and test scales by main.f90.
+   Next, based on the parameters, main.f90 writes the appropriate size of the cutout fields on external files.
+   Run Makefile to complete Phase I
+
+
+2) In the next phase the saved cutout data is read by optimize.f90
+   This code then computes the tau_ij at LES scale by solving the damped least squares problem.
+   optimize.f90 uses the module linsolve to carry out linear algebra computations.
+   The key parameters are computed at the start of the linsolve module.
+   Run Makefile2.mk to complete Phase II
+
+DESCRIPTION OF MODULES:
+
+1) LINSOLVE:
+
+   Linsolve contains routines for:
+   a) Taking cutout of the test field				-- cutout()
+   b) Random number generation 			 		-- init_random_seed() 
+   c) Randomly marking stencil-center points 	 		-- randTrainingSet()
+   d) Computing tau_ij after solving least squares problem. 	-- synStress()
+   e) Solving the inverse problem by direct iversion		-- choleskyLU() 
+   f) Computing the singular values  	    			-- SVD()
+   g) Sorting a list	     					-- bubblesort()
+  	    			
+2) FOURIER:
+
+   Fourier contains routines for:
+   a) Creating a spectrally sharp filter			-- createFilter()
+   b) Performing the fftshift operation (its a MATLAB op)	-- fftshift()
+   c) Applying the  spectrally sharp filter     		-- sharpFilter()
+  
+3) FILEIO:
+
+   Fileio conducts read/write operations on external files either during preprocessing 
+   or postprocessing. It has routines for:
+   a) Reading the NRL (256^3) dataset (in binary format)	-- binRead()
+   b) Reading JHU (1024^3) dataset (in HDF% format)		-- hdf5Read()
+   c) Writing planes slices to plot in MATLAB			-- matrixview()
+   d) Print an array in the form of a matrix on the console	-- printmatrix2()
+
+
+
+
+
+

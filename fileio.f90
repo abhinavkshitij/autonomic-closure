@@ -22,7 +22,7 @@ character(LEN=100)PATH
 
 ! CHANGE PATH HERE TO READ IN DATA:
 variableName='Velocity'; time = '0460'
-PATH = '/Users/Kshitij/Desktop/ALES/DNS_Data/'
+PATH = '../data/'
 
 allocate(u_spk(GRID,GRID,GRID))
   
@@ -54,9 +54,9 @@ end subroutine binRead
 subroutine hdf5Read()
 implicit none
 
-integer , parameter :: n_files=3 ! n is the number of files to be loaded.
+integer , parameter :: n_files=2 ! n is the number of files to be loaded.
 
-character(LEN=20),parameter :: PATH = "./h5/"
+character(LEN=20),parameter :: PATH = "../data/"
 character(LEN=30),parameter :: fName = "isotropic1024coarse"
 character(LEN=100) :: filename
 character(LEN=4) :: L_Index, U_Index

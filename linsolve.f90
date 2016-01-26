@@ -192,7 +192,7 @@ integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for 
 
 
 ! EXTERNAL FILES:
-character(50)::  PATH="./testResults/dampedLeast/bin4020/"
+character(50)::  PATH="./run/dampedLeast/bin4020/"
 character(10)::  l_val = "l_4000/" ! l_var stands for variable lambda.
 logical      ::  writeStress = .FALSE.    
 character(4) ::  z_plane

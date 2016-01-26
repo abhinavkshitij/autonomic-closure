@@ -1,5 +1,6 @@
 program optimize
-  
+
+! /Users/Kshitij/Desktop/ALES/f90/src/optimize.f90  
 ! STATUS : Testing for damped least squares formulation. This program will read the filtered fields and compute the inverse.
 !          
 !          
@@ -11,9 +12,10 @@ use linsolve
 implicit none
 
 
-real(kind=8), dimension(3,testcutSize,testcutSize,testcutSize):: u_f    , u_t
-real(kind=8), dimension(6,testcutSize,testcutSize,testcutSize):: tau_ij , T_ij !Testing for _11 ij component
+real(8), dimension(3,testcutSize,testcutSize,testcutSize):: u_f    , u_t
+real(8), dimension(6,testcutSize,testcutSize,testcutSize):: tau_ij , T_ij !Testing for _11 ij component
 
+character(50):: CUT_DATA = '../derived_data/cutout/bin4020/' !Change bin4020 by 'sed' in shell script
 integer :: n_u=3, n_uu=6
 
 !!$ DEBUG SWITCHES:
@@ -21,12 +23,12 @@ integer,dimension(4) :: debug=(/0,0,0,0/)
 
 
 call system('clear')
-!call printParams()
+call printParams()
 
-open(1,file='./testOpt/bin4020/u_f.dat') ! 3 components
-open(2,file='./testOpt/bin4020/u_t.dat') ! 3 components
-open(3,file='./testOpt/bin4020/tau_ij.dat') ! 6 components
-open(4,file='./testOpt/bin4020/T_ij.dat')  ! 6 components
+open(1,file= trim(CUT_DATA)//'u_f.dat') ! 3 components
+open(2,file= trim(CUT_DATA)//'u_t.dat') ! 3 components
+open(3,file= trim(CUT_DATA)//'tau_ij.dat') ! 6 components
+open(4,file= trim(CUT_DATA)//'T_ij.dat')  ! 6 components
 
 print *, "*** Reading files ***"
  

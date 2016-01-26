@@ -1,9 +1,1 @@
-DNS
-FFT
-datafile.m
-matlab.sh
-*.csv
-*.o
-*.mod
-*.exe
-*.h5
+run/

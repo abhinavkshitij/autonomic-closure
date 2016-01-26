@@ -11,7 +11,7 @@ use fileio
 use linsolve
 
 implicit none
-integer,parameter           :: LES_scale=64, test_scale=32
+integer,parameter           :: LES_scale=60, test_scale=30
 integer                     :: i,j,k,d=0
 
 ! Define velocities:
@@ -21,6 +21,9 @@ real(kind=8),allocatable,dimension(:,:,:) :: LES,test
 real(kind=8):: dev_t
 integer :: n_u, n_uu
 
+character(50):: CUT_DATA = '../derived_data/cutout/' !Change bin4020 by 'sed' in shell script
+character(10):: f_CUT 
+ 
 ! DEBUG FLAGS:
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL database or JHU(HDF5) database
@@ -47,10 +50,12 @@ allocate(u(n_u,GRID,GRID,GRID))
 
 fileSelect:if (debug(2).eq.1) then
    call binRead(u,DIM=n_u)
+   write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/'
 else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
 
+!print*, trim(CUT_DATA)//trim(f_CUT)
 
 
 !! Create LES and test scale sharp filters:
@@ -130,14 +135,14 @@ call cutout(tau_ij,n_uu)
 print*, "Done cutout..."
 print*, u_t(1,testLower,testLower,testLower)
 print*, u_t(1,testLower+6,testLower+6,testLower)
-call matrixview(u_t(1,:,:,:),frameLim=17,z=testLower)
+call matrixview(u_t(1,:,:,:),frameLim=17,z=testLower) !The bottom-right element should match with the value above
 !stop
 
 ! Write velocities & stresses to files
-open(1,file='./testOpt/bin6432/u_f.dat',status="new")
-open(2,file='./testOpt/bin6432/u_t.dat',status="new")
-open(3,file='./testOpt/bin6432/tau_ij.dat',status="new")
-open(4,file='./testOpt/bin6432/T_ij.dat',status="new")
+open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.dat',status='replace')
+open(2,file=trim(CUT_DATA)//trim(f_CUT)//'u_t.dat',status='replace')
+open(3,file=trim(CUT_DATA)//trim(f_CUT)//'tau_ij.dat',status='replace')
+open(4,file=trim(CUT_DATA)//trim(f_CUT)//'T_ij.dat',status='replace')
 
  write(1,*) u_f
  write(2,*) u_t

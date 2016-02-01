@@ -26,10 +26,10 @@ character(10):: f_CUT
  
 ! DEBUG FLAGS:
 ! 1- To select only one velocity component and 3 velocity products.
-! 2- Choose between NRL database or JHU(HDF5) database
+! 2- Choose between NRL database[1] or JHU(HDF5) database[0]
 ! 3- Compute stresses.
 ! 4- Compute deviatoric stress. This may not be needed. But keep it for future. 
-integer,dimension(4) :: debug=(/0,1,1,1/)
+integer,dimension(4) :: debug=(/0,0,1,1/)
 real :: tic, toc
 
 call system('clear')
@@ -54,7 +54,7 @@ fileSelect:if (debug(2).eq.1) then
 else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
-
+stop
 !print*, trim(CUT_DATA)//trim(f_CUT)
 
 

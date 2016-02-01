@@ -11,7 +11,7 @@ implicit none
 
 integer,intent(in)                         :: DIM
 real,dimension(:,:,:),allocatable          :: u_spk ! Data is stored in single precision kind.
-real(kind=8),dimension(DIM,GRID,GRID,GRID) :: u_dpk ! Data read in will be double precision kind.
+real(8),dimension(DIM,GRID,GRID,GRID)      :: u_dpk ! Data read in will be double precision kind.
 integer                                    :: fID, position
 integer :: i,j,k
 character(LEN=16) variableName, time, fIndex
@@ -22,7 +22,7 @@ character(LEN=100)PATH
 
 ! CHANGE PATH HERE TO READ IN DATA:
 variableName='Velocity'; time = '0460'
-PATH = '../data/'
+PATH = '../data/nrl/'
 
 allocate(u_spk(GRID,GRID,GRID))
   
@@ -66,7 +66,7 @@ integer(HID_T) :: file_id       ! File identifier
 integer(HID_T) :: dset_id       ! Dataset identifier
 
 !  real(kind=8), dimension(1,1024,1024,96) :: dset_data
-real(kind=8), dimension(1:3,1024,1024,96*n_files) :: u ! Data buffers
+real(kind=8), dimension(3,1024,1024,96*n_files) :: u ! Data buffers
 integer(HSIZE_T), dimension(4) :: data_dims
 
 integer     ::   error 
@@ -105,7 +105,6 @@ call h5open_f(error)   ! Begin HDF5
 !     call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, dset_data, data_dims, error) ! Read into dset_data
      call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) ! Read into dset_data 
      !u(1,:,:,lowerIndex+1:upperIndex+1) = dset_data
-     print*,u(1,1,1,6)
      
      call h5dclose_f(dset_id, error)    
      call h5fclose_f(file_id, error)
@@ -114,6 +113,10 @@ call h5open_f(error)   ! Begin HDF5
      upperIndex = upperIndex + 96
   end do
   call h5close_f(error)
+
+  ! Check for bin files:
+     print*,u(2,1,5,89) , u(3,5,5,89)
+     print*,u(2,1,5,185), u(3,5,5,185)
   return
 end subroutine hdf5Read
 

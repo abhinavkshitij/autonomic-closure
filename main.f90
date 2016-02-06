@@ -11,7 +11,7 @@ use fileio
 use linsolve
 
 implicit none
-integer,parameter           :: LES_scale=60, test_scale=30
+integer,parameter           :: LES_scale=40, test_scale=20
 integer                     :: i,j,k,d=0
 
 ! Define velocities:
@@ -21,7 +21,7 @@ real(kind=8),allocatable,dimension(:,:,:) :: LES,test
 real(kind=8):: dev_t
 integer :: n_u, n_uu
 
-character(50):: CUT_DATA = '../derived_data/cutout/' !Change bin4020 by 'sed' in shell script
+character(50):: CUT_DATA = '../derived_data/cutout/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
  
 ! DEBUG FLAGS:
@@ -29,7 +29,7 @@ character(10):: f_CUT
 ! 2- Choose between NRL database[1] or JHU(HDF5) database[0]
 ! 3- Compute stresses.
 ! 4- Compute deviatoric stress. This may not be needed. But keep it for future. 
-integer,dimension(4) :: debug=(/0,0,1,1/)
+integer,dimension(4) :: debug=(/0,1,1,1/)
 real :: tic, toc
 
 call system('clear')
@@ -50,12 +50,13 @@ allocate(u(n_u,GRID,GRID,GRID))
 
 fileSelect:if (debug(2).eq.1) then
    call binRead(u,DIM=n_u)
-   write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/'
+   write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
+   !print*, trim(CUT_DATA)//trim(f_CUT) !Test pathname
 else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
 stop
-!print*, trim(CUT_DATA)//trim(f_CUT)
+
 
 
 !! Create LES and test scale sharp filters:
@@ -86,41 +87,36 @@ print*,''
 
 
 if (debug(3).eq.1) then
-
-!! Compute tau_ij and T_ij:
-allocate(tau_ij(n_uu,GRID,GRID,GRID))
-allocate(T_ij(n_uu,GRID,GRID,GRID))
-k = 1
-do j=1,n_u
-   do i=1,n_u
-      if (i.ge.j) then
-         Print *, 'tau(', i, ',', j, ')'
-         tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),LES)     &
-              - u_f(i,:,:,:)*u_f(j,:,:,:)
-         Print *, 'T(', i, ',', j, ')'
-         T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:)*u_f(j,:,:,:),test)    &
-              - u_t(i,:,:,:)*u_t(j,:,:,:)
-         k = k+1
-      end if
+   !! Compute tau_ij and T_ij:
+   allocate(tau_ij(n_uu,GRID,GRID,GRID))
+   allocate(T_ij(n_uu,GRID,GRID,GRID))
+   k = 1
+   do j=1,n_u
+      do i=1,n_u
+         if (i.ge.j) then
+            Print *, 'tau(', i, ',', j, ')'
+            tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),LES)     &
+                 - u_f(i,:,:,:)*u_f(j,:,:,:)
+            Print *, 'T(', i, ',', j, ')'
+            T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:)*u_f(j,:,:,:),test)    &
+                 - u_t(i,:,:,:)*u_t(j,:,:,:)
+            k = k+1
+         end if
+      end do
    end do
-end do
-deallocate(LES,test)
+   deallocate(LES,test)
 
 
 
-!! Print tau_ij and T_ij to check:
-if (debug(4).eq.0)then
-   dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
-   print*, 'w/ deviatoric:',tau_ij(4,200,156,129)-dev_t
-else
-  ! print*, tau_ij(4,200,156,129)
-end if
-!print*, T_ij(4,200,156,129)
-!print*,'T_11(11,11,11)',T_ij(1,112,112,112)
-
-! Take a cutout of the field(32x32x32)
-! This is will result in a 16x16x16 test scale field
-! This can be then safely used for a 8x8x8 field to find the h's
+   !! Print tau_ij and T_ij to check:
+   if (debug(4).eq.0)then
+      dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
+      print*, 'w/ deviatoric:',tau_ij(4,200,156,129)-dev_t
+   else
+      ! print*, tau_ij(4,200,156,129)
+   end if
+   !print*, T_ij(4,200,156,129)
+   !print*,'T_11(11,11,11)',T_ij(1,112,112,112)
 end if
 
 print*,'Shape before cutout:',shape(u_t)

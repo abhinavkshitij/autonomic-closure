@@ -42,6 +42,12 @@ close(2)
 close(3)
 close(4)
 
+open(1,file='test.dat')
+call matrixview(tau_ij(1,:,:,:),frameLim=4,fID=1)
+close(1)
+
+stop
+
 !!$ For testing correct read/write:
 if(debug(1).eq.1) then
  print*,"T_ij (1,11,11,11):", T_ij(1,11,11,11)

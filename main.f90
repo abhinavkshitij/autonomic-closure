@@ -21,9 +21,10 @@ real(kind=8),allocatable,dimension(:,:,:) :: LES,test
 real(kind=8):: dev_t
 integer :: n_u, n_uu
 
-character(50):: CUT_DATA = '../derived_data/cutout/jhu/' !Change bin4020 by 'sed' in shell script
+character(50):: CUT_DATA = '../derived_data/cutout64/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
- 
+character(3) :: d_set = 'jhu'
+
 ! DEBUG FLAGS:
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL database[1] or JHU(HDF5) database[0]
@@ -49,13 +50,13 @@ end if
 allocate(u(n_u,GRID,GRID,GRID))
 
 fileSelect:if (debug(2).eq.1) then
-   call binRead(u,DIM=n_u)
+   call binRead(u,  d_set,  DIM=n_u)
    write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
    !print*, trim(CUT_DATA)//trim(f_CUT) !Test pathname
 else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
-stop
+
 
 
 
@@ -159,8 +160,6 @@ stop
 
 call synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
 !print*,'tau_ij',tau_ij(1,testLower,testLower,testLower)
-
-
 
 
 

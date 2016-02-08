@@ -4,49 +4,92 @@ module fileio
 
 contains
   
-subroutine binRead(u_dpk,DIM) 
+subroutine binRead(u_dpk,set,DIM) 
  ! STATUS : Added capablity in matrixView() , hdf5read()
  ! Result : 
 implicit none  
 
 integer,intent(in)                         :: DIM
+character(3),intent(in)                    :: set
 real,dimension(:,:,:),allocatable          :: u_spk ! Data is stored in single precision kind.
+real(8),dimension(:,:,:),allocatable       :: u
 real(8),dimension(DIM,GRID,GRID,GRID)      :: u_dpk ! Data read in will be double precision kind.
+
 integer                                    :: fID, position
 integer :: i,j,k
 character(LEN=16) variableName, time, fIndex
 character(LEN=100)PATH
 
+
 ! fID -- is the counter for the file number.
 ! fIndex -- char cast from int(fID).      
 
 ! CHANGE PATH HERE TO READ IN DATA:
-variableName='Velocity'; time = '0460'
-PATH = '../data/nrl/'
+! %% NRL:
+if (set.eq.'nrl') then
+   variableName='Velocity'; time = '0460'
+   PATH = '../data/nrl/'
 
-allocate(u_spk(GRID,GRID,GRID))
-  
-do fID = 1,DIM
-   print 10, fID
-10 format("Reading... u",i1,"_DNS")
-   write(fIndex,'(i1)') fID
-   u_spk = 0.
-   open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
-       status='old',form='unformatted',access='direct',convert='big_endian',recl=4)
+   allocate(u_spk(GRID,GRID,GRID))
 
-    position = 0
-    do k=1,GRID
-    do j=1,GRID
-    do i=1,GRID
-       position = position+1
-       read (fID,rec=position) u_spk(i,j,k)
-    end do
-    end do
-    end do
-    u_dpk(fID,:,:,:) = u_spk*1d-2 ! scale  original data by 1/100
-    close(fID)
-end do
-deallocate(u_spk)
+   do fID = 1,DIM
+      print 10, fID
+10    format("Reading... u",i1,"_DNS")
+      write(fIndex,'(i1)') fID
+      u_spk = 0.
+      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
+           status='old',form='unformatted',access='direct',convert='big_endian',recl=4)
+
+      position = 0
+      do k=1,GRID
+         do j=1,GRID
+            do i=1,GRID
+               position = position+1
+               read (fID,rec=position) u_spk(i,j,k)
+            end do
+         end do
+      end do
+      u_dpk(fID,:,:,:) = u_spk*1d-2 ! scale  original data by 1/100
+      close(fID)
+   end do
+   deallocate(u_spk)
+
+! %% JHU:
+elseif (set.eq.'jhu')then
+   print*,set
+   variableName='Velocity'; time = '256'
+   PATH = '../data/jhu256/bin/'
+   allocate(u(GRID,GRID,GRID))
+   u=0.
+   do fID = 1,DIM
+      print 20, fID
+20    format("Reading... u",i1,"_DNS")
+      write(fIndex,'(i1)') fID
+
+      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
+           status='old',form='unformatted',access='direct',recl=8)
+
+      position = 0
+      do k=1,GRID
+      do j=1,GRID
+      do i=1,GRID
+         position = position+1
+         read (fID,rec=position) u(i,j,k)
+      end do
+      end do
+      end do
+      u_dpk(fID,:,:,:) = u
+      close(fID)
+   end do
+   deallocate(u)
+! test values:
+print*,u_dpk(2,1,2,23), u_dpk(2,1,2,47)
+
+! %% DEFAULT:
+else
+   print*,"Dataset must be either nrl or jhu"
+   stop
+end if
 return
 end subroutine binRead
 
@@ -123,7 +166,7 @@ end subroutine hdf5Read
 
 subroutine matrixview(array,frameLim,x,y,z,fID)
 implicit none
-  real(8), dimension(:,:,:), intent(inout) :: array
+  real(8), dimension(:,:,:), intent(in) :: array
   integer, intent(in), optional :: frameLim, fID, x, y, z
   integer :: i, lim, fileID
 ! Define flexible length format:                                                                                             

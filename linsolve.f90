@@ -7,15 +7,15 @@ module linsolve
 
   integer,parameter :: stride = 2 ! Is the ratio between LES(taken as 1) and test scale
   integer,parameter :: X = 1     ! Number of realizations
-  integer,parameter :: n_DAMP = 7  ! Number of lambda's
+  integer,parameter :: n_DAMP = 1  ! Number of lambda's
 
   ! Stencil parameters:
   integer,parameter :: M = 243   ! Number of training points 3x3x3x9
   integer,parameter :: N = 27 * 9
 
   ! Bounding Box parameters:
-  real,   parameter :: eps = 1e-3 !Do not remove eps from here. Ensures correct integer values since
-  ! both ceiling and floor functions can give wrong integer values due to conversion of
+  real,   parameter :: eps = 1e-3 ! Ensures correct integer values for
+  ! the ceiling and floor functions. They can give wrong integer values due to conversion of
   ! an integer value into its machine representation.
   
   integer,parameter :: box = 8
@@ -27,7 +27,7 @@ module linsolve
   integer,parameter :: boxUpper  = stride * (box - bigHalf)
 
   ! Test field parameters: 
-  integer,parameter :: testSize = 17
+  integer,parameter :: testSize = 64
   integer,parameter :: testcutSize = stride * (testSize + box) + 1
   integer,parameter :: testLower = stride * bigHalf + 1
   integer,parameter :: testUpper = stride * (bigHalf - 1 + testSize) + 1
@@ -153,8 +153,11 @@ end if
 return       
 end subroutine randTrainingSet
 
-
 !  COMPUTE SGS STRESS:
+! VERSION : Performs entire domain computation with just a single damping value and
+!           realization. Suppress all printing and outputs the data files for images.
+! Enter only one DAMPING value.
+
 subroutine synStress(u_f, u_t, tau_ij, T_ij, n_u, n_uu)
 implicit none
 
@@ -166,8 +169,8 @@ real(8),dimension(:,:,:,:),intent(in) :: tau_ij, T_ij
 integer,                   intent(in) :: n_u, n_uu
 
 ! PARAMETERS:
-real(8) :: lambda(N_DAMP) = (/ (1.d-3 * 10**i , i=1,N_DAMP) /)   
-
+!real(8) :: lambda(N_DAMP) = (/ (1.d-3 * 10**i , i=1,N_DAMP) /)   
+real(8) :: lambda = 100.
 ! LOCAL VARIABLES:
 real(8),allocatable,dimension(:,:,:,:) :: uu_t, uu_f
 real(8),allocatable,dimension(:,:,:,:) :: TijOpt, tau_ijOpt !Computed stresses
@@ -192,14 +195,14 @@ integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for 
 
 
 ! EXTERNAL FILES:
-character(50)::  PATH="./run/dampedLeast/bin4020/"
-character(10)::  l_val = "l_4000/" ! l_var stands for variable lambda.
-logical      ::  writeStress = .FALSE.    
+character(50)::  PATH="./run/NRL_JHU/bin4020/"
+character(10)::  l_val = "l_10/" ! l_var stands for variable lambda.
+logical      ::  writeStress = .TRUE.    
 character(4) ::  z_plane
 integer      ::  vizPlaneC, vizPlaneF
 
 ! DEBUG SWITCHES:
-integer,dimension(4) :: debug=(/1,0,1,0/)
+integer,dimension(4) :: debug=(/1,0,0,0/)
 ! 1 - Takes just one (tau_ij_11) for testing purpose. 
 ! 2 - Prints cutout shapes to check if cutout ops have gone well.
 ! 3 - Performs all computations on just the first point.
@@ -246,27 +249,22 @@ end do
 
 !! SINGLE POINT COMPUTATION: COMMENT THIS PART OUT FOR A COMPLETE RUN:
 if(debug(3).eq.1)then
-   lim = testLower
+   lim = testUpper
    print*,'Check for the first element...(11,11,11)'
    print('(2(a15))'), 'T_ij:','tau_ij:'
    print('(2(f20.15),/)'), T_ij(1,lim,lim,lim), tau_ij(1,lim,lim,lim)
 end if   
 
 
-do k_test = lim,lim,stride
-do j_test = lim,lim,stride
-do i_test = lim,lim,stride 
+!do k_test = lim,lim,stride
+!do j_test = lim,lim,stride
+!do i_test = lim,lim,stride 
 
 
 !! WHOLE DOMAIN COMPUTATION: COMMENT THIS PART OUT FOR SINGLE POINT COMPUTATION.   
-!     do k_test = testLower, testUpper, stride 
-!     do j_test = testLower, testUpper, stride
-!     do i_test = testLower, testUpper, stride ! i_test = 11,43,2
-
-   print('(2(a20),a9)'), 'TijOpt','tau_ijOpt','lambda'
-   ensemble: do j = 1,X
-      print*,''
-      print('(a16,i3,/)'),'Training set:', j
+     do k_test = testLower, testUpper, stride 
+     do j_test = testLower, testUpper, stride
+     do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
    ! GENERATE RANDOM STENCIL CENTER POINTS:
       call randTrainingSet(randMask)   
@@ -315,12 +313,8 @@ do i_test = lim,lim,stride
       ! 2) For testing, only the '_11' component is evaluated. Later extend to all 6 ij's
       ! V matrix generated can be used to determine Volterra coefficients for all six ij components.
 
-      damping:do k=1,N_DAMP
 
-      TijOpt = 0.d0
-      tau_ijOpt = 0.d0
-
-      call choleskyLU(V,T,h_ij,lambda(k))     ! Least squares by LU decomposition
+      call choleskyLU(V,T,h_ij,lambda)     ! Least squares by LU decomposition
 
 
       ! Test scale computations will involve creation
@@ -379,15 +373,7 @@ do i_test = lim,lim,stride
       end do
       end do
       end do 
-
-      print('(2(f20.15),ES10.2)'),TijOpt(1,i_proj,j_proj,k_proj),&
-           tau_ijOpt(1,i_proj,j_proj,k_proj),lambda(k)
-
-      end do damping
-
-      call SVD(V)
-
-   end do ensemble
+      
 
 end do
 end do
@@ -407,6 +393,11 @@ if(writeStress) then
       open(2,file= trim(PATH)//trim(l_val)//'TijOpt_z'//trim(z_plane)//'.dat',status='replace')
       open(3,file= trim(PATH)//trim(l_val)//'tau_ij_z'//trim(z_plane)//'.dat',status='replace')
       open(4,file= trim(PATH)//trim(l_val)//'tau_ijOpt_z'//trim(z_plane)//'.dat',status='replace')
+
+      !call matrixview(T_ij(1,i,:,:),     z = vizPlaneF, fID = 1)
+      !call matrixview(TijOpt(1,i,:,:),   z = vizPlaneC, fID = 2)
+      !call matrixview(tau_ij(1,i,:,:),   z = vizPlaneF, fID = 3)
+      !call matrixview(tau_ijOpt(1,i,:,:),z = vizPlaneC, fID = 4)
 
       write(1,*), (T_ij(1,i,testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride)
       write(2,*), (TijOpt(1,i,:,vizPlaneC), i=1,testSize)

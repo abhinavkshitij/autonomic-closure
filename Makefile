@@ -14,15 +14,14 @@ main.exe: fileio.o fourier.o linsolve.o main.o
 # OPTIMIZE : runs the optimization problem on the cutout data.
 optimize : optimize.exe
 	time ./$<
+	rm -f *.o *.mod *# *~
 optimize.exe: fileio.o linsolve.o optimize.o
 	$(FC) -o $@ optimize.o fileio.o $(HDF5_LIB) linsolve.o $(LFLAGS)
 %.o : %.f90
 	$(FC) $(FFLAGS) -c $< $(HDF5_INC)
 
 
-# HOUSEKEEPING:
+# CLEAN:
 clean:
 	rm -f *.o *.exe  *.mod *# *~ 
-rmpic:
-	rm -f *.jpg *.png
 

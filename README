@@ -1,3 +1,23 @@
+VERSION CONTROL NOTES:
+
+BRANCH : test/17   [17x17x17 cutout domain]
+
+* Compute tau_ij^F on 17x17x17 domain. 
+* Use this version to develop new features. 
+
+PURPOSE : 1) Run code on 6 tau_ij's 
+	  2) Run code on different lambda
+ 	  3) Test parallel using OpenMP	
+
+CHANGES FROM PARENT COMMIT:
+
+1) Single point computation moved to test/1 branch.
+2) No single point based debug case in this version.
+    *  Removed DEGCON().No condition number computation in DGESV(). 
+    *  Removed bubblesort(). 
+    *  Only one lambda value. Removed LAMBDA and ENSEMBLE loops.
+----------------------------------------------------------------
+
 REQUIRED DEPENDENCIES:
 1) HDF5 
 2) FFTW

@@ -27,7 +27,7 @@ module linsolve
   integer,parameter :: boxUpper  = stride * (box - bigHalf)
 
   ! Test field parameters: 
-  integer,parameter :: testSize = 64
+  integer,parameter :: testSize = 17
   integer,parameter :: testcutSize = stride * (testSize + box) + 1
   integer,parameter :: testLower = stride * bigHalf + 1
   integer,parameter :: testUpper = stride * (bigHalf - 1 + testSize) + 1
@@ -169,8 +169,8 @@ real(8),dimension(:,:,:,:),intent(in) :: tau_ij, T_ij
 integer,                   intent(in) :: n_u, n_uu
 
 ! PARAMETERS:
-!real(8) :: lambda(N_DAMP) = (/ (1.d-3 * 10**i , i=1,N_DAMP) /)   
-real(8) :: lambda = 100.
+real(8) :: lambda = 1.d-1
+
 ! LOCAL VARIABLES:
 real(8),allocatable,dimension(:,:,:,:) :: uu_t, uu_f
 real(8),allocatable,dimension(:,:,:,:) :: TijOpt, tau_ijOpt !Computed stresses
@@ -184,7 +184,7 @@ integer                :: u_comp, uu_comp ! Indices to select u_i,u_iu_j compone
 
 ! FOR RANDOM TRAINING POINTS (STENCIL-CENTERS):
 integer :: rand_count
-integer :: randMask(boxSize-M) !512-243=269
+integer :: randMask(boxSize - M) !512-243=269
 
 ! LIST OF INDICES FOR LOOPS:
 integer :: i_test,    j_test,    k_test ! for a point in the TEST-scale field
@@ -209,10 +209,7 @@ integer,dimension(4) :: debug=(/1,0,0,0/)
 ! 4 - To check if values from the stencil and bounding box are working well.
 integer :: lim, p
 
-
 print*, 'Computing SGS stress...'
-
-
 ! To determine stresses at coarse and fine stencil,
 ! velocities and their products must be known at LES
 ! scale. Though on the test scale it will skip every other point (coarse stencil)
@@ -228,6 +225,9 @@ else
    allocate(TijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
    allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
 end if
+
+TijOpt=0.
+tau_ijOpt=0.
 
 if(debug(2).eq.1) then
    print*,'shape tau_ij cutout:    ',shape(tau_ij)
@@ -247,21 +247,8 @@ do i=1,n_u
 end do
 end do
 
-!! SINGLE POINT COMPUTATION: COMMENT THIS PART OUT FOR A COMPLETE RUN:
-if(debug(3).eq.1)then
-   lim = testUpper
-   print*,'Check for the first element...(11,11,11)'
-   print('(2(a15))'), 'T_ij:','tau_ij:'
-   print('(2(f20.15),/)'), T_ij(1,lim,lim,lim), tau_ij(1,lim,lim,lim)
-end if   
 
-
-!do k_test = lim,lim,stride
-!do j_test = lim,lim,stride
-!do i_test = lim,lim,stride 
-
-
-!! WHOLE DOMAIN COMPUTATION: COMMENT THIS PART OUT FOR SINGLE POINT COMPUTATION.   
+! WHOLE DOMAIN COMPUTATION:
      do k_test = testLower, testUpper, stride 
      do j_test = testLower, testUpper, stride
      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
@@ -299,7 +286,7 @@ end if
          end do 
          end do ! STENCIL
 
-         T(row_index) = T_ij(1,i_box,j_box,k_box)
+         T(row_index) = T_ij(3,i_box,j_box,k_box) !Change 1 to (1-6) here.
 
       end do
       end do
@@ -372,8 +359,7 @@ end if
 
       end do
       end do
-      end do 
-      
+      end do                  
 
 end do
 end do
@@ -394,15 +380,10 @@ if(writeStress) then
       open(3,file= trim(PATH)//trim(l_val)//'tau_ij_z'//trim(z_plane)//'.dat',status='replace')
       open(4,file= trim(PATH)//trim(l_val)//'tau_ijOpt_z'//trim(z_plane)//'.dat',status='replace')
 
-      !call matrixview(T_ij(1,i,:,:),     z = vizPlaneF, fID = 1)
-      !call matrixview(TijOpt(1,i,:,:),   z = vizPlaneC, fID = 2)
-      !call matrixview(tau_ij(1,i,:,:),   z = vizPlaneF, fID = 3)
-      !call matrixview(tau_ijOpt(1,i,:,:),z = vizPlaneC, fID = 4)
-
-      write(1,*), (T_ij(1,i,testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride)
-      write(2,*), (TijOpt(1,i,:,vizPlaneC), i=1,testSize)
-      write(3,*), (tau_ij(1,i,testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride)
-      write(4,*), (tau_ijOpt(1,i,:,vizPlaneC), i=1,testSize)
+      write(1,*), (T_ij      (3, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
+      write(2,*), (TijOpt    (1, i, :, vizPlaneC), i=1,testSize)
+      write(3,*), (tau_ij    (3, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
+      write(4,*), (tau_ijOpt (1, i, :, vizPlaneC), i=1,testSize)
 
       close(1)
       close(2)
@@ -411,42 +392,7 @@ if(writeStress) then
    end do
 end if
 
-
-
-! DEBUG:
-if(debug(4).eq.1) then
-   if (any(randMask.eq.rand_count)) then
-   if ((i_stencil-stride).eq.testCutSize)then
-      print*, "Error : Flag in last stencil cell!"
-      stop
-   end if
-   end if
-
-   print*,'Testing for V:'
-   i_stencil=0;j_stencil=0;k_stencil=0
-   k=0 ; p=0
-   do k_stencil = 3-stride,3+stride,stride
-   do j_stencil = 3-stride,3+stride,stride
-   do i_stencil = 3-stride,3+stride,stride
-      p=p+1
-      print*,p
-      do i=1,n_u
-         k=k+1
-         print*, 'u_t',i,i_stencil,j_stencil,k_stencil,u_t(i,i_stencil,j_stencil,k_stencil),'V:',k,V(1,k)
-      end do
-      do i=1,n_uu
-         k=k+1
-         print*, 'uu_t',i,i_stencil,j_stencil,k_stencil,uu_t(i,i_stencil,j_stencil,k_stencil),'V:',k,V(2,k)
-      end do
-      print*,''
-   end do
-   end do
-   end do
-end if
-! 
-
-deallocate(uu_t,uu_f,TijOpt,tau_ijOpt)
-
+deallocate(uu_t,    uu_f,    TijOpt,    tau_ijOpt)
 return
 end subroutine synStress
 
@@ -456,7 +402,7 @@ end subroutine synStress
 subroutine choleskyLU(V, T_ij, h_ij, lambda)
 implicit none
 
-! dgesv destroys the orginal matrix. So V is copied into 'a' matrix. This is the LU product matrix.
+! dgesv destroys the original matrix. So V is copied into 'a' matrix. This is the LU product matrix.
 ! dgesv returns x vector. First it copies the values from 'T_ij' vector and then computes 'h_ij'.
 ! 'h_ij' is the h_ij vector.
 
@@ -473,63 +419,29 @@ real(8), dimension(LDB)   :: b
 integer, dimension(N)     :: ipiv
 integer                   :: info
 
-! DGECON ARGUMENTS:
-integer, dimension(:),allocatable :: work,iwork
-real(8) :: errnorm, xnorm, rcond, anorm, colsum
-character, dimension(1) :: norm
-
-integer :: i,j
-logical :: cond = .FALSE.
+integer :: i
 
 forall(i = 1:N) eye(i,i) = 1.d0 ! Identity matrix
 ! Use the SAVE attribute or something to avoid repeated construction.
 
-A = matmul(transpose(V),V) + lambda*eye 
+A = matmul(transpose(V),V) + lambda * eye 
 b = matmul(transpose(V),T_ij) 
-
-! compute 1-norm needed for condition number
-if(cond)then
-   anorm = 0.d0
-   do j=1,N
-      colsum = 0.d0
-      do i=1,N
-         colsum = colsum + abs(A(i,j))
-      enddo
-      anorm = max(anorm, colsum)
-   enddo
-end if
-
 call DGESV(N, nrhs, A, LDA, ipiv, b, LDB, info)
 h_ij = b
-
-
-! compute condition number of matrix:
-! note: uses V returned from DGESV with LU factors:
-if(cond) then
-   allocate(work(4*N))
-   allocate(iwork(N))
-   norm = '1'  ! use 1-norm
-   call dgecon(norm,N,A,LDA,anorm,rcond,work,iwork,info)
-
-   if (info /= 0)  print *, "*** Error in dgecon: info = ",info
-   print 201, N, 1.d0/rcond
-201 format("For N = ",i4," the approx. condition number is ",e10.3)
-   deallocate(work,iwork)
-end if
-
 return
 end subroutine choleskyLU
+
+
 
 
 subroutine SVD(A)
 implicit none
 
-integer :: i,j, info, LWORK
+integer :: i, info, LWORK
 integer, parameter :: LDA = M, LDU = M, LDVT = N, LWMAX = 10000
 real(8) :: A(LDA, N), U(LDU, M), VT(LDVT, N), S(N), work(LWMAX)
 real(8) :: eye(N,N)
-character(4) :: form2
-logical :: printS = .false. !enable printing singular values
+
 
 forall(i = 1:N) eye(i,i) = 1.d0 ! Identity matrix
 
@@ -545,36 +457,9 @@ if (info.gt.0) then
    stop
 end if
 
-if (printS) then
-   print*,"S VECTOR:"
-   call printmatrix2(S,N,1) ; print*,''
-   print*, 'min:',minval(S)
-end if
-
 return
 end subroutine SVD
 
-
-subroutine bubblesort(array)
-implicit none
-
-integer, dimension(:)::array
-integer :: i,j,n_sort,temp
-
-n_sort = size(array,dim=1)
-
-do i=1,n_sort
-do j=1,n_sort-i
-   if( array(j+1).lt.array(j))then
-      temp = array(j)
-      array(j) = array(j+1)
-      array(j+1) = temp
-   end if
-end do
-end do
-
-return
-end subroutine bubblesort
   
 end module linsolve
 

@@ -169,7 +169,7 @@ real(8),dimension(:,:,:,:),intent(in) :: tau_ij, T_ij
 integer,                   intent(in) :: n_u, n_uu
 
 ! PARAMETERS:
-real(8) :: lambda = 1.d-1
+real(8) :: lambda = 1.d-3
 
 ! LOCAL VARIABLES:
 real(8),allocatable,dimension(:,:,:,:) :: uu_t, uu_f
@@ -195,10 +195,13 @@ integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for 
 
 
 ! EXTERNAL FILES:
-character(50)::  PATH="./run/NRL_JHU/bin4020/"
-character(10)::  l_val = "l_10/" ! l_var stands for variable lambda.
+integer,parameter      ::  n = 1     !CHANGE HERE
+character(50)::  PATH="./run/run17/" !CHANGE HERE FOR DIFFERENT EXPERIMENTS
+character(10)::  l_val = "l_0_10/1/" ! l_var stands for variable lambda.
+character(10)::  f_stat = "new"
+
 logical      ::  writeStress = .TRUE.    
-character(4) ::  z_plane
+character(4) ::  z_plane,idx
 integer      ::  vizPlaneC, vizPlaneF
 
 ! DEBUG SWITCHES:
@@ -286,7 +289,7 @@ end do
          end do 
          end do ! STENCIL
 
-         T(row_index) = T_ij(3,i_box,j_box,k_box) !Change 1 to (1-6) here.
+         T(row_index) = T_ij(n,i_box,j_box,k_box) !Change 1 to (1-6) here.
 
       end do
       end do
@@ -369,20 +372,21 @@ end do ! test
 !  POST-PROCESSING:
 !  Write 3-plane slices of all 4 stresses for MATLAB plots.
 !  Convert to subroutine later; combine with matrixview()
-if(writeStress) then
+if(writeStress) then  
+
    do k = 1,3
       vizPlaneC = nint(0.25 * k * testSize) ! Mark three slices at 1/4, 1/2, 3/4 z-planes.
       vizPlaneF = (vizPlaneC - 1)*2 + testLower
       write(z_plane, '(i1)'), k
 
-      open(1,file= trim(PATH)//trim(l_val)//'T_ij_z'//trim(z_plane)//'.dat',status='replace')
-      open(2,file= trim(PATH)//trim(l_val)//'TijOpt_z'//trim(z_plane)//'.dat',status='replace')
-      open(3,file= trim(PATH)//trim(l_val)//'tau_ij_z'//trim(z_plane)//'.dat',status='replace')
-      open(4,file= trim(PATH)//trim(l_val)//'tau_ijOpt_z'//trim(z_plane)//'.dat',status='replace')
+      open(1,file= trim(PATH)//trim(l_val)//'T_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(2,file= trim(PATH)//trim(l_val)//'TijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(3,file= trim(PATH)//trim(l_val)//'tau_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(4,file= trim(PATH)//trim(l_val)//'tau_ijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
 
-      write(1,*), (T_ij      (3, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
+      write(1,*), (T_ij      (n, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
       write(2,*), (TijOpt    (1, i, :, vizPlaneC), i=1,testSize)
-      write(3,*), (tau_ij    (3, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
+      write(3,*), (tau_ij    (n, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
       write(4,*), (tau_ijOpt (1, i, :, vizPlaneC), i=1,testSize)
 
       close(1)
@@ -391,6 +395,7 @@ if(writeStress) then
       close(4)
    end do
 end if
+
 
 deallocate(uu_t,    uu_f,    TijOpt,    tau_ijOpt)
 return

@@ -1,12 +1,12 @@
 program optimize
 
 ! /Users/Kshitij/Desktop/ALES/f90/src/optimize.f90  
-! Branch: test/17
+! Branch: test/64
 
 ! STATUS : Testing for damped least squares formulation. This program will read the filtered fields and compute the inverse.
 !          
 ! Result : PASSED 
-! Notes  : Retained testing for matrixview, using 'test.dat'(Commented out).
+! Notes  : 
 
 use fileio
 use linsolve
@@ -16,7 +16,7 @@ implicit none
 real(8), dimension(3,testcutSize,testcutSize,testcutSize):: u_f    , u_t
 real(8), dimension(6,testcutSize,testcutSize,testcutSize):: tau_ij , T_ij !Testing for _11 ij component
 
-character(50):: CUT_DATA = '../derived_data/cutout/jhu/bin4020/' !Change bin4020 by 'sed' in shell script
+character(50):: CUT_DATA = '../derived_data/cutout64/jhu/bin4020/' !Change bin4020 by 'sed' in shell script
 integer :: n_u=3, n_uu=6
 
 ! DEBUG SWITCHES:
@@ -42,10 +42,6 @@ close(1)
 close(2)
 close(3)
 close(4)
-
-!open(1,file='test.dat')
-!call matrixview(tau_ij(1,:,:,:),fID=1)
-!close(1)
 
 
 !!$ For testing correct read/write:

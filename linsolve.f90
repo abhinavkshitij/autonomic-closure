@@ -27,7 +27,7 @@ module linsolve
   integer,parameter :: boxUpper  = stride * (box - bigHalf)
 
   ! Test field parameters: 
-  integer,parameter :: testSize = 17
+  integer,parameter :: testSize = 64
   integer,parameter :: testcutSize = stride * (testSize + box) + 1
   integer,parameter :: testLower = stride * bigHalf + 1
   integer,parameter :: testUpper = stride * (bigHalf - 1 + testSize) + 1
@@ -84,7 +84,7 @@ end subroutine cutout
 
 ! RANDOM NUMBER GENERATION
 subroutine init_random_seed()
-
+ 
 integer, dimension(:), allocatable :: seed
 integer :: i, n_seed, clock
 
@@ -125,30 +125,6 @@ do
    i = i+1   
    if (i.gt.maskSize) exit   
 end do
-
-! DEBUG:
-if (debugRandom) then
-   call bubblesort(randMask)
-   count=0;randomMatrix=0
-
-   do k=1,box
-   do j=1,box
-   do i=1,box
-      count = count+1
-      if(any(randMask.eq.count)) cycle
-      randomMatrix(i,j,k) = count
-   enddo
-   enddo
-   enddo
-
-   print*,'randomMatrix'        ! Print random training points indices:
-   do k=1,box
-   do i=1,box
-      print*,randomMatrix(i,:,k)
-   end do
-   print*,''
-   end do
-end if
 
 return       
 end subroutine randTrainingSet
@@ -195,9 +171,9 @@ integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for 
 
 
 ! EXTERNAL FILES:
-integer,parameter      ::  n = 1     !CHANGE HERE
-character(50)::  PATH="./run/run17/" !CHANGE HERE FOR DIFFERENT EXPERIMENTS
-character(10)::  l_val = "l_0_10/1/" ! l_var stands for variable lambda.
+integer      ::  n      !CHANGE HERE
+character(50)::  PATH="./run/run64/" !CHANGE HERE FOR DIFFERENT EXPERIMENTS
+character(10)::  l_val = "l_0_001/" ! l_var stands for variable lambda.
 character(10)::  f_stat = "new"
 
 logical      ::  writeStress = .TRUE.    
@@ -250,9 +226,9 @@ do i=1,n_u
 end do
 end do
 
-
+do n = 1,6
 ! WHOLE DOMAIN COMPUTATION:
-     do k_test = testLower, testUpper, stride 
+     do k_test = 73,73 
      do j_test = testLower, testUpper, stride
      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
@@ -373,16 +349,17 @@ end do ! test
 !  Write 3-plane slices of all 4 stresses for MATLAB plots.
 !  Convert to subroutine later; combine with matrixview()
 if(writeStress) then  
+   write(idx,'(i1)') n
 
-   do k = 1,3
+   do k = 2,2
       vizPlaneC = nint(0.25 * k * testSize) ! Mark three slices at 1/4, 1/2, 3/4 z-planes.
       vizPlaneF = (vizPlaneC - 1)*2 + testLower
       write(z_plane, '(i1)'), k
 
-      open(1,file= trim(PATH)//trim(l_val)//'T_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
-      open(2,file= trim(PATH)//trim(l_val)//'TijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
-      open(3,file= trim(PATH)//trim(l_val)//'tau_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
-      open(4,file= trim(PATH)//trim(l_val)//'tau_ijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(1,file= trim(PATH)//trim(l_val)//trim(idx)//'/T_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(2,file= trim(PATH)//trim(l_val)//trim(idx)//'/TijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(3,file= trim(PATH)//trim(l_val)//trim(idx)//'/tau_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(4,file= trim(PATH)//trim(l_val)//trim(idx)//'/tau_ijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
 
       write(1,*), (T_ij      (n, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
       write(2,*), (TijOpt    (1, i, :, vizPlaneC), i=1,testSize)
@@ -396,6 +373,7 @@ if(writeStress) then
    end do
 end if
 
+end do
 
 deallocate(uu_t,    uu_f,    TijOpt,    tau_ijOpt)
 return
@@ -446,7 +424,6 @@ integer :: i, info, LWORK
 integer, parameter :: LDA = M, LDU = M, LDVT = N, LWMAX = 10000
 real(8) :: A(LDA, N), U(LDU, M), VT(LDVT, N), S(N), work(LWMAX)
 real(8) :: eye(N,N)
-
 
 forall(i = 1:N) eye(i,i) = 1.d0 ! Identity matrix
 

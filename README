@@ -3,10 +3,9 @@ VERSION CONTROL NOTES:
 BRANCH : test/64   [64x64x64 cutout domain]
 
 * Compute tau_ij^F on 64x64x64 domain. 
-* Will plot 4 stresses only on the midplane.
-* Plots will have 6 ij's for each of the 4 stresses.
-* The six ij's are looped from 1 to 6. Each ij is computed once separately;
-  not all at once. 
+* Will plot 4 stresses on the z-midplane.
+* 6 ij's for each of the 4 stresses in plots. 
+* The 6 ij's are looped from 1 to 6. Each ij is computed ONCE separately
 
 PURPOSE : 1) Plot z-midplane stresses for different lambda's
 
@@ -26,14 +25,14 @@ Each phase has its own Makefile associated with it.
 
 1) In the first phase, the dataset is filtered at LES and test scales by main.f90.
    Next, based on the parameters, main.f90 writes the appropriate size of the cutout fields on external files.
-   Run Makefile to complete Phase I
+   Run Makefile to complete Phase I.
 
 
 2) In the next phase the saved cutout data is read by optimize.f90
    This code then computes the tau_ij at LES scale by solving the damped least squares problem.
    optimize.f90 uses the module linsolve to carry out linear algebra computations.
    The key parameters are computed at the start of the linsolve module.
-   Run Makefile2.mk to complete Phase II
+   Run Makefile2.mk to complete Phase II.
 
 DESCRIPTION OF MODULES:
 

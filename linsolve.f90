@@ -145,7 +145,7 @@ real(8),dimension(:,:,:,:),intent(in) :: tau_ij, T_ij
 integer,                   intent(in) :: n_u, n_uu
 
 ! PARAMETERS:
-real(8) :: lambda = 1.d-3
+real(8) :: lambda = 10.
 
 ! LOCAL VARIABLES:
 real(8),allocatable,dimension(:,:,:,:) :: uu_t, uu_f
@@ -173,7 +173,7 @@ integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for 
 ! EXTERNAL FILES:
 integer      ::  n      !CHANGE HERE
 character(50)::  PATH="./run/run64/" !CHANGE HERE FOR DIFFERENT EXPERIMENTS
-character(10)::  l_val = "l_0_001/" ! l_var stands for variable lambda.
+character(10)::  l_val = "l_10/" ! l_var stands for variable lambda.
 character(10)::  f_stat = "new"
 
 logical      ::  writeStress = .TRUE.    
@@ -205,8 +205,7 @@ else
    allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
 end if
 
-TijOpt=0.
-tau_ijOpt=0.
+!! tau_ij
 
 if(debug(2).eq.1) then
    print*,'shape tau_ij cutout:    ',shape(tau_ij)
@@ -227,6 +226,9 @@ end do
 end do
 
 do n = 1,6
+
+TijOpt=0.
+tau_ijOpt=0.
 ! WHOLE DOMAIN COMPUTATION:
      do k_test = 73,73 
      do j_test = testLower, testUpper, stride

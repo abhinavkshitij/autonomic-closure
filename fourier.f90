@@ -193,15 +193,84 @@ function sharpFilter(array_work,filter)
   return
 end function sharpFilter
 
-subroutine absoluteStress
+subroutine computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test,stress)
 implicit none
 
-end subroutine absoluteStress
+integer,                   intent(in)  :: n_u, n_uu
+real(8),dimension(:,:,:,:),intent(in)  :: u, u_f, u_t
+real(8),dimension(  :,:,:),intent(in)  :: LES, test
+real(8),dimension(:,:,:,:),intent(out) :: tau_ij, T_ij
 
-subroutine deviatoricStress
-implicit none
+character(3),intent(in) :: stress 
 
-end subroutine deviatoricStress
+real(8),allocatable,dimension(:,:,:)   :: dev_t
+integer :: i,j,k
+
+
+! ABSOLUTE STRESS:
+if (stress.eq.'abs') then
+   k = 1
+   do j=1,n_u
+   do i=1,n_u
+         if (i.ge.j) then
+            print *, 'tau(', i, ',', j, ')'
+            tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),LES)       &
+                 - u_f(i,:,:,:)*u_f(j,:,:,:)
+            print *, 'T(', i, ',', j, ')'
+            T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:)*u_f(j,:,:,:),test)    &
+                 - u_t(i,:,:,:)*u_t(j,:,:,:)
+            k = k+1
+       end if
+   end do
+   end do
+
+! DEVIATORIC STRESS:
+elseif (stress.eq.'dev')then
+   k = 1
+   do j=1,n_u
+   do i=1,n_u
+      if (i.ge.j) then
+            print *, 'tau(', i, ',', j, ')'
+            tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),LES)     &
+                 - u_f(i,:,:,:)*u_f(j,:,:,:)
+            print *, 'T(', i, ',', j, ')'
+            T_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),test)      &
+                 - u_t(i,:,:,:)*u_t(j,:,:,:)
+            k = k+1
+       end if
+   end do
+   end do
+     allocate(dev_t(GRID,GRID,GRID))
+
+      dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
+      tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
+      tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
+      tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
+
+      dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
+      T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
+      T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
+      T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
+
+   ! Print tau_ij and T_ij to check:                                                                                     
+      print*, 'Check for deviatoric stresses:'
+      print*, 'T_ij(1,15,24,10):',       T_ij(1,15,24,10)
+      print*, 'tau_ij(1,15,24,10):',     tau_ij(1,15,24,10)
+      print*, 'T_ij(4,200,156,129):',    T_ij(4,200,156,129)
+      print*, 'tau_ij(4,200,156,129):',tau_ij(4,200,156,129)
+      print*, 'tau_ij(3,200,156,129):',tau_ij(3,200,156,129)
+      print*, 'T_ij(3,200,156,129):',T_ij(3,200,156,129)
+      print*,'T_11(11,11,11)',T_ij(1,112,112,112)
+     deallocate (dev_t)
+
+else
+   print*,"Stress must be either abs or dev"
+   stop
+end if
+return
+end subroutine computeStress
+
+
 
 
 

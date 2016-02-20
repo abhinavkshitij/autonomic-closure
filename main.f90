@@ -16,22 +16,19 @@ integer                     :: i,j,k,d=0
 
 ! Define velocities:
 real(8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
-real(8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij,temp
+real(8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij
 real(8),allocatable,dimension(:,:,:) :: LES,test
-real(8),allocatable,dimension(:,:,:) :: dev_t
 
 integer :: n_u, n_uu
 
 character(50):: CUT_DATA = '../derived_data/cutout64/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
-character(3) :: d_set = 'nrl'   ! for binRead()
+character(3) :: d_set = 'jhu'   ! for binRead()
 
 ! DEBUG FLAGS:
-integer,dimension(4) :: debug=(/0,1,1,1/)
+integer,dimension(2) :: debug=(/0,1/)
 ! 1- To select only one velocity component and 3 velocity products.
-! 2- Choose between NRL database[1] or JHU(HDF5) database[0]
-! 3- Compute stresses.
-! 4- Compute deviatoric stress.
+! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
 
 real :: tic, toc
 
@@ -55,9 +52,9 @@ fileSelect:if (debug(2).eq.1) then
    write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
    !print*, trim(CUT_DATA)//trim(f_CUT) !Test pathname
 else
-   call hdf5Read() !! Under testing to read multiple files
+   call hdf5Read() 
 end if fileSelect
-print*,'Checking dataRead():'
+
 print*,'u(1,15,24,10):',u(1,15,24,10)
 
 
@@ -91,59 +88,12 @@ print*,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+t
 print*,''
 
 
-if (debug(3).eq.1) then
-   !! Compute tau_ij and T_ij:
-   allocate(tau_ij(n_uu,GRID,GRID,GRID))
-   allocate(T_ij(n_uu,GRID,GRID,GRID))
-   k = 1
-   do j=1,n_u
-   do i=1,n_u
-      if (i.ge.j) then
-            print *, 'tau(', i, ',', j, ')'
-            tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),LES)     &
-                 - u_f(i,:,:,:)*u_f(j,:,:,:)
-            print *, 'T(', i, ',', j, ')'
-            T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:)*u_f(j,:,:,:),test)    &
-                 - u_t(i,:,:,:)*u_t(j,:,:,:)
-            k = k+1
-       end if
-   end do
-   end do
-   deallocate(LES,test)
-end if
 
-print*,'Check True SGS stresses:'
-print*,'T_ij(1,15,24,10):',    T_ij(1,15,24,10) 
-print*,'tau_ij(1,15,24,10):', tau_ij(1,15,24,10)
+allocate(tau_ij(n_uu,GRID,GRID,GRID))
+allocate(T_ij(n_uu,GRID,GRID,GRID))
+call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test,stress='abs')
+deallocate(LES,test)
 
-
-   ! COMPUTE DEVIATORIC STRESSES:
- !! Print tau_ij and T_ij to check:
-
-   if (debug(4).eq.1)then
-      allocate(dev_t(GRID,GRID,GRID))
-
-      dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
-      tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
-      tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
-      tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
-
-      dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
-      T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
-      T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
-      T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
-
-   ! Print tau_ij and T_ij to check:
-      print*, 'Check for deviatoric stresses:'
-      print*, 'T_ij(1,15,24,10):',       T_ij(1,15,24,10)
-      print*, 'tau_ij(1,15,24,10):',     tau_ij(1,15,24,10)
-      print*, 'T_ij(4,200,156,129):',    T_ij(4,200,156,129)
-      print*, 'tau_ij(4,200,156,129):',tau_ij(4,200,156,129)
-      print*, 'tau_ij(3,200,156,129):',tau_ij(3,200,156,129)
-      print*, 'T_ij(3,200,156,129):',T_ij(3,200,156,129)
-      print*,'T_11(11,11,11)',T_ij(1,112,112,112)
-     deallocate (dev_t)
-  end if
 stop
 
 print*,'Shape before cutout:',shape(u_t)

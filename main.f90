@@ -15,22 +15,24 @@ integer,parameter           :: LES_scale=40, test_scale=20
 integer                     :: i,j,k,d=0
 
 ! Define velocities:
-real(kind=8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
-real(kind=8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij,temp
-real(kind=8),allocatable,dimension(:,:,:) :: LES,test
-real(kind=8):: dev_t
+real(8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
+real(8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij,temp
+real(8),allocatable,dimension(:,:,:) :: LES,test
+real(8),allocatable,dimension(:,:,:) :: dev_t
+
 integer :: n_u, n_uu
 
 character(50):: CUT_DATA = '../derived_data/cutout64/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
-character(3) :: d_set = 'jhu'
+character(3) :: d_set = 'nrl'   ! for binRead()
 
 ! DEBUG FLAGS:
+integer,dimension(4) :: debug=(/0,1,1,1/)
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL database[1] or JHU(HDF5) database[0]
 ! 3- Compute stresses.
-! 4- Compute deviatoric stress. This may not be needed. But keep it for future. 
-integer,dimension(4) :: debug=(/0,1,1,1/)
+! 4- Compute deviatoric stress.
+
 real :: tic, toc
 
 call system('clear')
@@ -45,7 +47,6 @@ if (debug(1).eq.1) then
 end if
 
 
-
 !! Select file to read:
 allocate(u(n_u,GRID,GRID,GRID))
 
@@ -56,7 +57,8 @@ fileSelect:if (debug(2).eq.1) then
 else
    call hdf5Read() !! Under testing to read multiple files
 end if fileSelect
-
+print*,'Checking dataRead():'
+print*,'u(1,15,24,10):',u(1,15,24,10)
 
 
 
@@ -69,19 +71,21 @@ call fftshift(LES)
 call fftshift(test)
 
 
+print *, 'Applying filters:'
 !! Take LES and test filtered fields:
 allocate(u_f(n_u,GRID,GRID,GRID))
 allocate(u_t(n_u,GRID,GRID,GRID))
-print *, 'FFT- u_ij:'
-
 filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
-   u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test)
+   u_t(i,:,:,:) = sharpFilter(u(i,:,:,:),test)
 end do filter
+print*,'Check sharpFilter():'
+print*,'u_f(1,15,24,10):',u_f(1,15,24,10)
+print*,'u_t(1,15,24,10):',u_t(1,15,24,10)
 
 
 print*, '' ! Blank Line
-print*,  'u(1,1,1)'   , u (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
+print*,  'u(1,1,1)'   , u  (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,  'u_f(1,1,1)' , u_f(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,''
@@ -93,32 +97,54 @@ if (debug(3).eq.1) then
    allocate(T_ij(n_uu,GRID,GRID,GRID))
    k = 1
    do j=1,n_u
-      do i=1,n_u
-         if (i.ge.j) then
-            Print *, 'tau(', i, ',', j, ')'
+   do i=1,n_u
+      if (i.ge.j) then
+            print *, 'tau(', i, ',', j, ')'
             tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:)*u(j,:,:,:),LES)     &
                  - u_f(i,:,:,:)*u_f(j,:,:,:)
-            Print *, 'T(', i, ',', j, ')'
+            print *, 'T(', i, ',', j, ')'
             T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:)*u_f(j,:,:,:),test)    &
                  - u_t(i,:,:,:)*u_t(j,:,:,:)
             k = k+1
-         end if
-      end do
+       end if
+   end do
    end do
    deallocate(LES,test)
-
-
-
-   !! Print tau_ij and T_ij to check:
-   if (debug(4).eq.0)then
-      dev_t = (tau_ij(1,200,156,129)+tau_ij(4,200,156,129)+tau_ij(6,200,156,129))/3.d0
-      print*, 'w/ deviatoric:',tau_ij(4,200,156,129)-dev_t
-   else
-      ! print*, tau_ij(4,200,156,129)
-   end if
-   !print*, T_ij(4,200,156,129)
-   !print*,'T_11(11,11,11)',T_ij(1,112,112,112)
 end if
+
+print*,'Check True SGS stresses:'
+print*,'T_ij(1,15,24,10):',    T_ij(1,15,24,10) 
+print*,'tau_ij(1,15,24,10):', tau_ij(1,15,24,10)
+
+
+   ! COMPUTE DEVIATORIC STRESSES:
+ !! Print tau_ij and T_ij to check:
+
+   if (debug(4).eq.1)then
+      allocate(dev_t(GRID,GRID,GRID))
+
+      dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
+      tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
+      tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
+      tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
+
+      dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
+      T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
+      T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
+      T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
+
+   ! Print tau_ij and T_ij to check:
+      print*, 'Check for deviatoric stresses:'
+      print*, 'T_ij(1,15,24,10):',       T_ij(1,15,24,10)
+      print*, 'tau_ij(1,15,24,10):',     tau_ij(1,15,24,10)
+      print*, 'T_ij(4,200,156,129):',    T_ij(4,200,156,129)
+      print*, 'tau_ij(4,200,156,129):',tau_ij(4,200,156,129)
+      print*, 'tau_ij(3,200,156,129):',tau_ij(3,200,156,129)
+      print*, 'T_ij(3,200,156,129):',T_ij(3,200,156,129)
+      print*,'T_11(11,11,11)',T_ij(1,112,112,112)
+     deallocate (dev_t)
+  end if
+stop
 
 print*,'Shape before cutout:',shape(u_t)
 print*, u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
@@ -133,7 +159,7 @@ print*, "Done cutout..."
 print*, u_t(1,testLower,testLower,testLower)
 print*, u_t(1,testLower+6,testLower+6,testLower)
 call matrixview(u_t(1,:,:,:),frameLim=17,z=testLower) !The bottom-right element should match with the value above
-!stop
+stop
 
 ! Write velocities & stresses to files
 open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.dat',status='replace')
@@ -160,9 +186,6 @@ stop
 
 call synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
 !print*,'tau_ij',tau_ij(1,testLower,testLower,testLower)
-
-
-
 
 
 end program main

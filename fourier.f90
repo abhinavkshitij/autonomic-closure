@@ -34,12 +34,12 @@ implicit none
 
  integer                                   :: center 
  real(kind=8)                              :: distance
- real(kind=8),allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
  integer                                   :: i,j,k
+ logical ::debug=.false.
 
 !!$ Initialize filter :
-  filter = 0.
-  center = 0.5*GRID+1.
+  filter = 0.d0
+  center = 0.5d0*GRID+1.d0
 
 !!$ Create spectrally sharp filter:
   do k = 1,GRID
@@ -49,20 +49,22 @@ implicit none
        distance = sqrt( real((i-center)**2) &
                        +real((j-center)**2) &
                        +real((k-center)**2) )
-       if (distance.le.scale) filter(i,j,k) = 1.
+       if (distance.le.scale) filter(i,j,k) = 1.d0
          
       end do
     end do
   end do
 
 !Sanity checks:
-!!$print*, 'Sanity Checks:'
-!!$write(*,20) filter(center+scale+1,center,center) ! should be 0
-!!$write(*,20) filter(center,center-scale,center)   ! should be 1
-!!$write(*,20) filter(center+scale,center,center)   ! should be 1
-!!$write(*,20) filter(center,center,center+scale)   ! should be 1
-!!$write(*,20) filter(center,center-scale-1,center) ! should be 0
-!!$20 format(f8.0)
+if(debug) then
+   print*, 'Sanity Checks:'
+   write(*,20) filter(center+scale+1,center,center) ! should be 0
+   write(*,20) filter(center,center-scale,center)   ! should be 1
+   write(*,20) filter(center+scale,center,center)   ! should be 1
+   write(*,20) filter(center,center,center+scale)   ! should be 1
+   write(*,20) filter(center,center-scale-1,center) ! should be 0
+20 format(f8.0)
+end if
 return
 end subroutine createFilter
 
@@ -190,6 +192,17 @@ function sharpFilter(array_work,filter)
   deallocate(in_cmplx,out_cmplx)
   return
 end function sharpFilter
+
+subroutine absoluteStress
+implicit none
+
+end subroutine absoluteStress
+
+subroutine deviatoricStress
+implicit none
+
+end subroutine deviatoricStress
+
 
 
 end module fourier

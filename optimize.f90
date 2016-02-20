@@ -26,6 +26,8 @@ integer,dimension(4) :: debug=(/0,0,0,0/)
 call system('clear')
 call printParams()
 
+stop
+
 open(1,file= trim(CUT_DATA)//'u_f.dat') ! 3 components
 open(2,file= trim(CUT_DATA)//'u_t.dat') ! 3 components
 open(3,file= trim(CUT_DATA)//'tau_ij.dat') ! 6 components

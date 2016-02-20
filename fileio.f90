@@ -1,7 +1,6 @@
 module fileio  
   use HDF5  
   integer, parameter :: GRID=256
-
 contains
   
 subroutine binRead(u_dpk,set,DIM) 
@@ -11,15 +10,16 @@ implicit none
 
 integer,intent(in)                         :: DIM
 character(3),intent(in)                    :: set
-real,dimension(:,:,:),allocatable          :: u_spk ! Data is stored in single precision kind.
+real(8),dimension(DIM,GRID,GRID,GRID),intent(out)      :: u_dpk ! Data read in will be double precision kind.
+
+real(4),dimension(:,:,:),allocatable       :: u_spk ! Data is stored in single precision kind.
 real(8),dimension(:,:,:),allocatable       :: u
-real(8),dimension(DIM,GRID,GRID,GRID)      :: u_dpk ! Data read in will be double precision kind.
 
 integer                                    :: fID, position
-integer :: i,j,k
-character(LEN=16) variableName, time, fIndex
-character(LEN=100)PATH
+character(LEN=32)                             PATH, variableName, time, fIndex
 
+integer                                    :: i,j,k
+logical                                    :: test = .TRUE.
 
 ! fID -- is the counter for the file number.
 ! fIndex -- char cast from int(fID).      
@@ -27,48 +27,60 @@ character(LEN=100)PATH
 ! CHANGE PATH HERE TO READ IN DATA:
 ! %% NRL:
 if (set.eq.'nrl') then
-   variableName='Velocity'; time = '0460'
+   print('(a9,a5,/)'),'Dataset:',set
+
    PATH = '../data/nrl/'
+   variableName ='Velocity'; time = '0460'
 
    allocate(u_spk(GRID,GRID,GRID))
-
+   u_spk = 0.
+   
    do fID = 1,DIM
-      print 10, fID
+      print 10,fID
 10    format("Reading... u",i1,"_DNS")
       write(fIndex,'(i1)') fID
-      u_spk = 0.
-      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
-           status='old',form='unformatted',access='direct',convert='big_endian',recl=4)
 
+      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
+                     status = 'old',                                                               &
+                     form   = 'unformatted',                                                       &
+                     access = 'direct',                                                            &
+                     convert= 'big_endian',                                                        &
+                     recl   =  4                                                                   )
       position = 0
       do k=1,GRID
-         do j=1,GRID
-            do i=1,GRID
-               position = position+1
-               read (fID,rec=position) u_spk(i,j,k)
-            end do
-         end do
+      do j=1,GRID
+      do i=1,GRID
+         position = position + 1
+         read (fID,rec = position) u_spk(i,j,k)
       end do
-      u_dpk(fID,:,:,:) = u_spk*1d-2 ! scale  original data by 1/100
+      end do
+      end do
+      u_dpk(fID,:,:,:) = u_spk*1.d-2 ! scale  original data by 1/100
       close(fID)
    end do
+
    deallocate(u_spk)
 
 ! %% JHU:
 elseif (set.eq.'jhu')then
-   print*,set
+   print('(a9,a5,/)'),'Dataset:',set
+
    variableName='Velocity'; time = '256'
    PATH = '../data/jhu256/bin/'
+
    allocate(u(GRID,GRID,GRID))
    u=0.
+
    do fID = 1,DIM
       print 20, fID
 20    format("Reading... u",i1,"_DNS")
       write(fIndex,'(i1)') fID
 
       open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
-           status='old',form='unformatted',access='direct',recl=8)
-
+                     status = 'old',                                                               &
+                     form   = 'unformatted',                                                       &
+                     access = 'direct',                                                            &
+                     recl   =  8                                                                   )
       position = 0
       do k=1,GRID
       do j=1,GRID
@@ -82,8 +94,14 @@ elseif (set.eq.'jhu')then
       close(fID)
    end do
    deallocate(u)
-! test values:
-print*,u_dpk(2,1,2,23), u_dpk(2,1,2,47)
+
+   !  TEST:
+   if (test) then
+      if (u_dpk(1,15,24,10).ne.-0.99597495) then
+            print*, 'Error reading data!'
+           stop
+         end if
+   end if
 
 ! %% DEFAULT:
 else
@@ -182,15 +200,15 @@ implicit none
   if (present(fID)) fileID = fID
 
 
-  ! Check for plane slice input:                                                                                             
+  ! Check for plane slice input:                                                                                       
   if(present(z)) then
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(i,1:lim,z),i=1,lim);print *, '' !z-plane                              
+     write(fileID,'('//trim(form2)//'f10.4)') , (array(i,1:lim,z),i=1,lim);print *, '' !z-plane                         
   elseif(present(x)) then
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(x,1:lim,i),i=1,lim);print *, '' !x-plane                              
+     write(fileID,'('//trim(form2)//'f10.4)') , (array(x,1:lim,i),i=1,lim);print *, '' !x-plane                        
   elseif(present(y)) then
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(1:lim,y,i),i=1,lim);print *, '' !y-plane                              
+     write(fileID,'('//trim(form2)//'f10.4)') , (array(1:lim,y,i),i=1,lim);print *, '' !y-plane                  
   else
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(i,1:lim,1),i=1,lim);print *, '' !z=1 default                          
+     write(fileID,'('//trim(form2)//'f10.4)') , (array(i,1:lim,1),i=1,lim);print *, '' !z=1 default                     
   end if
 
   return

@@ -1,11 +1,13 @@
 VERSION CONTROL NOTES:
 
-BRANCH : test/17   [17x17x17 cutout domain]
+BRANCH : test/validation  
 
-* Compute tau_ij^F on 17x17x17 domain. 
-* Use this version to develop new features. 
 
-PURPOSE : 1) Run code on 6 tau_ij's 
+* Compute deviatoric stress component
+* Compute tau_ij^F globally 
+* Compare with MATLAB code
+
+PURPOSE : 1) Validate code
 	  2) Run code on different lambda
  	  3) Test parallel using OpenMP	
 

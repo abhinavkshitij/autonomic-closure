@@ -5,7 +5,8 @@ module linsolve
  
   use fileio
 
-  integer,parameter :: stride = 2 ! Is the ratio between LES(taken as 1) and test scale
+  integer,parameter :: stride = 1 ! Is the ratio between LES(taken as 1) and test scale
+  integer,parameter :: skip = 10
   integer,parameter :: X = 1     ! Number of realizations
   integer,parameter :: n_DAMP = 1  ! Number of lambda's
 
@@ -18,8 +19,8 @@ module linsolve
   ! the ceiling and floor functions. They can give wrong integer values due to conversion of
   ! an integer value into its machine representation.
   
-  integer,parameter :: box = 8
-  integer,parameter :: boxSize = box**3
+  integer,parameter :: box       = 252
+  integer,parameter :: boxSize   = box**3
   integer,parameter :: bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
   integer,parameter :: smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
   integer,parameter :: boxCenter = smallHalf * box*(box + 1) + bigHalf
@@ -27,7 +28,7 @@ module linsolve
   integer,parameter :: boxUpper  = stride * (box - bigHalf)
 
   ! Test field parameters: 
-  integer,parameter :: testSize = 17
+  integer,parameter :: testSize = 1
   integer,parameter :: testcutSize = stride * (testSize + box) + 1
   integer,parameter :: testLower = stride * bigHalf + 1
   integer,parameter :: testUpper = stride * (bigHalf - 1 + testSize) + 1
@@ -59,6 +60,7 @@ print*, ''
 print*, 'Cutout parameters:'
 print*, 'lower bound:         ',lBound
 print*, 'upper bound:         ',uBound
+print*, ''
 return
 end subroutine printParams
 
@@ -256,17 +258,12 @@ end do
      do j_test = testLower, testUpper, stride
      do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
-   ! GENERATE RANDOM STENCIL CENTER POINTS:
-      call randTrainingSet(randMask)   
-      rand_count = 0 
       row_index  = 0 
 
-      do k_box = k_test-boxLower, k_test+boxUpper, stride
-      do j_box = j_test-boxLower, j_test+boxUpper, stride
-      do i_box = i_test-boxLower, i_test+boxUpper, stride ! i_box = 3,49,2
+      do k_box = k_test-boxLower, k_test+boxUpper, skip
+      do j_box = j_test-boxLower, j_test+boxUpper, skip
+      do i_box = i_test-boxLower, i_test+boxUpper, skip ! i_box = 3,49,2
 
-         rand_count = rand_count + 1
-         if (any(randMask.eq.rand_count)) cycle         !  Skip if the point is listed on randMask
 
          col_index = 0 
          row_index = row_index + 1

@@ -2,7 +2,6 @@ VERSION CONTROL NOTES:
 
 BRANCH : test/validation  
 
-
 * Compute deviatoric stress component
 * Compute tau_ij^F globally 
 * Compare with MATLAB code

@@ -26,11 +26,12 @@ character(10):: f_CUT
 character(3) :: d_set = 'jhu'   ! for binRead()
 
 ! DEBUG FLAGS:
-integer,dimension(2) :: debug=(/0,1/)
+integer,dimension(2) :: debug=(/1,1/)
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
 
 real :: tic, toc
+real(8):: pre_cut, post_cut
 
 call system('clear')
 call printParams()
@@ -58,7 +59,6 @@ end if fileSelect
 print*,'u(1,15,24,10):',u(1,15,24,10)
 
 
-
 !! Create LES and test scale sharp filters:
 allocate(LES(GRID,GRID,GRID))
 allocate(test(GRID,GRID,GRID))
@@ -68,36 +68,40 @@ call fftshift(LES)
 call fftshift(test)
 
 
-print *, 'Applying filters:'
-!! Take LES and test filtered fields:
+print*, 'Applying filters:'
 allocate(u_f(n_u,GRID,GRID,GRID))
 allocate(u_t(n_u,GRID,GRID,GRID))
+u_f=0.d0; u_t=0.d0
 filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
-   u_t(i,:,:,:) = sharpFilter(u(i,:,:,:),test)
+   u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
 end do filter
+
+
 print*,'Check sharpFilter():'
 print*,'u_f(1,15,24,10):',u_f(1,15,24,10)
 print*,'u_t(1,15,24,10):',u_t(1,15,24,10)
 
-
+stop
 print*, '' ! Blank Line
 print*,  'u(1,1,1)'   , u  (1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,  'u_f(1,1,1)' , u_f(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
 print*,  'u_t(1,1,1)' , u_t(1,lBound+testCutsize-1,lBound+testCutsize-1,lBound+testCutsize-1)
-print*,''
-
+print*, ''
 
 
 allocate(tau_ij(n_uu,GRID,GRID,GRID))
 allocate(T_ij(n_uu,GRID,GRID,GRID))
-call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test,stress='abs')
+call cpu_time(tic)
+call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test,stress='dev')
+call cpu_time(toc)
+print*,toc-tic
 deallocate(LES,test)
+
 
 stop
 
-print*,'Shape before cutout:',shape(u_t)
-print*, u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
+pre_cut = u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
 call matrixview(u_t(1,:,:,:),frameLim=5,z=testLower+lBound-1)
 
 call cutout(u_t,n_u)
@@ -106,7 +110,11 @@ call cutout(T_ij,n_uu)
 call cutout(tau_ij,n_uu)
 
 print*, "Done cutout..."
-print*, u_t(1,testLower,testLower,testLower)
+post_cut = u_t(1,testLower,testLower,testLower)
+if (pre_cut.ne.post_cut) then
+   print*, "Error in cutout!"
+   stop
+end if
 print*, u_t(1,testLower+6,testLower+6,testLower)
 call matrixview(u_t(1,:,:,:),frameLim=17,z=testLower) !The bottom-right element should match with the value above
 stop

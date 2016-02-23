@@ -30,12 +30,12 @@ subroutine createFilter(filter,scale)
     
 implicit none
  integer, intent(in)                                 :: scale
- real(kind=8),dimension(GRID,GRID,GRID),intent(inout):: filter
+ real(8),dimension(GRID,GRID,GRID),intent(inout)     :: filter
 
  integer                                   :: center 
- real(kind=8)                              :: distance
+ real(8)                                   :: distance
  integer                                   :: i,j,k
- logical ::debug=.false.
+ logical                                   :: test=.FALSE.
 
 !!$ Initialize filter :
   filter = 0.d0
@@ -43,20 +43,20 @@ implicit none
 
 !!$ Create spectrally sharp filter:
   do k = 1,GRID
-    do j = 1,GRID
-       do i = 1,GRID
+  do j = 1,GRID
+  do i = 1,GRID
           
-       distance = sqrt( real((i-center)**2) &
-                       +real((j-center)**2) &
-                       +real((k-center)**2) )
+     distance = sqrt( dble((i-center)**2) &
+              +       dble((j-center)**2) &
+              +       dble((k-center)**2) )
        if (distance.le.scale) filter(i,j,k) = 1.d0
          
-      end do
-    end do
+  end do
+  end do
   end do
 
 !Sanity checks:
-if(debug) then
+if(test) then
    print*, 'Sanity Checks:'
    write(*,20) filter(center+scale+1,center,center) ! should be 0
    write(*,20) filter(center,center-scale,center)   ! should be 1
@@ -86,14 +86,14 @@ subroutine fftshift(filter)
 
 
 !!$ Define arguments:
-real(kind=8),dimension(GRID,GRID,GRID),intent(inout):: filter
+real(8),dimension(GRID,GRID,GRID),intent(inout):: filter
 
 !!$ Define local variables: 
-real(kind=8),allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
+real(8),allocatable,dimension(:,:,:) :: temp,A,B,C,D,E,F,G,H 
 integer                           :: center
 
 
-center = 0.5*GRID+1.d0
+center = 0.5d0*GRID+1.d0
 
 allocate(temp(1:(center-1), 1:(center-1) , 1:(center-1) ) )
 allocate(A ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
@@ -163,34 +163,55 @@ function sharpFilter(array_work,filter)
   integer(C_INT)           :: n 
   type(C_PTR)              :: plan
 
-  real(kind=8),dimension(GRID,GRID,GRID)           :: array_work,filter,sharpFilter
-  double complex, allocatable,dimension(:,:,:)     :: in_cmplx, out_cmplx
+  real(C_DOUBLE),dimension(GRID,GRID,GRID)               :: sharpFilter, array_work,filter
+  complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:)     :: in_cmplx, out_cmplx,fil_cmplx
   
   !!$ convert GRID(real*8) to n(C_INT) for FFTW
   n = GRID
   
   allocate(in_cmplx(GRID,GRID,GRID))
   allocate(out_cmplx(GRID,GRID,GRID))
-  in_cmplx = cmplx(array_work)
- 
+ ! allocate(fil_cmplx(GRID,GRID,GRID))
+  in_cmplx = 0.d0; out_cmplx = 0.d0
+
+  in_cmplx = cmplx(array_work,0.d0)  ! Create input complex array
+  fil_cmplx = cmplx(filter,filter) !Create input complex filter
+  
+  in_cmplx = in_cmplx/(dble(n**3))    
+  print 21,'in vector:', in_cmplx(15,24,10)
+  
   !!$ Forward Fourier transform
   call dfftw_plan_dft_3d(plan,n,n,n,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
   call dfftw_execute(plan)
   call dfftw_destroy_plan(plan)
   
+  print 21,'Done forward FFT: out_cmplx', out_cmplx(15,24,10)
+
   !!$ Apply filter
-  out_cmplx = out_cmplx * filter !! double complex * real(kind=8)
- 
+  print *, maxval(real(fil_cmplx)), minval(real(fil_cmplx))
+  print 21,'Before filter', out_cmplx(15,24,10)
+  print 21,'Filter (15,24,10):', fil_cmplx(15,24,10)
+  out_cmplx = out_cmplx * fil_cmplx !! double complex * real(kind=8)
+  print 21,'After filter', out_cmplx(15,24,10)
+
   !!$ Inverse Fourier transform
   call dfftw_plan_dft_3d(plan,n,n,n,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
   call dfftw_execute(plan)
   call dfftw_destroy_plan(plan)
-  
-  !!$ Normalization and FFTshift:
-  sharpFilter = real(in_cmplx)/dble(n**3)
-  
-  deallocate(in_cmplx,out_cmplx)
+
+  print 21,'Done iFFT, before normalization: in_cmplx:', in_cmplx(15,24,10)
+  !!$ Normalization:
+  !in_cmplx = in_cmplx/(dble(n**3))    
+
+  print 21,'Done iFFT, after normalization: in_cmplx', in_cmplx(15,24,10)
+  print*,''
+!  sharpFilter = real(in_cmplx/dble(n**3))
+  sharpFilter = real(in_cmplx)
+
+!  print*,aimag(in_cmplx(2,2,2))
+  deallocate(in_cmplx,out_cmplx,fil_cmplx)
   return
+21 format(a45,5x,2(f30.16))
 end function sharpFilter
 
 subroutine computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test,stress)

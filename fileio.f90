@@ -69,7 +69,7 @@ elseif (set.eq.'jhu')then
    PATH = '../data/jhu256/bin/'
 
    allocate(u(GRID,GRID,GRID))
-   u=0.
+   u=0.d0
 
    do fID = 1,DIM
       print 20, fID
@@ -102,6 +102,41 @@ elseif (set.eq.'jhu')then
            stop
          end if
    end if
+
+! %% SIN:
+elseif (set.eq.'sin')then
+   print('(a9,a5,/)'),'Dataset:',set
+
+   variableName='Velocity'; time = '256'
+   PATH = '../data/sin3D/bin/'
+
+   allocate(u(GRID,GRID,GRID))
+   u=0.d0
+
+   do fID = 1,DIM
+      print 20, fID
+      write(fIndex,'(i1)') fID
+
+      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
+                     status = 'old',                                                               &
+                     form   = 'unformatted',                                                       &
+                     access = 'direct',                                                            &
+                     recl   =  8                                                                   )
+      position = 0
+      do k=1,GRID
+      do j=1,GRID
+      do i=1,GRID
+         position = position+1
+         read (fID,rec=position) u(i,j,k)
+      end do
+      end do
+      end do
+      u_dpk(fID,:,:,:) = u
+      close(fID)
+   end do
+   deallocate(u)
+print*, u_dpk(1,20,20,20)
+
 
 ! %% DEFAULT:
 else

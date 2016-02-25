@@ -17,6 +17,11 @@ CHANGES FROM PARENT COMMIT:
     *  Removed DEGCON().No condition number computation in DGESV(). 
     *  Removed bubblesort(). 
     *  Only one lambda value. Removed LAMBDA and ENSEMBLE loops.
+
+ISSUES:
+1) u_t calculated from u_f was earlier done only upto single precision. The cmplx() function
+   was working in single precision for this opertion. This has been fixed by using 
+   the -fdefault-real-8 switch in the gfortran compiler. 
 ----------------------------------------------------------------
 
 REQUIRED DEPENDENCIES:

@@ -9,7 +9,6 @@ main.exe: fileio.o fourier.o linsolve.o main.o
 	$(FC) -o $@ main.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB) linsolve.o $(LFLAGS)
 
 
-
 # OPTIMIZE : runs the optimization problem on the cutout data.
 optimize : optimize.exe
 	time ./$<
@@ -31,5 +30,5 @@ optimize.o : optimize.f90
 
 # CLEAN:
 clean:
-	rm -f *.o *.exe  *.mod *# *~ 
+	rm -f *.o *.exe *.mod *[#~] 
 

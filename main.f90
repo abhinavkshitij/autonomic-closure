@@ -59,7 +59,7 @@ end if fileSelect
 print*,'u(1,15,24,10):',u(1,15,24,10)
 
 
-!! Create LES and test scale sharp filters:
+!! Create filters:
 allocate(LES(GRID,GRID,GRID))
 allocate(test(GRID,GRID,GRID))
 call createFilter(LES,LES_scale)
@@ -95,7 +95,7 @@ allocate(T_ij(n_uu,GRID,GRID,GRID))
 call cpu_time(tic)
 call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test,stress='dev')
 call cpu_time(toc)
-print*,toc-tic
+print,toc-tic
 deallocate(LES,test)
 
 

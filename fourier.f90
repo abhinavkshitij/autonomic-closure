@@ -188,7 +188,6 @@ function sharpFilter(array_work,filter)
   print 21,'Done forward FFT: out_cmplx', out_cmplx(15,24,10)
 
   !!$ Apply filter
-  print *, maxval(real(fil_cmplx)), minval(real(fil_cmplx))
   print 21,'Before filter', out_cmplx(15,24,10)
   print 21,'Filter (15,24,10):', fil_cmplx(15,24,10)
   out_cmplx = out_cmplx * fil_cmplx !! double complex * real(kind=8)

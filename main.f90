@@ -22,21 +22,21 @@ real(8),allocatable,dimension(:,:,:) :: LES,test
 
 integer :: n_u, n_uu
 
-character(50):: CUT_DATA = '../derived_data/cutout64/jhu/' !Change bin4020 by 'sed' in shell script
+character(50):: CUT_DATA = '../derived_data/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
 character(3) :: d_set = 'jhu'   ! for binRead()
 
 
 ! DEBUG FLAGS:
-logical :: debug(2) = (/1,1/)
+logical :: debug(2) = (/0,1/)
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
 
 
-real :: tic, toc
-real(8):: pre_cut, post_cut
+real(4) :: tic, toc
+real(8) :: pre_cut, post_cut
 
-integer                     :: i,j,k,d=0
+integer :: i,j,k,d=0
 
 ! FORMAT:
 3015 format(a30,f22.15)
@@ -86,9 +86,9 @@ filter:do i=1,n_u
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
 end do filter
 
-print*,precision(-0.48241021987284982d0),precision(u_t(1,15,24,10))
-! CHECK FFT:(based on u_t)
-if (u_t(1,15,24,10).ne.dble(-0.48241021987284982d0)) then
+
+! CHECK FFT:
+if (u_t(1,15,24,10).ne.-0.48241021987284982) then
          print*, 'Precision test for FFT: Failed'
          print*, 'Check precision or data for testing is not JHU 256'
          print*, u_t(1,15,24,10)
@@ -117,8 +117,7 @@ deallocate(LES,test)
 
 
 ! CHECK STRESS: (based on T_ij)
-
-if (T_ij(1,15,24,10).ne.-5.2544371578038401E-003) then
+if (T_ij(1,15,24,10).ne.-5.2544371578038401) then
          print*, 'Precision test for stress: Failed'
          print*, 'Check precision or data for testing is not JHU 256'
          print*, T_ij(1,15,24,10)
@@ -143,8 +142,8 @@ if (pre_cut.ne.post_cut) then
       print*,"Cutout: Passed"
    end if
 
-stop
-! WRITE VELOCITIES & STRESSES TO FILES:
+
+! WRITE TO FILES:
 print*,'Write cutout to file ... '
 open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.dat')
 open(2,file=trim(CUT_DATA)//trim(f_CUT)//'u_t.dat')

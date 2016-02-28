@@ -171,7 +171,7 @@ real(8),dimension(:,:,:,:),intent(in) :: tau_ij, T_ij
 integer,                   intent(in) :: n_u, n_uu
 
 ! PARAMETERS:
-real(8) :: lambda = 1.d-3
+real(8) :: lambda = 1.d-1
 
 ! LOCAL VARIABLES:
 real(8),allocatable,dimension(:,:,:,:) :: uu_t, uu_f
@@ -183,6 +183,11 @@ real(8),dimension(N)   :: h_ij = 0.
 real(8),dimension(M)   :: T = 0. ! Input training data in LAPACK routines.
 integer                :: row_index, col_index, row, col ! Indices to build V,h_ij arrays.
 integer                :: u_comp, uu_comp ! Indices to select u_i,u_iu_j components
+
+! FOR NON-COLOCATED FORMULATION:
+logical :: coloc = 0            !0 means use non-coloc
+integer :: stencil_size = 3*(3*3*3) !3 * 27 = 81
+integer :: non_col_1, non_col_2                   ! To run non coloc combinantions
 
 ! FOR RANDOM TRAINING POINTS (STENCIL-CENTERS):
 integer :: rand_count
@@ -201,7 +206,7 @@ integer,parameter      ::  n = 1     !CHANGE HERE
 character(50)::  PATH="./run/run17/" !CHANGE HERE FOR DIFFERENT EXPERIMENTS
 character(10)::  l_val = "l_0_10/1/" ! l_var stands for variable lambda.
 
-logical      ::  writeStress = .TRUE.    
+logical      ::  writeStress = 0    
 character(4) ::  z_plane,idx
 integer      ::  vizPlaneC, vizPlaneF
 
@@ -239,7 +244,9 @@ if(debug(2)) then
    print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
 end if
 
+
 ! COLOCATED FORMULATION:
+if (coloc) then
 ! Compute velocity products:(Lower triangle order for ij)
 k = 0
 do j=1,n_u
@@ -344,7 +351,7 @@ do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
       end do
       end do
-      end do 
+      end do ! coarse
 
       ! FINE STENCIL : Calculate the SGS stress with h_ij;compare with the original tau_ij     
       col = 0 
@@ -365,18 +372,80 @@ do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
       end do
       end do
-      end do                  
+      end do  ! fine                
 
 end do
 end do
 end do ! test
+
+else
+
+! NONCOLOCATED FORMULATION:
+! WHOLE DOMAIN COMPUTATION:
+do k_test = 128, 128, 2
+do j_test = 128, 128, 2
+do i_test = 128, 128, 2 ! i_test = 11,43,2
+
+      row_index  = 0
+
+      ! ENTER STENCIL-CENTER POINTS:
+      do k_box = k_test-126, k_test+125, 10
+      do j_box = j_test-126, j_test+125, 10
+      do i_box = i_test-126, i_test+125, 10 ! i_box = 3,49,2                                                           
+
+         col_index = 0
+         row_index = row_index + 1
+
+         ! ENTER 3x3x3 STENCIL: 
+!          u_n = reshape(u(:,i_box-2:i_box+2:2, &                                                                      
+!                            j_box-2:j_box+2:2, &                                                                      
+!                            k_box-2:k_box+2:2),(/stencil_size/)   )                                                   
+
+            ! ZERO ORDER TERMS:                                                                                        
+             col_index = col_index+1
+!            V(row_index, col_index) = 1.d0                                                                            
+
+
+            ! FIRST ORDER TERMS:                                                                                       
+
+            do non_col_1 = 1,stencil_size
+               col_index = col_index+1
+!               V(row_index,col_index) = u_n(non_col_1)                                                                
+            end do
+
+            ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)                                         
+
+            do non_col_1 = 1, stencil_size
+            do non_col_2 = non_col_1, stencil_size
+
+               col_index = col_index+1
+!               V(row_index,col_index) = u_n(non_col_1) * u_n(non_col_2)                                               
+
+
+            end do
+            end do
+
+!         T(row_index) = T_ij(n,i_box,j_box,k_box) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.             
+
+
+      end do
+      end do
+      end do ! BOUNDING BOX                                                                                            
+
+print*, col_index, row_index
+stop
+end do
+end do
+end do ! test
+
+
+end if
 
 
 !  POST-PROCESSING:
 !  Write 3-plane slices of all 4 stresses for MATLAB plots.
 !  Convert to subroutine later; combine with matrixview()
 if(writeStress) then  
-
    do k = 1,3
       vizPlaneC = nint(0.25 * k * testSize) ! Mark three slices at 1/4, 1/2, 3/4 z-planes.
       vizPlaneF = (vizPlaneC - 1)*2 + testLower
@@ -400,7 +469,7 @@ if(writeStress) then
 end if
 
 
-deallocate(uu_t,    uu_f,    TijOpt,    tau_ijOpt)
+deallocate(uu_t,uu_f,TijOpt,tau_ijOpt)
 return
 end subroutine synStress
 
@@ -442,14 +511,27 @@ end subroutine LU
 
 
 
-subroutine SVD(A)
+subroutine SVD(A, T_ij, h_ij, lambda)
 implicit none
+! ARGUMENTS:
+real(8), dimension(M,N),intent(in) :: A
+real(8), dimension(M),  intent(in) :: T_ij
+real(8), dimension(N), intent(out) :: h_ij
+real(8),                intent(in) :: lambda
 
-integer :: i, info, LWORK
+! DGESVD ARGUMENTS:
 integer, parameter :: LDA = M, LDU = M, LDVT = N, LWMAX = 10000
-real(8) :: A(LDA, N), U(LDU, M), VT(LDVT, N), S(N), work(LWMAX)
-real(8) :: eye(N,N)
+!real(8),dimension(M,N) :: A
+real(8),dimension(:,:),allocatable :: U
+real(8),dimension(:,:),allocatable :: VT 
+real(8),dimension(:,:),allocatable :: D, Vinv
+real(8),dimension(:), allocatable :: S
+integer :: i, info, LWORK
+real(8) :: eye(N,N), work(LWMAX)
 
+!A = V
+allocate (U(M,M), VT(N,N), S(N))
+allocate (D(N,M),Vinv(N,M))
 
 forall(i = 1:N) eye(i,i) = 1.d0 ! Identity matrix
 
@@ -464,6 +546,13 @@ if (info.gt.0) then
    print*, 'Failed to converge'
    stop
 end if
+
+
+forall(i=1:N) D(i,i) = S(i) / (S(i)**2 + lambda**2) ! Tikhonov
+Vinv = matmul(matmul(transpose(VT),D),transpose(U)) 
+h_ij = matmul(Vinv,T_ij)        ! (N x M) (M x 1) = (N x 1)
+
+deallocate(U,S,D,Vinv)
 
 return
 end subroutine SVD

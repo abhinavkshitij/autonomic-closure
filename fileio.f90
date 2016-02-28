@@ -3,16 +3,16 @@ module fileio
   integer, parameter :: GRID=256
 contains
   
-subroutine binRead(u_dpk,set,DIM) 
+subroutine binRead(u_d,set,DIM) 
  ! STATUS : Added capablity in matrixView() , hdf5read()
  ! Result : 
 implicit none  
 
 integer,intent(in)                         :: DIM
 character(3),intent(in)                    :: set
-real(8),dimension(DIM,GRID,GRID,GRID),intent(out)      :: u_dpk ! Data read in will be double precision kind.
+real(8),dimension(DIM,GRID,GRID,GRID),intent(out)      :: u_d ! Data read in will be double precision kind.
 
-real(4),dimension(:,:,:),allocatable       :: u_spk ! Data is stored in single precision kind.
+real(4),dimension(:,:,:),allocatable       :: u_s ! Data is stored in single precision kind.
 real(8),dimension(:,:,:),allocatable       :: u
 
 integer                                    :: fID, position
@@ -32,8 +32,8 @@ if (set.eq.'nrl') then
    PATH = '../data/nrl/'
    variableName ='Velocity'; time = '0460'
 
-   allocate(u_spk(GRID,GRID,GRID))
-   u_spk = 0.
+   allocate(u_s(GRID,GRID,GRID))
+   u_s = 0.
    
    do fID = 1,DIM
       print 10,fID
@@ -51,15 +51,15 @@ if (set.eq.'nrl') then
       do j=1,GRID
       do i=1,GRID
          position = position + 1
-         read (fID,rec = position) u_spk(i,j,k)
+         read (fID,rec = position) u_s(i,j,k)
       end do
       end do
       end do
-      u_dpk(fID,:,:,:) = u_spk*1.d-2 ! scale  original data by 1/100
+      u_d(fID,:,:,:) = u_s*1.d-2 ! scale  original data by 1/100
       close(fID)
    end do
 
-   deallocate(u_spk)
+   deallocate(u_s)
 
 ! %% JHU:
 elseif (set.eq.'jhu')then
@@ -90,15 +90,17 @@ elseif (set.eq.'jhu')then
       end do
       end do
       end do
-      u_dpk(fID,:,:,:) = u
+      u_d(fID,:,:,:) = u
       close(fID)
    end do
    deallocate(u)
 
    !  TEST:
    if (test) then
-      if (u_dpk(1,15,24,10).ne. -0.99597495794296265d0) then
+      if (u_d(1,15,24,10).ne.-0.99597495794296265) then
             print*, 'Error reading data!'
+            print*, u_d(1,15,24,10)
+            print*, 'precision', precision(u_d(1,15,24,10))
            stop
          end if
    end if
@@ -131,11 +133,11 @@ elseif (set.eq.'sin')then
       end do
       end do
       end do
-      u_dpk(fID,:,:,:) = u
+      u_d(fID,:,:,:) = u
       close(fID)
    end do
    deallocate(u)
-print*, u_dpk(1,20,20,20)
+print*, u_d(1,20,20,20)
 
 
 ! %% DEFAULT:
@@ -261,5 +263,7 @@ write(form2,'(i4)') N
 write(*, '('//trim(form2)//'f30.15)'), ( matrix(i,1:N), i=1,M ); print*, ''
 print*,''
 end subroutine printmatrix2
+
+
 
 end module fileio

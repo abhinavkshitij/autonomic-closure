@@ -164,51 +164,38 @@ function sharpFilter(array_work,filter)
   type(C_PTR)              :: plan
 
   real(C_DOUBLE),dimension(GRID,GRID,GRID)               :: sharpFilter, array_work,filter
-  complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:)     :: in_cmplx, out_cmplx,fil_cmplx
+  complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:)     :: in_cmplx, out_cmplx
   
   !!$ convert GRID(real*8) to n(C_INT) for FFTW
-  n = GRID
+  !n = GRID
   
   allocate(in_cmplx(GRID,GRID,GRID))
   allocate(out_cmplx(GRID,GRID,GRID))
- ! allocate(fil_cmplx(GRID,GRID,GRID))
+
   in_cmplx = 0.d0; out_cmplx = 0.d0
 
-  in_cmplx = cmplx(array_work,0.d0)  ! Create input complex array
-  fil_cmplx = cmplx(filter,filter) !Create input complex filter
+  in_cmplx = dcmplx(array_work)/(dble(GRID**3)) ! Normalize  ! Create input complex array
   
-  in_cmplx = in_cmplx/(dble(n**3))    
-  print 21,'in vector:', in_cmplx(15,24,10)
   
   !!$ Forward Fourier transform
-  call dfftw_plan_dft_3d(plan,n,n,n,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
+  call dfftw_plan_dft_3d(plan,GRID,GRID,GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
   call dfftw_execute(plan)
   call dfftw_destroy_plan(plan)
   
-  print 21,'Done forward FFT: out_cmplx', out_cmplx(15,24,10)
-
   !!$ Apply filter
-  print 21,'Before filter', out_cmplx(15,24,10)
-  print 21,'Filter (15,24,10):', fil_cmplx(15,24,10)
-  out_cmplx = out_cmplx * fil_cmplx !! double complex * real(kind=8)
-  print 21,'After filter', out_cmplx(15,24,10)
+  out_cmplx = out_cmplx * filter !! double complex * real(kind=8)
+
 
   !!$ Inverse Fourier transform
-  call dfftw_plan_dft_3d(plan,n,n,n,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
+  call dfftw_plan_dft_3d(plan,GRID,GRID,GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
   call dfftw_execute(plan)
   call dfftw_destroy_plan(plan)
 
-  print 21,'Done iFFT, before normalization: in_cmplx:', in_cmplx(15,24,10)
-  !!$ Normalization:
-  !in_cmplx = in_cmplx/(dble(n**3))    
 
-  print 21,'Done iFFT, after normalization: in_cmplx', in_cmplx(15,24,10)
-  print*,''
-!  sharpFilter = real(in_cmplx/dble(n**3))
   sharpFilter = real(in_cmplx)
 
-!  print*,aimag(in_cmplx(2,2,2))
-  deallocate(in_cmplx,out_cmplx,fil_cmplx)
+
+  deallocate(in_cmplx,out_cmplx)
   return
 21 format(a45,5x,2(f30.16))
 end function sharpFilter
@@ -272,15 +259,16 @@ elseif (stress.eq.'dev')then
       T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
       T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
 
-   ! Print tau_ij and T_ij to check:                                                                                     
-      print*, 'Check for deviatoric stresses:'
-      print*, 'T_ij(1,15,24,10):',       T_ij(1,15,24,10)
-      print*, 'tau_ij(1,15,24,10):',     tau_ij(1,15,24,10)
-      print*, 'T_ij(4,200,156,129):',    T_ij(4,200,156,129)
-      print*, 'tau_ij(4,200,156,129):',tau_ij(4,200,156,129)
-      print*, 'tau_ij(3,200,156,129):',tau_ij(3,200,156,129)
-      print*, 'T_ij(3,200,156,129):',T_ij(3,200,156,129)
-      print*,'T_11(11,11,11)',T_ij(1,112,112,112)
+      ! CHECK DEVIATORIC STRESS: (based on T_ij)                                                                                       
+      if (T_ij(1,15,24,10).ne.-5.2544371578038401E-003) then
+         print*, 'Precision test for stress: Failed'
+         print*, 'Check precision or data for testing is not JHU 256'
+         print*, T_ij(1,15,24,10)
+         stop
+      else
+         print*, 'Precision test for deviatoric stress: Passed'
+      end if
+
      deallocate (dev_t)
 
 else

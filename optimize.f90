@@ -8,7 +8,7 @@ program optimize
 ! Result : PASSED 
 ! Notes  : Retained testing for matrixview, using 'test.dat'(Commented out).
 
-use fileio
+!use fileio
 use linsolve
 implicit none
 
@@ -20,7 +20,7 @@ character(50):: CUT_DATA = '../derived_data/cutout/jhu/bin4020/' !Change bin4020
 integer :: n_u=3, n_uu=6
 
 ! DEBUG SWITCHES:
-integer,dimension(4) :: debug=(/0,0,0,0/)
+logical,dimension(4) :: debug=(/0,0,0,0/)
 
 
 call system('clear')
@@ -51,7 +51,7 @@ close(4)
 
 
 !!$ For testing correct read/write:
-if(debug(1).eq.1) then
+if(debug(1)) then
  print*,"T_ij (1,11,11,11):", T_ij(1,11,11,11)
  print*,"tau_ij (1,11,11,11):",tau_ij(1,11,11,11)
 end if

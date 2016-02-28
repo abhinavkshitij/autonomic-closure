@@ -16,6 +16,8 @@ HDF5_LIB := -L$(HDF5_DIR)/lib -lhdf5 -lhdf5_fortran
 
 FC      := gfortran
 LFLAGS  := -lblas -llapack
-FFLAGS  := -fdefault-real-8
+FFLAGS  := -O3
+
+
 
 

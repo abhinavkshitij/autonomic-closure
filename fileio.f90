@@ -97,7 +97,7 @@ elseif (set.eq.'jhu')then
 
    !  TEST:
    if (test) then
-      if (u_dpk(1,15,24,10).ne. -0.99597495794296265) then
+      if (u_dpk(1,15,24,10).ne. -0.99597495794296265d0) then
             print*, 'Error reading data!'
            stop
          end if

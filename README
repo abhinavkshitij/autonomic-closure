@@ -4,7 +4,9 @@ BRANCH : test/validation
 
 * Compute deviatoric stress component
 * Compute tau_ij^F globally 
-* Compare with MATLAB code
+* Use non-colocated formulation
+* Projection on all points
+* Compare with MATLAB code - at z=128 plane for ij = 11
 
 PURPOSE : 1) Validate code
 	  2) Run code on different lambda

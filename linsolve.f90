@@ -11,8 +11,8 @@ module linsolve
   integer,parameter :: n_DAMP = 1  ! Number of lambda's
 
   ! Stencil parameters:
-  integer,parameter :: M = 243   ! Number of training points 3x3x3x9
-  integer,parameter :: N = 27 * 9
+  integer,parameter :: M = 243              ! Number of training points 3x3x3x9
+  integer,parameter :: N = 243
 
   ! Bounding Box parameters:
   real,   parameter :: eps = 1e-3 ! Ensures correct integer values for
@@ -200,14 +200,13 @@ integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for 
 integer,parameter      ::  n = 1     !CHANGE HERE
 character(50)::  PATH="./run/run17/" !CHANGE HERE FOR DIFFERENT EXPERIMENTS
 character(10)::  l_val = "l_0_10/1/" ! l_var stands for variable lambda.
-character(10)::  f_stat = "new"
 
 logical      ::  writeStress = .TRUE.    
 character(4) ::  z_plane,idx
 integer      ::  vizPlaneC, vizPlaneF
 
 ! DEBUG SWITCHES:
-integer,dimension(4) :: debug=(/1,0,0,0/)
+logical :: debug(4)=(/1,0,0,0/)
 ! 1 - Takes just one (tau_ij_11) for testing purpose. 
 ! 2 - Prints cutout shapes to check if cutout ops have gone well.
 ! 3 - Performs all computations on just the first point.
@@ -223,7 +222,7 @@ print*, 'Computing SGS stress...'
 allocate(uu_t(n_uu,testcutSize,testcutSize,testcutSize)) !(6,51,51,51)
 allocate(uu_f(n_uu,testcutSize,testcutSize,testcutSize))
 
-if (debug(1).eq.1) then
+if (debug(1)) then
    allocate(TijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
    allocate(tau_ijOpt(1,testSize,testSize,testSize))
 else
@@ -234,12 +233,13 @@ end if
 TijOpt=0.
 tau_ijOpt=0.
 
-if(debug(2).eq.1) then
+if(debug(2)) then
    print*,'shape tau_ij cutout:    ',shape(tau_ij)
    print*,'shape uu_t cutout:      ',shape(uu_t)
    print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
 end if
 
+! COLOCATED FORMULATION:
 ! Compute velocity products:(Lower triangle order for ij)
 k = 0
 do j=1,n_u
@@ -253,30 +253,36 @@ end do
 end do
 
 
-! WHOLE DOMAIN COMPUTATION:
-     do k_test = testLower, testUpper, stride 
-     do j_test = testLower, testUpper, stride
-     do i_test = testLower, testUpper, stride ! i_test = 11,43,2
+! WHOLE DOMAIN COMPUTATION: 
+do k_test = testLower, testUpper, stride 
+do j_test = testLower, testUpper, stride
+do i_test = testLower, testUpper, stride ! i_test = 11,43,2
 
       row_index  = 0 
 
+      ! ENTER STENCIL-CENTER POINTS:
       do k_box = k_test-boxLower, k_test+boxUpper, skip
       do j_box = j_test-boxLower, j_test+boxUpper, skip
       do i_box = i_test-boxLower, i_test+boxUpper, skip ! i_box = 3,49,2
 
-
          col_index = 0 
          row_index = row_index + 1
-
+         
+         ! ENTER 3x3x3 STENCIL:
          do k_stencil = k_box-stride, k_box+stride, stride ! Vectorize using (PACK/UNPACK)
          do j_stencil = j_box-stride, j_box+stride, stride
          do i_stencil = i_box-stride, i_box+stride, stride
+         
+            ! ZERO ORDER TERMS:
+            V(row_index, col_index) = 1.d0
 
-            do u_comp = 1,n_u ! 1 to 3
+            ! FIRST ORDER TERMS:
+            do u_comp = 1,n_u ! 1 to 3 -> 3x(3x3x3) = 81
                col_index = col_index+1
                V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
             end do
 
+            ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
             do uu_comp = 1,n_uu ! 1 to 6
                col_index = col_index+1
                V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
@@ -301,7 +307,7 @@ end do
       ! V matrix generated can be used to determine Volterra coefficients for all six ij components.
 
 
-      call choleskyLU(V,T,h_ij,lambda)     ! Least squares by LU decomposition
+      call LU(V,T,h_ij,lambda)     ! Least squares by LU decomposition
 
 
       ! Test scale computations will involve creation
@@ -376,10 +382,10 @@ if(writeStress) then
       vizPlaneF = (vizPlaneC - 1)*2 + testLower
       write(z_plane, '(i1)'), k
 
-      open(1,file= trim(PATH)//trim(l_val)//'T_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
-      open(2,file= trim(PATH)//trim(l_val)//'TijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
-      open(3,file= trim(PATH)//trim(l_val)//'tau_ij_z'//trim(z_plane)//'.dat',status=trim(f_stat))
-      open(4,file= trim(PATH)//trim(l_val)//'tau_ijOpt_z'//trim(z_plane)//'.dat',status=trim(f_stat))
+      open(1,file= trim(PATH)//trim(l_val)//'T_ij_z'//trim(z_plane)//'.dat')
+      open(2,file= trim(PATH)//trim(l_val)//'TijOpt_z'//trim(z_plane)//'.dat')
+      open(3,file= trim(PATH)//trim(l_val)//'tau_ij_z'//trim(z_plane)//'.dat')
+      open(4,file= trim(PATH)//trim(l_val)//'tau_ijOpt_z'//trim(z_plane)//'.dat')
 
       write(1,*), (T_ij      (n, i, testLower:testUpper:stride,vizPlaneF), i=testLower,testUpper,stride) !Change 1 here
       write(2,*), (TijOpt    (1, i, :, vizPlaneC), i=1,testSize)
@@ -401,7 +407,7 @@ end subroutine synStress
 
 
 
-subroutine choleskyLU(V, T_ij, h_ij, lambda)
+subroutine LU(V, T_ij, h_ij, lambda)
 implicit none
 
 ! dgesv destroys the original matrix. So V is copied into 'a' matrix. This is the LU product matrix.
@@ -431,7 +437,7 @@ b = matmul(transpose(V),T_ij)
 call DGESV(N, nrhs, A, LDA, ipiv, b, LDB, info)
 h_ij = b
 return
-end subroutine choleskyLU
+end subroutine LU
 
 
 

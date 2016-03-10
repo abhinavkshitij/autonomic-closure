@@ -2,11 +2,14 @@ VERSION CONTROL NOTES:
 
 BRANCH : test/validation  
 
+* Validation passed with ij=11
+* Added binary file write in main.f90; dat uses too much space. 
 * Compute deviatoric stress component
 * Compute tau_ij^F globally 
 * Use non-colocated formulation
 * Projection on all points
 * Compare with MATLAB code - at z=128 plane for ij = 11
+
 
 PURPOSE : 1) Validate code
 	  2) Run code on different lambda

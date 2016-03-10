@@ -8,7 +8,7 @@ program main
 
 use fourier
 use fileio
-use linsolve
+!use linsolve
 
 implicit none
 integer,parameter           :: LES_scale=40, test_scale=20
@@ -28,15 +28,15 @@ character(3) :: d_set = 'jhu'   ! for binRead()
 
 
 ! DEBUG FLAGS:
-logical :: debug(2) = (/0,1/)
+logical :: debug(3) = (/0,1,0/)
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
-
+! 3- Write as binary file [0]
 
 real(4) :: tic, toc
 real(8) :: pre_cut, post_cut
 
-integer :: i,j,k,d=0
+integer :: i,j,k,d=0,position
 
 ! FORMAT:
 3015 format(a30,f22.15)
@@ -88,7 +88,7 @@ end do filter
 
 
 ! CHECK FFT:
-if (u_t(1,15,24,10).ne.-0.48241021987284982) then
+if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
          print*, 'Precision test for FFT: Failed'
          print*, 'Check precision or data for testing is not JHU 256'
          print*, u_t(1,15,24,10)
@@ -117,54 +117,77 @@ deallocate(LES,test)
 
 
 ! CHECK STRESS: (based on T_ij)
-if (T_ij(1,15,24,10).ne.-5.2544371578038401) then
+if (T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
          print*, 'Precision test for stress: Failed'
          print*, 'Check precision or data for testing is not JHU 256'
          print*, T_ij(1,15,24,10)
          stop
       else
          print*, 'Precision test for FFT: Passed'
-   end if
+      end if
 
+! ! COMPUTE STRAIN RATE:
+! call computeSij(u_f, Sij_f)
+! call computeSij(u_t, Sij_t)
 
 
 ! CUTOUT:
-pre_cut = u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
-call cutout(u_f,   n_u )
-call cutout(u_t,   n_u )
-call cutout(tau_ij,n_uu)
-call cutout(T_ij,  n_uu)
-post_cut = u_t(1,testLower,testLower,testLower)
-if (pre_cut.ne.post_cut) then
-   print*,"Cutout: Error in cutout!"
-   stop
-   else
-      print*,"Cutout: Passed"
-   end if
+! pre_cut = u_t(1,testLower+lBound-1,testLower+lBound-1,testLower+lBound-1)
+! call cutout(u_f,   n_u )
+! call cutout(u_t,   n_u )
+! call cutout(tau_ij,n_uu)
+! call cutout(T_ij,  n_uu)
+! post_cut = u_t(1,testLower,testLower,testLower)
+! if (pre_cut.ne.post_cut) then
+!    print*,"Cutout: Error in cutout!"
+!    stop
+!    else
+!       print*,"Cutout: Passed"
+!    end if
 
 
 ! WRITE TO FILES:
-print*,'Write cutout to file ... '
-open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.dat')
-open(2,file=trim(CUT_DATA)//trim(f_CUT)//'u_t.dat')
-open(3,file=trim(CUT_DATA)//trim(f_CUT)//'tau_ij.dat')
-open(4,file=trim(CUT_DATA)//trim(f_CUT)//'T_ij.dat')
+if(debug(3)) then
+   print*,'Write cutout to .dat file ... '
+   open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.dat')
+   open(2,file=trim(CUT_DATA)//trim(f_CUT)//'u_t.dat')
+   open(3,file=trim(CUT_DATA)//trim(f_CUT)//'tau_ij.dat')
+   open(4,file=trim(CUT_DATA)//trim(f_CUT)//'T_ij.dat')
 
- write(1,*) u_f
- write(2,*) u_t
- write(3,*) tau_ij
- write(4,*) T_ij
+   write(1,*) u_f
+   write(2,*) u_t
+   write(3,*) tau_ij
+   write(4,*) T_ij
 
-close(1)
-close(2)
-close(3)
-close(4)
+   close(1)
+   close(2)
+   close(3)
+   close(4)
 
-stop
+else
+
+   print*,'Write u_f, u_t, tau_ij, T_ij to  .bin files ... '
+   open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.bin',form='unformatted',action='write') 
+   open(2,file=trim(CUT_DATA)//trim(f_CUT)//'u_t.bin',form='unformatted',action='write') 
+   open(3,file=trim(CUT_DATA)//trim(f_CUT)//'tau_ij.bin',form='unformatted',action='write') 
+   open(4,file=trim(CUT_DATA)//trim(f_CUT)//'T_ij.bin',form='unformatted',action='write') 
+
+   write(1) u_f
+   write(2) u_t
+   write(3) tau_ij
+   write(4) T_ij
+   
+   close(1)
+   close(2)
+   close(3)
+   close(4)
+
+end if
 
 ! COMPUTE STRESS:
-call synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
+!call synStress(u_f,u_t,tau_ij,T_ij,n_u,n_uu)
 !print*,'tau_ij',tau_ij(1,testLower,testLower,testLower) !! Check if input arg get altered 
 
+stop
 
 end program main

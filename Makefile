@@ -1,6 +1,6 @@
 include config.mk
 
-.PHONY : main optimize clean rmpic
+.PHONY : main optimize apples clean rmpic
 
 # MAIN : takes in .bin files and gives cutout
 main : main.exe
@@ -17,6 +17,16 @@ optimize.exe: fileio.o linsolve.o optimize.o
 	$(FC) -o $@ optimize.o fileio.o $(HDF5_LIB) linsolve.o $(LFLAGS)
 
 
+
+# APPLES : Validation case.
+apples : apples.exe
+	./$<
+apples.exe: fileio.o fourier.o  apples.o
+	$(FC) -o $@ apples.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB) $(LFLAGS)
+
+
+apples.o : apples.f90
+	$(FC) $(FFLAGS) -c $<
 fileio.o : fileio.f90
 	$(FC) $(FFLAGS) -c $< $(HDF5_INC)
 fourier.o : fourier.f90

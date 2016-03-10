@@ -260,7 +260,7 @@ elseif (stress.eq.'dev')then
       T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
 
       ! CHECK DEVIATORIC STRESS: (based on T_ij)                                                                                       
-      if (T_ij(1,15,24,10).ne.-5.2544371578038401E-003) then
+      if (T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
          print*, 'Precision test for stress: Failed'
          print*, 'Check precision or data for testing is not JHU 256'
          print*, T_ij(1,15,24,10)

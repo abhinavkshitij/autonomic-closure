@@ -97,12 +97,12 @@ elseif (set.eq.'jhu')then
 
    !  TEST:
    if (test) then
-      if (u_d(1,15,24,10).ne.-0.99597495794296265) then
-            print*, 'Error reading data!'
-            print*, u_d(1,15,24,10)
-            print*, 'precision', precision(u_d(1,15,24,10))
-           stop
-         end if
+      if (u_d(1,15,24,10).ne.-0.99597495794296265d0) then
+         print*, 'Error reading data!'
+         print*, u_d(1,15,24,10)
+         print*, 'precision', precision(u_d(1,15,24,10))
+         stop
+      end if
    end if
 
 ! %% SIN:

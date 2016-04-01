@@ -1,4 +1,4 @@
-include config.mk
+include ../config/config.mk
 
 .PHONY : main optimize apples clean rmpic
 

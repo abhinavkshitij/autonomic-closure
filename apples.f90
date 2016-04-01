@@ -1,6 +1,6 @@
 program apples
 
-use omp_lib  
+
 use fourier
 use fileio
 
@@ -8,7 +8,7 @@ implicit none
 integer,parameter           :: LES_scale=40, test_scale=20
 character(3) :: stress = 'dev'
 
-integer, parameter :: M=26**3, N=3403  ! Define array size here.
+integer, parameter :: M=26**3, N=3403, P=6  ! Define array size here.
 real(8) :: lambda = 0.1d0         ! lambda, damping factor
 
 
@@ -20,7 +20,7 @@ real(8),allocatable,dimension(:,:,:) :: LES,test
 
 ! DEFINE STRAIN RATES:
 real(8),allocatable,dimension(:,:,:,:,:) :: Sij_f, Sij_t
-real(8),allocatable,dimension(:):: h_ij
+real(8),allocatable,dimension(:,:):: h_ij
 
 integer :: n_u, n_uu
 
@@ -35,10 +35,10 @@ logical :: debug(2) = (/0,2/)
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
 
 logical :: computeStresses = 0
-logical :: computeStrain = 1
+logical :: computeStrain = 0
 logical :: filterVelocities = 0
 logical :: readFile = 0
-logical :: computeVolterra = 0
+logical :: computeVolterra = 1
 
 real(4) :: tic, toc
 real(8) :: pre_cut, post_cut
@@ -114,9 +114,9 @@ if (n_uu.ne.6) then
    stop
 end if
 
-
    allocate(tau_ij(n_uu,GRID,GRID,GRID))
    allocate(T_ij(n_uu,GRID,GRID,GRID))
+
 ! COMPUTE STRESS:
 if(computeStresses)then
 
@@ -185,28 +185,35 @@ if(computeStrain)then
 end if
 
 
-if (allocated(h_ij).neqv..true.) allocate(h_ij(N))
+if (allocated(h_ij).neqv..true.) allocate(h_ij(N,P))
 ! COMPUTE h_ij:
-!call testNonCo(u_f,u_t,tau_ij,T_ij,h_ij)
-open(1,file='./run/apples/h_ij.dat')
-read(1,*) h_ij
+call testNonCo(u_f,u_t,tau_ij,T_ij,h_ij)
+
+!open(1,file='./run/apples/h_ij.dat')
+!read(1,*) h_ij
+
 !CHECK h_ij:
-if (h_ij(350).ne.-4.5121154730201521d-2 ) then
+if (h_ij(350,1).ne.-4.5121154730201521d-2 ) then
    print*,'Error reading h_ij'
-   print*,h_ij(350)
+   print*,h_ij(350,1)
    stop
 else
    print*,'Reading h_ij(1) ... Success'
 end if
-close(1)
-if (allocated(TijOpt).neqv..true.) allocate(TijOpt(1,grid,grid,grid))
-if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(1,grid,grid,grid))
-!call optimizedTij(u_f,u_t,h_ij,TijOpt,tau_ijOpt)
+
+!close(1)
+if (allocated(TijOpt).neqv..true.) allocate(TijOpt(n_uu,grid,grid,grid))
+if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(n_uu,grid,grid,grid))
+
+stop
+
+call optimizedTij(u_f,u_t,h_ij,TijOpt,tau_ijOpt)
 open(11,file='./run/apples/TijOpt.dat')
 open(12,file='./run/apples/tau_ijOpt.dat')
 read(11,*)TijOpt(1,:,:,129)
 read(12,*)tau_ijOpt(1,:,:,129)
 
+stop
 !PRODUCTION FIELD
 open(13,file='./run/apples/P11_t.dat')
 open(14,file='./run/apples/P11_f.dat')
@@ -222,7 +229,9 @@ close(14)
 stop
 contains
 
-
+!****************************************************************
+!                             S_ij                              !
+!****************************************************************
 
 subroutine computeSij(u,Sij)
 implicit none
@@ -306,14 +315,14 @@ real(8) :: lambda = 1.d-1
 ! ARGUMENTS:
 real(8), dimension(:,:,:,:), intent(in) :: u_f, u_t
 real(8), dimension(:,:,:,:), intent(in) :: tau_ij, T_ij
-real(8), dimension(:),intent(out) :: h_ij
+real(8), dimension(:,:),intent(out) :: h_ij
 
 ! LOCAL VARIABLES:
 real(8),allocatable,dimension(:,:,:,:) :: TijOpt, tau_ijOpt !Computed stresses
 
 ! FOR LEAST SQUARES PROBLEM:
-real(8),dimension(M,N) :: V = 0. ! Non-linear combination of u_i, u_iu_j
-real(8),dimension(M)   :: T = 0. ! Input training data in LAPACK routines.
+real(8),dimension(M,N)  :: V = 0. ! Non-linear combination of u_i, u_iu_j
+real(8),dimension(M,P)   :: T = 0. ! Input training data in LAPACK routines.
 
 integer                :: row_index, col_index, row, col ! Indices to build V,h_ij arrays.
 integer                :: u_comp, uu_comp ! Indices to select u_i,u_ij components
@@ -383,7 +392,7 @@ do k_test = 129, 129, 2 ! i_test = 11,43,2
             end do
             end do
 
-         T(row_index) = T_ij(1,i_box,j_box,k_box) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
+         T(row_index,:) = T_ij(:,i_box,j_box,k_box) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
 
 
       end do
@@ -403,33 +412,33 @@ do k_test = 129, 129, 2 ! i_test = 11,43,2
 
 
       !CHECK T:
-      if (T(3).ne.8.7759832493259110d-2)then
+      if (T(3,1).ne.8.7759832493259110d-2)then
          print*, "Error! Check sorting order in  T vector!"
-         print*,T(3)
+         print*,T(3,1)
          stop
       else 
          print*,'T vector check ... Passed'
       end if
       !print*, 'T(1,2)', T(2)
       !print*, 'T(1,3)', T(3)
-      !print*, 'T(1,4)', T(4)
+      print*, 'T(1,4)', T(1,4)
       !print*, 'T(1,5)', T(5)
-
+      
 
       if (computeVolterra) then
         
-         call SVD(V,T,h_ij,lambda,printval) ! TSVD
-
+!         call SVD(V,T,h_ij,lambda,printval) ! TSVD
+         call LU(V,T,h_ij,lambda)           !Damped least squares
          ! PRINT h_ij:                                                                                                                
-         !print*, 'h_ij(1,1):',h_ij(1)
-         !print*, 'h_ij(20,1):', h_ij(20)
-         !print*, 'h_ij(350,1):', h_ij(350)
+         print*, 'h_ij(1,1):',h_ij(1,1)
+         print*, 'h_ij(20,1):', h_ij(20,1)
+         print*, 'h_ij(350,1):', h_ij(350,1)
 
-
+stop
          ! CHECK h_ij:
-         if (h_ij(350).ne.-4.5121154730201521d-2)then
+         if (h_ij(350,1).ne.-4.5121154730201521d-2)then
             print*, "Error! Check lambda, method or sorting order for h_ij computation:"
-            print*,h_ij(350)
+            print*,h_ij(350,1)
             stop
          else 
             print*,'SVD check ... Passed'
@@ -439,7 +448,7 @@ do k_test = 129, 129, 2 ! i_test = 11,43,2
       ! SAVE/READ h_ij:
       open(1,file='./run/apples/h_ij.dat')
       read(1,*) h_ij
-      print*,h_ij(350)
+      print*,'h_ij(350,1) from file: ',h_ij(350,1)
       close(1)
 end do
 end do
@@ -455,7 +464,7 @@ subroutine optimizedTij(u_f,u_t,h_ij,TijOpt,tau_ijOpt)
 
 ! ARGUMENTS:
 real(8), dimension(:,:,:,:), intent(in) :: u_f, u_t
-real(8), dimension(:),intent(in) :: h_ij
+real(8), dimension(:,:),intent(in) :: h_ij
 
 ! LOCAL VARIABLES:
 real(8),allocatable,dimension(:,:,:,:),intent(out) :: TijOpt, tau_ijOpt !Computed stresses
@@ -495,24 +504,24 @@ do k_test = 129, 129
 
             ! ZERO ORDER TERMS:
              col_index = col_index+1
-             TijOpt(1,i_opt,j_opt,k_opt) = h_ij(col_index) ! = 1
-             tau_ijOpt(1,i_opt,j_opt,k_opt) = h_ij(col_index) ! = 1
+             TijOpt(:,i_opt,j_opt,k_opt) = h_ij(col_index,:) ! = 1
+             tau_ijOpt(:,i_opt,j_opt,k_opt) = h_ij(col_index,:) ! = 1
 
             ! FIRST ORDER TERMS:             
             do non_col_1 = 1,stencil_size 
                col_index = col_index+1
-                TijOpt(1,i_opt,j_opt,k_opt) = TijOpt(1,i_opt,j_opt,k_opt) + (u_t_stencil(non_col_1)*h_ij(col_index))
-                tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt) + (u_f_stencil(non_col_1)*h_ij(col_index))
+                TijOpt(:,i_opt,j_opt,k_opt) = TijOpt(:,i_opt,j_opt,k_opt) + (u_t_stencil(non_col_1)*h_ij(col_index,:))
+                tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) + (u_f_stencil(non_col_1)*h_ij(col_index,:))
             end do
 
             ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
             do non_col_1 = 1, stencil_size
             do non_col_2 = non_col_1, stencil_size
                col_index = col_index+1
-               TijOpt(1,i_opt,j_opt,k_opt) = TijOpt(1,i_opt,j_opt,k_opt) &
-                                           + (u_t_stencil(non_col_1) * u_t_stencil(non_col_2)*h_ij(col_index))
-               tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt) &
-                                           + (u_f_stencil(non_col_1) * u_f_stencil(non_col_2)*h_ij(col_index))
+               TijOpt(:,i_opt,j_opt,k_opt) = TijOpt(:,i_opt,j_opt,k_opt) &
+                                           + (u_t_stencil(non_col_1) * u_t_stencil(non_col_2)*h_ij(col_index,:))
+               tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
+                                           + (u_f_stencil(non_col_1) * u_f_stencil(non_col_2)*h_ij(col_index,:))
             end do
             end do
       end do
@@ -535,12 +544,79 @@ return
 end subroutine optimizedTij
 
 
+
+!****************************************************************
+!                                LU                             !
+!****************************************************************
+subroutine LU(V, T_ij, h_ij, lambda)
+  implicit none
+ 
+ ! dgesv destroys the original matrix. So V is copied into 'a' matrix. This is the LU product matrix.
+ ! dgesv returns x vector. First it copies the values from 'T_ij' vector and then computes 'h_ij'.
+ ! 'h_ij' is the h_ij vector.
+ 
+  ! ARGUMENTS:
+  real(8), dimension(:,:), intent(in) :: V 
+  real(8), dimension(:,:), intent(in) :: T_ij
+  real(8), dimension(:,:), intent(out) :: h_ij
+  real(8), intent(in) :: lambda
+ 
+ ! DGESV ARGUMENTS:
+  integer, parameter        :: LDA = N, LDB = N, nrhs = P
+  real(8), dimension(:,:),allocatable :: A,VT ! EYE - IDENTITY MATRIX
+  real(8), dimension(:,:),allocatable :: b
+  integer, dimension(:), allocatable  :: ipiv
+  integer                   :: info
+  real(8) :: tic, toc
+  integer :: i
+ 
+  !DGEMM ARGUMENTS:
+  real(8):: alpha=1.d0, beta=0.d0
+
+ allocate (A(N,N), b(N,P), ipiv(N))
+
+! VT = transpose(V)
+ call cpu_time(tic)
+ call dgemm('T','N',N,N,M, alpha, V,M, V,M, beta, A,N)
+ call cpu_time(toc)
+ print*,'Elapsed time', toc-tic
+
+
+!A
+ forall(i=1:N) A(i,i) = A(i,i) + lambda 
+ print*,'A:'
+ call printmatrix(A,size(A,dim=1)) 
+!b
+ call dgemm('T','N',N,P,M, alpha, V,M, T_ij,M, beta, b,N)
+ print*,'b:'
+ call printmatrix(b,size(b,dim=1))
+ 
+call cpu_time(tic)
+!$omp parallel 
+call DGESV(N, nrhs, A, LDA, ipiv, b, LDB, info) !A is a symmetric matrix
+
+!$omp end parallel 
+call cpu_time(toc)
+print*,'Elapsed time:', toc-tic
+
+h_ij = b
+
+deallocate (A,b,ipiv)
+return
+end subroutine LU
+
+!****************************************************************
+!                             SVD                               !
+!****************************************************************
+
 subroutine SVD(A,T,h_ij,lambda,printval)
 
 ! ARGUMENTS:
 real(8),dimension(:,:),intent(in)  :: A
-real(8),dimension(:),  intent(in)  :: T
-real(8),dimension(:),  intent(out) :: h_ij
+real(8),dimension(:,:),intent(in)  :: T
+real(8),intent(in)                 ::lambda
+real(8),dimension(:,:),intent(out) :: h_ij
+
 
 ! DGESVD ARGUMENTS:                                                                                                
 integer, parameter :: LDA = M
@@ -553,17 +629,13 @@ real(8),dimension(:,:),allocatable :: U
 real(8),dimension(:,:),allocatable :: VT 
 real(8),dimension(:,:),allocatable :: D, Vinv
 real(8),dimension(:), allocatable :: S, work
-real(8) :: eye(N,N)
+
 
 logical :: printval
-character(1) :: N_char 
-real(8) ::lambda
+
 
 LWMAX = M*N
 allocate (U(LDU,M), VT(N,N), S(N), D(N,M), Vinv(N,M), work(LWMAX))
-D = 0.d0
-forall(i = 1:N) eye(i,i) = 1.d0 ! Identity matrix
-
 
 
 if (printval) then
@@ -598,6 +670,7 @@ end if
 
 
 ! COMPUTE PSEUDOINVERSE:
+D = 0.d0
 forall(i=1:N) D(i,i) = S(i) / (S(i)**2 + lambda**2)
 Vinv = matmul(matmul(transpose(VT),D),transpose(U)) !BOTTLENECK = 1300 SECS
 
@@ -616,22 +689,36 @@ return
 end subroutine SVD
 
 
-! SUBROUTINE PRINTMATRIX:
+!****************************************************************
+!                     SUBROUTINE PRINTMATRIX                    !            
+!****************************************************************
 subroutine printmatrix(A,LDA)
 implicit none
 
 ! ARGUMENTS:
 real(8), dimension(:,:) :: A
-integer :: LDA
+integer :: LDA,width
 integer :: i,j
 
-do i=1,3
-   print*, A(i,1:3)
+
+if (LDA.gt.8) then
+   LDA=8
+   width=8
+end if
+
+if (size(A,dim=2).lt.8) width = size(A,dim=2)
+
+do i=1,LDA
+   print*, A(i,1:width)
 end do
 
 return
 end subroutine printmatrix
 
+
+
 end program apples
+
+
 
 

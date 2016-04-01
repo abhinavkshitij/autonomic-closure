@@ -72,7 +72,7 @@ DESCRIPTION OF MODULES:
    Fileio conducts read/write operations on external files either during preprocessing 
    or postprocessing. It has routines for:
    a) Reading the NRL (256^3) dataset (in binary format)	-- binRead()
-   b) Reading JHU (1024^3) dataset (in HDF% format)		-- hdf5Read()
+   b) Reading JHU (1024^3) dataset (in HDF5 format)		-- hdf5Read()
    c) Writing planes slices to plot in MATLAB			-- matrixview()
    d) Print an array in the form of a matrix on the console	-- printmatrix2()
 

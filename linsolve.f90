@@ -516,9 +516,6 @@ deallocate (A,eye,b,ipiv)
 return
 end subroutine LU
 
-
-
-
 subroutine SVD(A, T_ij, h_ij, lambda)
 implicit none
 ! ARGUMENTS:

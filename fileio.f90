@@ -1,6 +1,6 @@
 module fileio  
   use HDF5  
-  integer, parameter :: GRID=256
+  use global
 contains
   
 subroutine binRead(u_d,set,DIM) 

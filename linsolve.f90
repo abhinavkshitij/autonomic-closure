@@ -1,69 +1,34 @@
+
+!! Linsolve is a collection of subroutines that perform linear algebra operations
+!! and related operations to solve the inverse problem.
+
 module linsolve
-
-  !! Linsolve is a collection of subroutines that perform linear algebra operations
-  !! and related operations to solve the inverse problem.
- 
-  use fileio
-
-  real(8),parameter :: pi = 4.d0 * atan(1.d0)
-  integer,parameter :: stride = 1 ! Is the ratio between LES(taken as 1) and test scale
-  integer,parameter :: skip = 10
-  integer,parameter :: X = 1     ! Number of realizations
-  integer,parameter :: n_DAMP = 1  ! Number of lambda's
-
-  ! Stencil parameters:
-  integer,parameter :: M = 17576              ! Number of training points 3x3x3x9
-  integer,parameter :: N = 3403
-
-  ! Bounding Box parameters:
-  real,   parameter :: eps = 1e-3 ! Ensures correct integer values for
-  ! the ceiling and floor functions. They can give wrong integer values due to conversion of
-  ! an integer value into its machine representation.
-  
-  integer,parameter :: box       = 252
-  integer,parameter :: boxSize   = box**3
-  integer,parameter :: bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
-  integer,parameter :: smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
-  integer,parameter :: boxCenter = smallHalf * box*(box + 1) + bigHalf
-  integer,parameter :: boxLower  = stride * (bigHalf - 1)
-  integer,parameter :: boxUpper  = stride * (box - bigHalf)
-
-  ! Test field parameters: 
-  integer,parameter :: testSize = 1
-  integer,parameter :: testcutSize = stride * (testSize + box) + 1
-  integer,parameter :: testLower = stride * bigHalf + 1
-  integer,parameter :: testUpper = stride * (bigHalf - 1 + testSize) + 1
-
-  ! Cutout parameters:
-  integer,parameter :: lBound = 0.5*(GRID - testcutSize)
-  integer,parameter :: uBound = 0.5*(GRID + testcutSize) - 1
-
-
+  use global
 contains
 
 subroutine printParams()
-print*, 'Stencil parameters:'
-print*, 'Training points :    ',M
-print*, 'Features :           ',N
-print*, ''
-print*, 'Box parameters:      '
-print*, 'Bounding box:        ',box
-print*, 'bigHalf:             ',bigHalf
-print*, 'smallHalf:           ',smallHalf
-print*, 'boxCenter:           ',boxCenter
-print*, 'boxLower:            ',boxLower
-print*, 'boxUpper:            ',boxUpper
-print*, ''
-print*, 'Test field parameters:'
-print*, 'testcutSize:         ',testcutSize
-print*, 'testLower:           ',testLower
-print*, 'testUpper:           ',testUpper
-print*, ''
-print*, 'Cutout parameters:'
-print*, 'lower bound:         ',lBound
-print*, 'upper bound:         ',uBound
-print*, ''
-return
+  print*, 'Stencil parameters:'
+  print*, 'Training points :    ',M
+  print*, 'Features :           ',N
+  print*, ''
+  print*, 'Box parameters:      '
+  print*, 'Bounding box:        ',box
+  print*, 'bigHalf:             ',bigHalf
+  print*, 'smallHalf:           ',smallHalf
+  print*, 'boxCenter:           ',boxCenter
+  print*, 'boxLower:            ',boxLower
+  print*, 'boxUpper:            ',boxUpper
+  print*, ''
+  print*, 'Test field parameters:'
+  print*, 'testcutSize:         ',testcutSize
+  print*, 'testLower:           ',testLower
+  print*, 'testUpper:           ',testUpper
+  print*, ''
+  print*, 'Cutout parameters:'
+  print*, 'lower bound:         ',lBound
+  print*, 'upper bound:         ',uBound
+  print*, ''
+  return
 end subroutine printParams
 
 

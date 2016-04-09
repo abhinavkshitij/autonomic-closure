@@ -3,10 +3,10 @@ include ../config/config.mk
 .PHONY : main optimize apples clean rmpic
 
 # MAIN : takes in .bin files and gives cutout
-main : main.exe
+main : main.exe clean
 	./$<
-main.exe: fileio.o fourier.o linsolve.o main.o
-	$(FC) -o $@ main.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB) linsolve.o $(LFLAGS)
+main.exe: global.o fileio.o fourier.o linsolve.o main.o
+	$(FC) -o $@ main.o global.o fileio.o $(HDF5_LIB) fourier.o $(FFTW_LIB) linsolve.o $(LFLAGS)
 
 
 # OPTIMIZE : runs the optimization problem on the cutout data.
@@ -27,6 +27,8 @@ apples.exe: fileio.o fourier.o  apples.o
 
 apples.o : apples.f90
 	$(FC) $(FFLAGS) -c $<
+global.o : global.f90
+	$(FC) $(FFLAGS) -c $< 
 fileio.o : fileio.f90
 	$(FC) $(FFLAGS) -c $< $(HDF5_INC)
 fourier.o : fourier.f90
@@ -40,5 +42,5 @@ optimize.o : optimize.f90
 
 # CLEAN:
 clean:
-	rm -f *.o *.exe *.mod *[#~] 
+	rm -f *.o  *.mod *[#~] 
 

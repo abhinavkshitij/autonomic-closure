@@ -1,5 +1,5 @@
 module fourier
-  use fileio
+  use global
   use, intrinsic :: iso_c_binding
   include '/opt/fftw-3.3.4/include/fftw3.f03' !! FOR KEYWORDS IN FFTW ARGUMENT LIST
 contains

@@ -2,7 +2,8 @@ VERSION CONTROL NOTES:
 
 BRANCH : test/validation  
 
-* Validation passed with ij=11
+* Validation passed with ij=11 to 33
+* Results compared with MATLAB - agrees
 * Added binary file write in main.f90; dat uses too much space. 
 * Compute deviatoric stress component
 * Compute tau_ij^F globally 
@@ -76,6 +77,11 @@ DESCRIPTION OF MODULES:
    c) Writing planes slices to plot in MATLAB			-- matrixview()
    d) Print an array in the form of a matrix on the console	-- printmatrix2()
 
+4) GLOBAL:
+   
+   Contains global definitions and variables that are common in all other modules and procedures
+   	    * Includes GRID size [=256]
+	    * Has the value of pi
 
 
 

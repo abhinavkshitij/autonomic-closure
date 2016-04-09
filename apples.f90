@@ -1,6 +1,6 @@
 program apples
 
-
+use global
 use fourier
 use fileio
 

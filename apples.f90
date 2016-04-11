@@ -8,7 +8,7 @@ implicit none
 integer,parameter           :: LES_scale=40, test_scale=20
 character(3) :: stress = 'dev'
 
-integer, parameter :: M=26**3, N=3403, P=6  ! Define array size here.
+!integer, parameter :: M=26**3, N=3403, P=6  ! Define array size here.
 real(8) :: lambda = 0.1d0         ! lambda, damping factor
 
 
@@ -174,14 +174,14 @@ if(computeStrain)then
    allocate (Sij_f(3,3,grid,grid,grid))
    allocate (Sij_t(3,3,grid,grid,grid))
    print*, 'Compute strain rate'
-   call computeSij(u_f, Sij_f)
-   call computeSij(u_t, Sij_t)
+!   call computeSij(u_f, Sij_f)
+!   call computeSij(u_t, Sij_t)
 
    print*,'Sij_fl(1,2,15,24,10)',Sij_f(1,2,15,24,10)
    print*,'Sij_ft(1,2,15,24,10)',Sij_t(1,2,15,24,10)
    print*,'Sij_ft(1,2,1,3,5)',Sij_t(1,2,1,3,5)
 
-!   deallocate (Sij_f, Sij_t)
+   deallocate (Sij_f, Sij_t)
 end if
 
 
@@ -233,35 +233,35 @@ contains
 !                             S_ij                              !
 !****************************************************************
 
-subroutine computeSij(u,Sij)
-implicit none
+! subroutine computeSij(u,Sij)
+! implicit none
 
-real(8), dimension(:,:,:,:),  intent(in) :: u
-real(8), dimension(:,:,:,:,:),intent(out) :: Sij
+! real(8), dimension(:,:,:,:),  intent(in) :: u
+! real(8), dimension(:,:,:,:,:),intent(out) :: Sij
 
-real(8), dimension(3,3,grid,grid,grid) :: A
-real(8), dimension(:,:,:,:),allocatable :: grad_u
-integer :: i,j
+! real(8), dimension(3,3,grid,grid,grid) :: A
+! real(8), dimension(:,:,:,:),allocatable :: grad_u
+! integer :: i,j
 
 
 
-print*, 'Compute velocity gradients:'
-allocate (grad_u(3,grid,grid,grid))
-do i=1,3
-   call gradient(u(i,:,:,:),grad_u)
-   A(i,:,:,:,:) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
-end do
-   deallocate(grad_u)
+! print*, 'Compute velocity gradients:'
+! allocate (grad_u(3,grid,grid,grid))
+! do i=1,3
+!    call gradient(u(i,:,:,:),grad_u)
+!    A(i,:,:,:,:) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
+! end do
+!    deallocate(grad_u)
 
-! COMPUTE S_ij:
-do i=1,3
-do j=1,3
-    Sij(i,j,:,:,:) = 0.5d0 * (A(i,j,:,:,:) + A(j,i,:,:,:))
-end do
-end do
+! ! COMPUTE S_ij:
+! do i=1,3
+! do j=1,3
+!     Sij(i,j,:,:,:) = 0.5d0 * (A(i,j,:,:,:) + A(j,i,:,:,:))
+! end do
+! end do
 
-return
-end subroutine computeSij
+! return
+! end subroutine computeSij
   
 
 

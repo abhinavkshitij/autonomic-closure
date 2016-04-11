@@ -11,7 +11,7 @@ module global
   ! Stencil parameters:
   integer,parameter :: M = 17576              ! Number of training points 3x3x3x9
   integer,parameter :: N = 3403
-
+  integer,parameter :: P = 6
   ! Bounding Box parameters:
   real,   parameter :: eps = 1e-3 ! Ensures correct integer values for
   ! the ceiling and floor functions. They can give wrong integer values due to conversion of

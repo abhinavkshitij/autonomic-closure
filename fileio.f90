@@ -1,268 +1,409 @@
+!****************************************************************
+!                              FILEIO
+!****************************************************************
+
+!----------------------------------------------------------------
+! USE:  1) Generate data(u_i, p) from DATA dir          : SOURCE  
+!       2) Save intermediate results in TEMP dir        : BUFFER
+!       3) [SAVE] final results in RUN dir              : SINK 
+!
+! FORM: module fileio
+!          contains
+!       subroutine readData            [SOURCE]
+!           subroutine readBinSingle   [SOURCE]
+!           subroutine readBinDouble   [SOURCE]
+!       subroutine readHDF5            [SOURCE]
+!       subroutine writeBin            [BUFFER]
+!       subroutine check_dataRead      [TEST] 
+!
+! BEHAVIOR: readData can read binary format dataset in single or
+!           double precision. Each read operation is checked at 
+!           probe point P(15,24,10).
+!          
+!
+! STATUS : Refactoring this unit.
+! 
+!----------------------------------------------------------------
+
 module fileio  
   use HDF5  
   use global
+
+  interface readBin
+     module procedure readBinSingle, readBinDouble
+  end interface
+
 contains
   
-subroutine binRead(u_d,set,DIM) 
- ! STATUS : Added capablity in matrixView() , hdf5read()
- ! Result : 
-implicit none  
+  !****************************************************************
+  !                              READ_DATA
+  !****************************************************************
 
-integer,intent(in)                         :: DIM
-character(3),intent(in)                    :: set
-real(8),dimension(DIM,GRID,GRID,GRID),intent(out)      :: u_d ! Data read in will be double precision kind.
-
-real(4),dimension(:,:,:),allocatable       :: u_s ! Data is stored in single precision kind.
-real(8),dimension(:,:,:),allocatable       :: u
-
-integer                                    :: fID, position
-character(LEN=32)                             PATH, variableName, time, fIndex
-
-integer                                    :: i,j,k
-logical                                    :: test = .TRUE.
-
-! fID -- is the counter for the file number.
-! fIndex -- char cast from int(fID).      
-
-! CHANGE PATH HERE TO READ IN DATA:
-! %% NRL:
-if (set.eq.'nrl') then
-   print('(a9,a5,/)'),'Dataset:',set
-
-   PATH = '../data/nrl/'
-   variableName ='Velocity'; time = '0460'
-
-   allocate(u_s(GRID,GRID,GRID))
-   u_s = 0.
-   
-   do fID = 1,DIM
-      print 10,fID
-10    format("Reading... u",i1,"_DNS")
-      write(fIndex,'(i1)') fID
-
-      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
-                     status = 'old',                                                               &
-                     form   = 'unformatted',                                                       &
-                     access = 'direct',                                                            &
-                     convert= 'big_endian',                                                        &
-                     recl   =  4                                                                   )
-      position = 0
-      do k=1,GRID
-      do j=1,GRID
-      do i=1,GRID
-         position = position + 1
-         read (fID,rec = position) u_s(i,j,k)
-      end do
-      end do
-      end do
-      u_d(fID,:,:,:) = u_s*1.d-2 ! scale  original data by 1/100
-      close(fID)
-   end do
-
-   deallocate(u_s)
-
-! %% JHU:
-elseif (set.eq.'jhu')then
-   print('(a9,a5,/)'),'Dataset:',set
-
-   variableName='Velocity'; time = '256'
-   PATH = '../data/jhu256/bin/'
-
-   allocate(u(GRID,GRID,GRID))
-   u=0.d0
-
-   do fID = 1,DIM
-      print 20, fID
-20    format("Reading... u",i1,"_DNS")
-      write(fIndex,'(i1)') fID
-
-      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
-                     status = 'old',                                                               &
-                     form   = 'unformatted',                                                       &
-                     access = 'direct',                                                            &
-                     recl   =  8                                                                   )
-      position = 0
-      do k=1,GRID
-      do j=1,GRID
-      do i=1,GRID
-         position = position+1
-         read (fID,rec=position) u(i,j,k)
-      end do
-      end do
-      end do
-      u_d(fID,:,:,:) = u
-      close(fID)
-   end do
-   deallocate(u)
-
-   !  TEST:
-   if (test) then
-      if (u_d(1,15,24,10).ne.-0.99597495794296265d0) then
-         print*, 'Error reading data!'
-         print*, u_d(1,15,24,10)
-         print*, 'precision', precision(u_d(1,15,24,10))
-         stop
-      end if
-   end if
-
-! %% SIN:
-elseif (set.eq.'sin')then
-   print('(a9,a5,/)'),'Dataset:',set
-
-   variableName='Velocity'; time = '256'
-   PATH = '../data/sin3D/bin/'
-
-   allocate(u(GRID,GRID,GRID))
-   u=0.d0
-
-   do fID = 1,DIM
-      print 20, fID
-      write(fIndex,'(i1)') fID
-
-      open(unit=fID, file = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.bin', &
-                     status = 'old',                                                               &
-                     form   = 'unformatted',                                                       &
-                     access = 'direct',                                                            &
-                     recl   =  8                                                                   )
-      position = 0
-      do k=1,GRID
-      do j=1,GRID
-      do i=1,GRID
-         position = position+1
-         read (fID,rec=position) u(i,j,k)
-      end do
-      end do
-      end do
-      u_d(fID,:,:,:) = u
-      close(fID)
-   end do
-   deallocate(u)
-print*, u_d(1,20,20,20)
+  !----------------------------------------------------------------
+  ! USE : Read binary datasets - NRL, JHU, TEST(sinusoidal). This
+  !      is a source procudure and generates data -- u_i
+  !
+  ! FORM: 
+  !
+  ! BEHAVIOR:
+  !
+  ! STATUS : Refactoring this unit.
+  ! 
+  !----------------------------------------------------------------
 
 
-! %% DEFAULT:
-else
-   print*,"Dataset must be either nrl or jhu"
-   stop
-end if
-return
-end subroutine binRead
+  subroutine readData(u_i, DIM) 
+    implicit none  
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer,intent(in)                         :: DIM
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8),dimension(:,:,:,:),intent(out)     :: u_i
+    !
+    !    ..WORK ARRAY..
+    real(4),dimension(:,:,:),allocatable       :: u_s ! Data is stored in single precision kind.
+    real(8),dimension(:,:,:),allocatable       :: u_d
+    !
+    !    ..INTERNAL VARIABLES..
+    integer                                    :: fID
+    character(32)                              :: PATH, variableName, time, fIndex
+    character(64)                              :: filename
+    character(16)                              :: endian
 
+    !    ..DEFAULT VALUES..
+    PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+    variableName = 'Velocity' 
+    time = '256'
+    endian = 'little_endian'
 
-subroutine hdf5Read()
-implicit none
+10  format("Reading... u",i1,"_DNS")
 
-integer , parameter :: n_files=2 ! n is the number of files to be loaded.
+     !  READ SINGLE PRECISION DATA - NRL
+     if (d_set.eq.'nrl') then
+        time = '0460'
+        endian = 'big_endian'
 
-character(LEN=20),parameter :: PATH = "../data/"
-character(LEN=30),parameter :: fName = "isotropic1024coarse"
-character(LEN=100) :: filename
-character(LEN=4) :: L_Index, U_Index
-character(LEN=10)  :: dset_u = "u10240", dset_p = "p10240", fL_Index, fU_Index  
+        allocate(u_s(GRID,GRID,GRID))
+        do fID = 1,DIM
+           write(fileID, 10) fID
+           write(fIndex,'(i1)') fID
+           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           call readBin(u_i,u_s,fID,filename,endian)
+         end do
+        deallocate(u_s)
 
-integer(HID_T) :: file_id       ! File identifier
-integer(HID_T) :: dset_id       ! Dataset identifier
+        u_i = u_i * 1.d-2 ! scale  original data by 1/100
 
-!  real(kind=8), dimension(1,1024,1024,96) :: dset_data
-real(kind=8), dimension(3,1024,1024,96*n_files) :: u ! Data buffers
-integer(HSIZE_T), dimension(4) :: data_dims
+        !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
+     elseif (d_set.eq.'jhu256'.or.d_set.eq.'sin3D') then
 
-integer     ::   error 
-integer     ::   i, j, fCount
-integer     ::   lowerIndex, upperIndex
+        allocate(u_d(GRID,GRID,GRID))
+        do fID = 1,DIM
+           write(fileID, 10) fID
+           write(fIndex,'(i1)') fID
+           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           call readBin(u_i,u_d,fID,filename,endian)
+        end do
+        deallocate(u_d)
 
-!
-! Initilize file indices:
-!
-lowerIndex = 0
-upperIndex = 95
- 
- 
-call h5open_f(error)   ! Begin HDF5
-
-  do fCount=1,n_files
-     if (fCount.eq.1) then
-        write(L_Index,'(i1)') lowerIndex
-        write(U_Index,'(i2)') upperIndex
-     else if (fCount.eq.2) then
-        write(L_Index,'(i2)') lowerIndex
-        write(U_Index,'(i3)') upperIndex
-     else if(fCount.ge.3.and.fCount.lt.10) then
-        write(L_Index,'(i3)') lowerIndex
-        write(U_Index,'(i3)') upperIndex
+      elseif (d_set.eq.'jhu'.and.ext.eq.'h5') then
+         call readHDF5()
+      
+        ! DEFAULT:
      else
-        write(L_Index,'(i3)') lowerIndex
-        write(U_Index,'(i4)') upperIndex
+        print*,"No dataset found by the name", d_set
+        stop
      end if
-   
-     filename = trim(PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240.h5'
-     
-     call h5fopen_f (filename, H5F_ACC_RDWR_F, file_id, error) ! Access file
-     call h5dopen_f(file_id, dset_u, dset_id, error) ! Access dataset
-     
-!     call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, dset_data, data_dims, error) ! Read into dset_data
-     call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) ! Read into dset_data 
-     !u(1,:,:,lowerIndex+1:upperIndex+1) = dset_data
-     
-     call h5dclose_f(dset_id, error)    
-     call h5fclose_f(file_id, error)
+        
+     ! CHECK DATA READ:
+     call check_dataRead(u_i(1,15,24,10))
 
-     lowerIndex = lowerIndex + 96
-     upperIndex = upperIndex + 96
-  end do
-  call h5close_f(error)
+     return
+   end subroutine readData
 
-  ! Check for bin files:
+   !****************************************************************
+   !                           READ_BIN_SINGLE
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Reads single precision data for NRL 256 dataset
+   !      
+   ! FORM: readBinSingle(u_i, u_s, fID, filename, endian)
+   !
+   ! BEHAVIOR: Convert to big endian while reading in data.
+   !
+   ! STATUS : Interfaced with readBin()
+   ! 
+   !----------------------------------------------------------------
+
+   subroutine readBinSingle(u_i,u_s,fID,filename,endian)
+     implicit none
+     !
+     !    ..ARRAY ARGUMENTS..
+     real(8), dimension(:,:,:,:),intent(inout) :: u_i
+     real(4), dimension(:,:,:),intent(inout)   :: u_s
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), intent(in) :: filename
+     character(*), intent(in),optional :: endian
+     !
+     !    ..LOCAL VARIABLES..
+     integer :: fID
+     integer :: position
+
+
+     open(unit=fID, file = filename, &
+          status = 'old',            &
+          form   = 'unformatted',    &
+          access = 'direct',         & 
+          convert = endian,          & 
+          recl   =  4                 )
+
+     position = 0
+     do k=1,GRID
+        do j=1,GRID
+           do i=1,GRID
+              position = position + 1
+              read (fID,rec=position) u_s(i,j,k)
+           end do
+        end do
+     end do
+     u_i(fID,:,:,:) = u_s
+     close(fID)
+
+   end subroutine readBinSingle
+
+   !****************************************************************
+   !                           READ_BIN_DOUBLE
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Reads double precision binary dataset.
+   !      
+   ! FORM: readBinDouble(u_i, u_d, fID, filename, endian)
+   !
+   ! BEHAVIOR: 
+   !
+   ! STATUS : Interfaced with readBin()
+   ! 
+   !----------------------------------------------------------------
+
+   subroutine readBinDouble(u_i,u_d,fID,filename,endian)
+     implicit none
+     !
+     !    ..ARRAY ARGUMENTS..
+     real(8), dimension(:,:,:,:),intent(inout) :: u_i
+     real(8), dimension(:,:,:),intent(inout)   :: u_d
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), intent(in) :: filename
+     character(*), intent(in),optional :: endian
+     !
+     !    ..LOCAL VARIABLES..
+     integer :: fID
+     integer :: position
+
+
+     open(unit = fID, file = filename, &
+          status = 'old',            &
+          form   = 'unformatted',    &
+          access = 'direct',         & 
+          convert = endian,          & 
+          recl   =  8                 )
+
+     position = 0
+     do k=1,GRID
+        do j=1,GRID
+           do i=1,GRID
+              position = position + 1
+              read (fID,rec=position) u_d(i,j,k)
+           end do
+        end do
+     end do
+     u_i(fID,:,:,:) = u_d
+     close(fID)
+
+   end subroutine readBinDouble
+
+
+   !****************************************************************
+   !                            WRITEBIN
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Writes a 3D array into binary files in [TEMP] dir
+   !      
+   !
+   ! FORM: 
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+   subroutine writeBin(var, var_name, PATH)
+     implicit none
+     !
+     !    ..ARRAY ARGUMENTS..
+     real(8), dimension (:,:,:), intent(in) :: var
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), intent(in) :: var_name
+     character(*), intent(in) :: PATH
+     !
+     !    ..LOCAL VARIABLES..
+     character(16) :: scale
+     character(32) :: filename
+     integer :: fID
+
+!     write(scale,'a3,2(i2),a1')
+
+!     PATH = trim(TEMP_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+     filename = trim(PATH)
+
+
+   end subroutine writeBin
+
+
+
+
+   !****************************************************************
+   !                           READHDF5
+   !****************************************************************
+   !----------------------------------------------------------------
+   ! USE : Read HDF5 dataset JHU
+   !      * source procudure, generates data (u_i)
+   !
+   ! FORM: 
+   !
+   ! BEHAVIOR:
+   !
+   ! STATUS : HDF5 files do not exist. They are saved in Ocotillo
+   !          Need to create a test section.
+   !          To handle large dataset - implement parallel I/O (MPI)
+   !----------------------------------------------------------------
+
+   subroutine readHDF5()
+     implicit none
+
+     integer, parameter :: n_files = 2 ! n is the number of files to be loaded.
+
+     character(32) :: PATH 
+     character(30) :: fName = "isotropic1024coarse"
+     character(100) :: filename
+     character(4) :: L_Index, U_Index
+     character(10)  :: dset_u = "u10240", dset_p = "p10240", fL_Index, fU_Index  
+
+     integer(HID_T) :: file_id       ! File identifier
+     integer(HID_T) :: dset_id       ! Dataset identifier
+     integer(HSIZE_T), dimension(4) :: data_dims
+     !  real(kind=8), dimension(1,1024,1024,96) :: dset_data
+     real(8), dimension(3,1024,1024,96*n_files) :: u ! Data buffers
+
+
+     integer     ::   error 
+     integer     ::   fCount
+     integer     ::   lowerIndex, upperIndex
+
+     !
+     ! Initilize file indices:
+     !
+     lowerIndex = 0
+     upperIndex = 95
+
+     PATH = trim(DATA_DIR)//trim(fName)
+
+     call h5open_f(error)   ! Begin HDF5
+
+     do fCount=1,n_files
+        if (fCount.eq.1) then
+           write(L_Index,'(i1)') lowerIndex
+           write(U_Index,'(i2)') upperIndex
+        else if (fCount.eq.2) then
+           write(L_Index,'(i2)') lowerIndex
+           write(U_Index,'(i3)') upperIndex
+        else if(fCount.ge.3.and.fCount.lt.10) then
+           write(L_Index,'(i3)') lowerIndex
+           write(U_Index,'(i3)') upperIndex
+        else
+           write(L_Index,'(i3)') lowerIndex
+           write(U_Index,'(i4)') upperIndex
+        end if
+
+        filename = trim(PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240.h5'
+        print*,filename
+        stop
+        call h5fopen_f (filename, H5F_ACC_RDWR_F, file_id, error) ! Access file
+        call h5dopen_f(file_id, dset_u, dset_id, error) ! Access dataset
+
+        !     call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, dset_data, data_dims, error) ! Read into dset_data
+        call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) ! Read into dset_data 
+        !u(1,:,:,lowerIndex+1:upperIndex+1) = dset_data
+
+        call h5dclose_f(dset_id, error)    
+        call h5fclose_f(file_id, error)
+
+        lowerIndex = lowerIndex + 96
+        upperIndex = upperIndex + 96
+     end do
+     call h5close_f(error)
+
+     ! Check for bin files:
      print*,u(2,1,5,89) , u(3,5,5,89)
      print*,u(2,1,5,185), u(3,5,5,185)
-  return
-end subroutine hdf5Read
+     return
+   end subroutine readHDF5
+
+   !****************************************************************
+   !                           CHECK_DATA_READ
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Writes a 3D array into binary files in [TEMP] dir
+   !      
+   !
+   ! FORM: 
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+  subroutine check_dataRead(value)
+    implicit none
+    real(8), intent(in) :: value
+    
+    ! NRL
+    if (d_set.eq.'nrl') then
+       if (value.ne.-11.070811767578125d0) then
+          print*, 'Error reading data!'
+          print*, value
+          stop
+       end if
+
+    ! JHU256
+    elseif (d_set.eq.'jhu256') then
+       if (value.ne.-0.99597495794296265d0) then
+          print*, 'Error reading data!'
+          print*, value
+          stop
+       end if
+
+    ! SIN 3D
+    elseif (d_set.eq.'sin3D') then 
+       if (value.ne.2.2787249947361117d0) then
+          print*, 'Error reading data!'
+          print*, value
+          stop
+       end if
 
 
-subroutine matrixview(array,frameLim,x,y,z,fID)
-implicit none
-  real(8), dimension(:,:,:), intent(in) :: array
-  integer, intent(in), optional :: frameLim, fID, x, y, z
-  integer :: i, lim, fileID
-! Define flexible length format:                                                                                             
-  character(4) :: form2
-
-  ! Check for frameLimits:                                                                                                   
-  lim = size(array,dim=1)
-  if (present(frameLim))lim = frameLim
-  write(form2,'(i4)') lim       ! Int to char                                                                                
-
-  ! Check for fID:                                                                                                           
-  fileID = 6 ! Default to dump results on the screen                                                                         
-  if (present(fID)) fileID = fID
-
-
-  ! Check for plane slice input:                                                                                       
-  if(present(z)) then
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(i,1:lim,z),i=1,lim);print *, '' !z-plane                         
-  elseif(present(x)) then
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(x,1:lim,i),i=1,lim);print *, '' !x-plane                        
-  elseif(present(y)) then
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(1:lim,y,i),i=1,lim);print *, '' !y-plane                  
-  else
-     write(fileID,'('//trim(form2)//'f10.4)') , (array(i,1:lim,1),i=1,lim);print *, '' !z=1 default                     
-  end if
-
-  return
-end subroutine matrixview
-
-subroutine printmatrix2(matrix,M,N)
-implicit none
-
-integer,intent(in) :: M,N
-real(8),dimension(M,N),intent(inout) :: matrix
-character(4) :: form2
-integer :: i
-
-write(form2,'(i4)') N
-write(*, '('//trim(form2)//'f30.15)'), ( matrix(i,1:N), i=1,M ); print*, ''
-print*,''
-end subroutine printmatrix2
+    end if
+    return
+  end subroutine check_dataRead
 
 
 

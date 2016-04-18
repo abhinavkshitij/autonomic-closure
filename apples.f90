@@ -5,10 +5,7 @@ use fourier
 use fileio
 
 implicit none
-integer,parameter           :: LES_scale=40, test_scale=20
-character(3) :: stress = 'dev'
 
-!integer, parameter :: M=26**3, N=3403, P=6  ! Define array size here.
 real(8) :: lambda = 0.1d0         ! lambda, damping factor
 
 
@@ -24,15 +21,14 @@ real(8),allocatable,dimension(:,:):: h_ij
 
 integer :: n_u, n_uu
 
-character(50):: CUT_DATA = '../derived_data/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
+character(50):: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
-character(3) :: d_set = 'jhu'   ! for binRead()
 
 
 ! DEBUG FLAGS:
-logical :: debug(2) = (/0,2/)
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
+logical :: debug(2) = [0,2]
 
 logical :: computeStresses = 0
 logical :: computeStrain = 0
@@ -40,10 +36,10 @@ logical :: filterVelocities = 0
 logical :: readFile = 0
 logical :: computeVolterra = 1
 
-real(4) :: tic, toc
 real(8) :: pre_cut, post_cut
 
-integer :: i,j,k,d=0
+
+integer :: d=0
 
 
 ! FORMAT:
@@ -65,14 +61,8 @@ end if
 !! Select file to read:
 if(readFile)then
 allocate(u(n_u,GRID,GRID,GRID))
-
-fileSelect:if (debug(2)) then
-   call binRead(u,  d_set,  DIM=n_u)
+   call readData(u,  DIM=n_u)
    write(f_CUT,'(a3, 2(i2), a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
-   !print*, trim(CUT_DATA)//trim(f_CUT) !Test pathname
-else
-   call hdf5Read() 
-end if fileSelect
 end if
 
 
@@ -130,10 +120,10 @@ if(computeStresses)then
 else
 
 ! READ STRESS files:
-   open(1,file="../derived_data/cutout-valid/jhu/bin4020/u_f.bin",form="unformatted")
-   open(2,file="../derived_data/cutout-valid/jhu/bin4020/u_t.bin",form="unformatted")
-   open(3,file="../derived_data/cutout-valid/jhu/bin4020/tau_ij.bin",form="unformatted")
-   open(4,file="../derived_data/cutout-valid/jhu/bin4020/T_ij.bin",form="unformatted")
+   open(1,file="../temp/cutout-valid/jhu/bin4020/u_f.bin",form="unformatted")
+   open(2,file="../temp/cutout-valid/jhu/bin4020/u_t.bin",form="unformatted")
+   open(3,file="../temp/cutout-valid/jhu/bin4020/tau_ij.bin",form="unformatted")
+   open(4,file="../temp/cutout-valid/jhu/bin4020/T_ij.bin",form="unformatted")
 
    read(1) u_f
    read(2) u_t

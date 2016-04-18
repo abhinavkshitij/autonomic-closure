@@ -8,11 +8,9 @@ program main
 
 use fourier
 use fileio
-!use linsolve
+use linsolve
 
 implicit none
-integer,parameter           :: LES_scale=40, test_scale=20
-character(3) :: stress = 'dev'
 
 
 ! Define velocities:
@@ -20,30 +18,26 @@ real(8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
 real(8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij
 real(8),allocatable,dimension(:,:,:) :: LES,test
 
+real(8) :: pre_cut, post_cut
+
 integer :: n_u, n_uu
 
 character(50):: CUT_DATA = '../derived_data/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
-character(3) :: d_set = 'jhu'   ! for binRead()
-
 
 ! DEBUG FLAGS:
-logical :: debug(3) = (/0,1,0/)
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
 ! 3- Write as binary file [0]
+logical :: debug(3) = [0,1,0]
 
-real(4) :: tic, toc
-real(8) :: pre_cut, post_cut
-
-integer :: i,j,k,d=0,position
 
 ! FORMAT:
 3015 format(a30,f22.15)
 307 format(a30,f22.7)
 507 format(a50,f22.7)
 !call system('clear')
-!call printParams()
+call printParams()
 
 !! Set debug flags for velocity components:
 n_u=3; n_uu = 6
@@ -57,14 +51,11 @@ end if
 !! Select file to read:
 allocate(u(n_u,GRID,GRID,GRID))
 
-fileSelect:if (debug(2)) then
-   call binRead(u,  d_set,  DIM=n_u)
-   write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
-   !print*, trim(CUT_DATA)//trim(f_CUT) !Test pathname
-else
-   call hdf5Read() 
-end if fileSelect
+call readData(u, DIM = n_u)
+write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
 
+
+call printplane(u(1,:,:,:),frameLim=4)
 
 
 !! Create filters:
@@ -110,7 +101,7 @@ allocate(tau_ij(n_uu,GRID,GRID,GRID))
 allocate(T_ij(n_uu,GRID,GRID,GRID))
 call cpu_time(tic)
 print*,'Compute stress:',stress
-call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test,stress)
+call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test)
 call cpu_time(toc)
 write(*,307),'computeStress - time elapsed:',toc-tic
 deallocate(LES,test)

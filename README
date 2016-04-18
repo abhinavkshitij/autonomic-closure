@@ -81,6 +81,7 @@ DESCRIPTION OF MODULES:
    
    Contains global definitions and variables that are common in all other modules and procedures
    	    * Includes GRID size [=256]
+	    * Includes parameters
 	    * Has the value of pi
 
 

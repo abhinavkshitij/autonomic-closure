@@ -1,69 +1,128 @@
+!****************************************************************
+!                              SOLVER
+!****************************************************************
+
+!----------------------------------------------------------------
+! USE: Solver
+!      
+!      
+!      
+!
+! FORM: module solver
+!          contains
+!       subroutine createFilter   [SOURCE]
+!       subroutine fftshift       [FILTER]
+!       function sharpFilter      [FILTER]
+!       subroutine computeStress  [FILTER]
+!
+! BEHAVIOR: Needs C-binding for FFTW libraries. 
+!           
+!
+! STATUS : Refactoring this unit.
+! 
+!----------------------------------------------------------------
 
 !! Linsolve is a collection of subroutines that perform linear algebra operations
 !! and related operations to solve the inverse problem.
 
 module linsolve
   use global
+
+ 
+  ! Stencil parameters:
+  integer,parameter :: stride = 1 ! Is the ratio between LES(taken as 1) and test scale
+  integer,parameter :: skip = 10
+  integer,parameter :: X = 1     ! Number of realizations
+  integer,parameter :: n_DAMP = 1  ! Number of lambda's
+  
+ 
+  ! Bounding Box parameters:  
+  integer,parameter :: box       = 252
+  integer,parameter :: boxSize   = box**3
+  integer,parameter :: bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
+  integer,parameter :: smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
+  integer,parameter :: boxCenter = smallHalf * box*(box + 1) + bigHalf
+  integer,parameter :: boxLower  = stride * (bigHalf - 1)
+  integer,parameter :: boxUpper  = stride * (box - bigHalf)
+
+  ! Test field parameters: 
+  integer,parameter :: testSize = 1
+  integer,parameter :: testcutSize = stride * (testSize + box) + 1
+  integer,parameter :: testLower = stride * bigHalf + 1
+  integer,parameter :: testUpper = stride * (bigHalf - 1 + testSize) + 1
+
+
+  ! Cutout parameters:
+  integer,parameter :: lBound = 0.5*(GRID - testcutSize)
+  integer,parameter :: uBound = 0.5*(GRID + testcutSize) - 1
+
+
 contains
 
+
 subroutine printParams()
-  print*, 'Stencil parameters:'
-  print*, 'Training points :    ',M
-  print*, 'Features :           ',N
-  print*, ''
-  print*, 'Box parameters:      '
-  print*, 'Bounding box:        ',box
-  print*, 'bigHalf:             ',bigHalf
-  print*, 'smallHalf:           ',smallHalf
-  print*, 'boxCenter:           ',boxCenter
-  print*, 'boxLower:            ',boxLower
-  print*, 'boxUpper:            ',boxUpper
-  print*, ''
-  print*, 'Test field parameters:'
-  print*, 'testcutSize:         ',testcutSize
-  print*, 'testLower:           ',testLower
-  print*, 'testUpper:           ',testUpper
-  print*, ''
-  print*, 'Cutout parameters:'
-  print*, 'lower bound:         ',lBound
-  print*, 'upper bound:         ',uBound
-  print*, ''
+  
+  write(fileID, * ), ''
+  write(fileID, * ), 'Dataset:            ', d_set
+  write(fileID, * ), ''
+  write(fileID, * ), 'Stencil parameters:'
+  write(fileID, * ), ''
+  write(fileID, * ), 'Training points :    ',M
+  write(fileID, * ), 'Features :           ',N
+  write(fileID, * ), ''
+!   write(fileID, * ), 'Box parameters:      '
+!   write(fileID, * ), 'Bounding box:        ',box
+!   write(fileID, * ), 'bigHalf:             ',bigHalf
+!   write(fileID, * ), 'smallHalf:           ',smallHalf
+!   write(fileID, * ), 'boxCenter:           ',boxCenter
+!   write(fileID, * ), 'boxLower:            ',boxLower
+!   write(fileID, * ), 'boxUpper:            ',boxUpper
+!   write(fileID, * ), ''
+!   write(fileID, * ), 'Test field parameters:'
+!   write(fileID, * ), 'testcutSize:         ',testcutSize
+!   write(fileID, * ), 'testLower:           ',testLower
+!   write(fileID, * ), 'testUpper:           ',testUpper
+!   write(fileID, * ), ''
+!   write(fileID, * ), 'Cutout parameters:'
+!   write(fileID, * ), 'lower bound:         ',lBound
+!   write(fileID, * ), 'upper bound:         ',uBound
+  write(fileID, * ), ''
   return
 end subroutine printParams
 
 
 subroutine cutout(array,n_comp)
-implicit none
+  implicit none
 
-integer, intent(in) :: n_comp
-real(8), allocatable, dimension(:,:,:,:),intent(inout) :: array
-real(8), allocatable, dimension(:,:,:,:):: temp
+  integer, intent(in) :: n_comp
+  real(8), allocatable, dimension(:,:,:,:),intent(inout) :: array
+  real(8), allocatable, dimension(:,:,:,:):: temp
 
-allocate (temp(n_comp,testcutSize,testcutSize,testcutSize))
-temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
-deallocate(array)
+  allocate (temp(n_comp,testcutSize,testcutSize,testcutSize))
+  temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
+  deallocate(array)
 
-allocate(array(n_comp,testcutSize,testcutSize,testcutSize))
-array = temp   
-deallocate(temp)
+  allocate(array(n_comp,testcutSize,testcutSize,testcutSize))
+  array = temp   
+  deallocate(temp)
 
-return
+  return
 end subroutine cutout
 
 
 ! RANDOM NUMBER GENERATION
 subroutine init_random_seed()
 
-integer, dimension(:), allocatable :: seed
-integer :: i, n_seed, clock
+  integer, dimension(:), allocatable :: seed
+  integer :: i, n_seed, clock
 
-call RANDOM_seed(size = n_seed) !Generate random seeds
-allocate(seed(n_seed))
-call SYSTEM_clock(COUNT=clock)
-seed = clock + 37 * (/ (i-1, i=1,n_seed) /)
-call RANDOM_seed(PUT = seed)
-deallocate(seed)
-return
+  call RANDOM_seed(size = n_seed) !Generate random seeds
+  allocate(seed(n_seed))
+  call SYSTEM_clock(COUNT=clock)
+  seed = clock + 37 * (/ (i-1, i=1,n_seed) /)
+  call RANDOM_seed(PUT = seed)
+  deallocate(seed)
+  return
 end subroutine init_random_seed
 
 subroutine randTrainingSet(randMask)
@@ -80,7 +139,8 @@ integer,intent(out)     :: randMask(maskSize)
 
 ! DEBUG VARIABLES:
 logical,parameter       :: debugRandom = .FALSE.
-integer                 :: i, j, k, count
+!integer                 :: i, j, k
+integer                 :: count
 integer                 :: randomMatrix(box,box,box)
 
 randMask=0; i=1          ! i starts at 1 because (243 - 1) points are randomly selected
@@ -130,7 +190,6 @@ end subroutine randTrainingSet
 subroutine synStress(u_f, u_t, tau_ij, T_ij, n_u, n_uu)
 implicit none
 
-integer :: i,j,k     ! General indices
 
 ! ARGUMENTS:
 real(8),dimension(:,:,:,:),intent(in) :: u_f,    u_t
@@ -144,7 +203,7 @@ real(8) :: lambda = 1.d-1
 real(8),allocatable,dimension(:,:,:,:) :: uu_t, uu_f
 real(8),allocatable,dimension(:,:,:,:) :: TijOpt, tau_ijOpt !Computed stresses
 
-! FOR THE LEAST SQUARES PROBLEM:
+! FOR LEAST SQUARES PROBLEM:
 real(8),allocatable,dimension(:,:) :: V  ! Non-linear combination of u_i, u_iu_j
 real(8),allocatable,dimension(:)   :: h_ij 
 real(8),allocatable,dimension(:)   :: T  ! Input training data in LAPACK routines.
@@ -170,7 +229,7 @@ integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for 
 
 ! EXTERNAL FILES:
 integer,parameter      ::  n = 1     !CHANGE HERE
-character(50)::  PATH="./run/run17/" !CHANGE HERE FOR DIFFERENT EXPERIMENTS
+character(50)::  PATH=trim(RUN_DIR)//'run17/' !CHANGE HERE FOR DIFFERENT EXPERIMENTS
 character(10)::  l_val = "l_0_10/1/" ! l_var stands for variable lambda.
 
 logical      ::  writeStress = 0    
@@ -178,7 +237,7 @@ character(4) ::  z_plane,idx
 integer      ::  vizPlaneC, vizPlaneF
 
 ! DEBUG SWITCHES:
-logical :: debug(4)=(/1,0,0,0/)
+logical :: debug(4) = [1,0,0,0]
 ! 1 - Takes just one (tau_ij_11) for testing purpose. 
 ! 2 - Prints cutout shapes to check if cutout ops have gone well.
 ! 3 - Performs all computations on just the first point.

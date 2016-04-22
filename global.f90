@@ -1,42 +1,53 @@
 module global
 
-  real,    parameter :: eps = 1e-3 
-  real(8), parameter :: pi = 4.d0 * atan(1.d0)
+  ! TYPE: STRING(16)
+  type str16
+     character (16) :: name
+  end type str16
+
+  type(str16), parameter :: var(2) = [ str16('Velocity'), str16('Pressure')]
+  type(str16), parameter :: dataset(3) = [ str16('nrl'),  str16('jhu256'), str16('sin3D')]
+  type(str16), parameter :: var_FFT(4) = [ str16('u_f'),  str16('u_t'),    str16('tau_ij'), str16('T_ij')]  
+
+  integer, parameter :: case(1) = [2]
 
 
-  integer,parameter :: GRID = 256
-  integer,parameter :: M = 17576              ! Number of training points 3x3x3x9
-  integer,parameter :: N = 3403
-  integer,parameter :: P = 6
+  character(8) :: d_set = trim (dataset(case(1)) % name)
+  character(4) :: ext   = 'bin'
+
+
+  integer, parameter :: GRID = 256
+  integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
+  integer, parameter :: N = 3403
+  integer, parameter :: P = 6
   
-  integer,parameter :: LES_scale  = 40
-  integer,parameter :: test_scale = 20
-
+  integer, parameter :: LES_scale  = 40
+  integer, parameter :: test_scale = 20
 
   character(3) :: stress = 'dev'
 
-
-  integer  :: i, j, k
-  integer  :: fileID = 6
-  real(8)  :: tic, toc
-  
-  
   ! DIRS:
   character(*), parameter :: DATA_DIR = '../data/'
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RUN_DIR  = '../run/'
 
-
-  character(8) :: d_set = 'jhu256'!jhu256, nrl, sin3D   
-  character(4) :: ext   = 'bin'
   
+  character(*), parameter :: long = 'es23.17'
+  character(*), parameter :: short = 'f10.4'
+
+
+  real,    parameter :: eps = 1e-3 
+  real(8), parameter :: pi = 4.d0 * atan(1.d0)
+
+  integer  :: i, j, k
+  integer  :: fileID = 6
+  real(8)  :: tic, toc
 
   interface printplane
      module procedure plane2, plane3
   end interface
 
 
-  
 contains
 
   !****************************************************************
@@ -75,7 +86,7 @@ contains
     !
     !    ..FORMATTING..
     character(4) :: form 
-    character(8) :: digits = 'f10.4'
+    character(8) :: digits = short 
 
 
 
@@ -94,7 +105,7 @@ contains
     ! Write plane to an external file with 15 digits.
     if (present(fID)) then
        fileID = fID
-       digits = 'es23.17'
+       digits = long 
     end if
     
     
@@ -129,6 +140,7 @@ contains
   !      * Dumps the entire plane to the standard output (screen)
   !      * Looks for [frameLim] to limit output size of the plane (useful for
   !        large arrays).
+  !      * Limits frame size to 8 to avoid large outputs to screen.
   !      * Looks for specified file [fID] to [Save] plane in an external file.
   !  
   !----------------------------------------------------------------
@@ -145,10 +157,10 @@ contains
     !
     !    ..LOCAL SCALARS..
     integer :: x_lim, y_lim
+    integer :: frameLim_Max = 8
     !
     character(4) :: form 
-    character(8) :: digits = 'f10.4'
-
+    character(8) :: digits = short 
     
     ! Check [frameLimits]:
     x_lim = size (matrix, dim=1)
@@ -156,22 +168,27 @@ contains
    
 
     if (present(frameLim)) then
-       x_lim = frameLim
-       y_lim = frameLim
+       if (frameLim.lt.8) then
+          x_lim = frameLim
+          y_lim = frameLim
+       else
+          print*,"frameLim max set to 8 to limit large output to screen."
+          x_lim = frameLim_Max
+          y_lim = frameLim_Max
+       end if
     end if
 
       
     ! Write plane to an external file with 15 digits.
     if (present(fID)) then
        fileID = fID
-       digits = 'es23.17'
+       digits = long 
     end if
     
     write (form,'(i4)') y_lim     
     write (fileID,'('//trim(form)//trim(digits)//')'), (matrix(i,1:y_lim),i=1,x_lim); print*,'' ! +z-plane
     
   end subroutine plane2
-
 
   
 end module global

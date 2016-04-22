@@ -10,10 +10,12 @@
 !
 ! FORM: module fourier
 !          contains
-!       subroutine createFilter   [SOURCE]
-!       subroutine fftshift       [FILTER]
-!       function sharpFilter      [FILTER]
-!       subroutine computeStress  [FILTER]
+!       subroutine createFilter       [SOURCE]
+!       subroutine fftshift           [FILTER]
+!       function sharpFilter          [FILTER]
+!          - subroutine check_FFT      [CHECK] 
+!       subroutine computeStress      [FILTER]
+!          - subroutine check_Stress   [CHECK]
 !
 ! BEHAVIOR: Needs C-binding for FFTW libraries. 
 !           
@@ -237,9 +239,24 @@ contains
     call dfftw_destroy_plan(plan)
 
     sharpFilter = real(in_cmplx) 
-
-    return
+    
   end function sharpFilter
+
+  subroutine check_FFT(value)
+    implicit none
+    real(8) :: value
+    if (d_set.eq.'jhu256') then
+       if (abs(value - (-0.48241021987284982d0)).gt.tiny(0.d0)) then
+          print*, 'Precision test for FFT: Failed'
+          print*, 'Check precision or data for testing is not JHU 256'
+          print*, value
+          stop
+       else
+          print*, 'Precision test for FFT: Passed'
+       end if
+    end if
+  end subroutine check_FFT
+
 
   !****************************************************************
   !                         COMPUTESTRESS
@@ -271,7 +288,6 @@ contains
     !
     !    ..WORK ARRAY..
     real(8),allocatable,dimension(:,:,:)   :: dev_t
-
 
     ! ABSOLUTE STRESS:
     if (stress.eq.'abs') then
@@ -318,23 +334,31 @@ contains
        T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
        T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
 
-       ! CHECK DEVIATORIC STRESS: (based on T_ij)                                                                                       
-       if (T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
-          print*, 'Precision test for stress: Failed'
-          print*, 'Check precision or data for testing is not JHU 256'
-          print*, T_ij(1,15,24,10)
-          stop
-       else
-          print*, 'Precision test for deviatoric stress: Passed'
-       end if
-
+       call check_Stress (T_ij(1,15,24,10))
        deallocate (dev_t)
-
     else
        print*,"Stress must be either abs or dev"
        stop
     end if
-    return
+
+  contains
+
+    subroutine check_Stress(value)
+      implicit none
+      real(8) :: value
+      if (d_set.eq.'jhu256') then
+         if( ( (stress.eq.'dev') .and. (abs(value - (-5.2544371578038401d-3)).gt.tiny(0.d0)) )         &
+              .or.( (stress.eq.'abs') .and. (abs(value - (-4.0152351790891661d-3)).gt.tiny(0.d0)) ) )  then
+            print*, 'Precision test for stress: Failed.'
+            print*, 'Check precision or dataset is not JHU 256'
+            print*, value
+            stop
+         else
+            print*, 'Precision test for stress: Passed'
+         end if
+      end if
+    end subroutine check_Stress
+
   end subroutine computeStress
 
 end module fourier

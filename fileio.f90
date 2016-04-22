@@ -73,7 +73,7 @@ contains
 
     !    ..DEFAULT VALUES..
     PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
-    variableName = 'Velocity' 
+    variableName = trim(var(1)%name)! var(1) --> 'Velocity'; Expand for Pressure dataset.
     time = '256'
     endian = 'little_endian'
 

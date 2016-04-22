@@ -34,10 +34,16 @@ optimize : $(OBJECTS_OPTIMIZE)
 
 #
 # APPLES : Validation case.
-OBJECTS_APPLES = global.o fileio.o fourier.o apples.o
+OBJECTS_APPLES = global.o fileio.o fourier.o actools.o linsolve.o apples.o
 apples : $(OBJECTS_APPLES)
 	 $(build-exe)
 
+
+#
+# ORDER : Test matrix order for performance
+OBJECTS_ORDER = global.o order.o
+order : $(OBJECTS_ORDER)
+	$(build-exe)
 
 #----------------------------------------------------------------
 

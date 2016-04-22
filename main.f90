@@ -6,8 +6,7 @@ program main
 ! Result : Passed 
 ! Notes  : 
 
-use fourier
-use fileio
+use actools
 use linsolve
 
 implicit none
@@ -22,7 +21,7 @@ real(8) :: pre_cut, post_cut
 
 integer :: n_u, n_uu
 
-character(50):: CUT_DATA = '../derived_data/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
+character(50):: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
 character(10):: f_CUT 
 
 ! DEBUG FLAGS:
@@ -32,12 +31,14 @@ character(10):: f_CUT
 logical :: debug(3) = [0,1,0]
 
 
+
 ! FORMAT:
 3015 format(a30,f22.15)
 307 format(a30,f22.7)
 507 format(a50,f22.7)
 !call system('clear')
 call printParams()
+
 
 !! Set debug flags for velocity components:
 n_u=3; n_uu = 6
@@ -53,8 +54,6 @@ allocate(u(n_u,GRID,GRID,GRID))
 
 call readData(u, DIM = n_u)
 write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
-
-
 call printplane(u(1,:,:,:),frameLim=4)
 
 
@@ -67,7 +66,7 @@ call fftshift(LES)
 call fftshift(test)
 
 
-! FILTER VELOCITIES:
+! FILTER VELOCITIES AND CHECK:
 print*,'Filter velocities ... '
 allocate(u_f(n_u,GRID,GRID,GRID))
 allocate(u_t(n_u,GRID,GRID,GRID))
@@ -76,17 +75,7 @@ filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
 end do filter
-
-
-! CHECK FFT:
-if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
-         print*, 'Precision test for FFT: Failed'
-         print*, 'Check precision or data for testing is not JHU 256'
-         print*, u_t(1,15,24,10)
-         stop
-      else
-         print*, 'Precision test for FFT: Passed'
-      end if
+call check_FFT(u_t(1,15,24,10))
 
 
 ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
@@ -96,7 +85,7 @@ if (n_uu.ne.6) then
 end if
 
 
-! COMPUTE STRESS:
+! COMPUTE STRESS AND CHECK:
 allocate(tau_ij(n_uu,GRID,GRID,GRID))
 allocate(T_ij(n_uu,GRID,GRID,GRID))
 call cpu_time(tic)
@@ -107,19 +96,11 @@ write(*,307),'computeStress - time elapsed:',toc-tic
 deallocate(LES,test)
 
 
-! CHECK STRESS: (based on T_ij)
-if (T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
-         print*, 'Precision test for stress: Failed'
-         print*, 'Check precision or data for testing is not JHU 256'
-         print*, T_ij(1,15,24,10)
-         stop
-      else
-         print*, 'Precision test for FFT: Passed'
-      end if
 
-! ! COMPUTE STRAIN RATE:
-! call computeSij(u_f, Sij_f)
-! call computeSij(u_t, Sij_t)
+
+ ! COMPUTE STRAIN RATE:
+ call computeSij(u_f, Sij_f)
+ call computeSij(u_t, Sij_t)
 
 
 ! CUTOUT:
@@ -136,43 +117,28 @@ if (T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
 !       print*,"Cutout: Passed"
 !    end if
 
-
+stop
 ! WRITE TO FILES:
 if(debug(3)) then
    print*,'Write cutout to .dat file ... '
-   open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.dat')
-   open(2,file=trim(CUT_DATA)//trim(f_CUT)//'u_t.dat')
-   open(3,file=trim(CUT_DATA)//trim(f_CUT)//'tau_ij.dat')
-   open(4,file=trim(CUT_DATA)//trim(f_CUT)//'T_ij.dat')
-
-   write(1,*) u_f
-   write(2,*) u_t
-   write(3,*) tau_ij
-   write(4,*) T_ij
-
-   close(1)
-   close(2)
-   close(3)
-   close(4)
-
+   do i = 1,4
+      open(i,file = trim(CUT_DATA)//trim(f_CUT)//trim(var_FFT(i)%name)//'.dat')
+      if (i.eq.1) write(i,*) u_f
+      if (i.eq.2) write(i,*) u_t
+      if (i.eq.3) write(i,*) tau_ij
+      if (i.eq.4) write(i,*) T_ij
+      close(i)
+   end do
 else
-
    print*,'Write u_f, u_t, tau_ij, T_ij to  .bin files ... '
-   open(1,file=trim(CUT_DATA)//trim(f_CUT)//'u_f.bin',form='unformatted',action='write') 
-   open(2,file=trim(CUT_DATA)//trim(f_CUT)//'u_t.bin',form='unformatted',action='write') 
-   open(3,file=trim(CUT_DATA)//trim(f_CUT)//'tau_ij.bin',form='unformatted',action='write') 
-   open(4,file=trim(CUT_DATA)//trim(f_CUT)//'T_ij.bin',form='unformatted',action='write') 
-
-   write(1) u_f
-   write(2) u_t
-   write(3) tau_ij
-   write(4) T_ij
-   
-   close(1)
-   close(2)
-   close(3)
-   close(4)
-
+   do i = 1,4
+      open(i,file = trim(CUT_DATA)//trim(f_CUT)//trim(var_FFT(i)%name)//'.bin',form='unformatted')
+      if (i.eq.1) write(i) u_f
+      if (i.eq.2) write(i) u_t
+      if (i.eq.3) write(i) tau_ij
+      if (i.eq.4) write(i) T_ij
+      close(i)
+   end do
 end if
 
 ! COMPUTE STRESS:

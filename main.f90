@@ -6,8 +6,10 @@ program main
 ! Result : Passed 
 ! Notes  : 
 
-use actools
+use fileio
+use fourier
 use solver
+
 
 implicit none
 
@@ -50,7 +52,7 @@ end if
 
 
 !! Select file to read:
-allocate(u(n_u,GRID,GRID,GRID))
+allocate(u(GRID,GRID,GRID,n_u))
 
 call readData(u, DIM = n_u)
 write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
@@ -68,14 +70,14 @@ call fftshift(test)
 
 ! FILTER VELOCITIES AND CHECK:
 print*,'Filter velocities ... '
-allocate(u_f(n_u,GRID,GRID,GRID))
-allocate(u_t(n_u,GRID,GRID,GRID))
+allocate(u_f(GRID,GRID,GRID,n_u))
+allocate(u_t(GRID,GRID,GRID,n_u))
 
 filter:do i=1,n_u
-   u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
-   u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
+   u_f(:,:,:,i) = sharpFilter(u(:,:,:,i),LES) ! Speed up this part -- Bottleneck
+   u_t(:,:,:,i) = sharpFilter(u_f(:,:,:,i),test) ! Speed up this part -- Bottleneck
 end do filter
-call check_FFT(u_t(1,15,24,10))
+call check_FFT(u_t(15,24,10,1))
 
 
 ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
@@ -86,8 +88,8 @@ end if
 
 
 ! COMPUTE STRESS AND CHECK:
-allocate(tau_ij(n_uu,GRID,GRID,GRID))
-allocate(T_ij(n_uu,GRID,GRID,GRID))
+allocate(tau_ij(GRID,GRID,GRID,n_uu))
+allocate(T_ij(GRID,GRID,GRID,n_uu))
 call cpu_time(tic)
 print*,'Compute stress:',stress
 call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test)
@@ -97,10 +99,6 @@ deallocate(LES,test)
 
 
 
-
- ! COMPUTE STRAIN RATE:
- call computeSij(u_f, Sij_f)
- call computeSij(u_t, Sij_t)
 
 
 ! CUTOUT:

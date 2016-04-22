@@ -19,15 +19,15 @@ contains
 
     integer :: i,j !DO NOT REMOVE THIS LINE. i IS PASSED INTO gradient() AND ITS VALUE IS MODIFIED.
 
-    allocate (A(3,3,grid,grid,grid))
-    allocate (grad_u(3,grid,grid,grid))
+    allocate (A(grid,grid,grid,3,3))
+    allocate (grad_u(grid,grid,grid,3))
 
     
     write(*,'(a32)',ADVANCE='NO'), 'Compute velocity gradients:'
     call cpu_time(tic)
     do i=1,3
-       call gradient(u(i,:,:,:),grad_u)
-       A(i,:,:,:,:) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
+       call gradient(u(:,:,:,i),grad_u)
+       A(:,:,:,:,i) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
     end do
     call cpu_time(toc)
     print*, toc-tic
@@ -38,7 +38,7 @@ contains
     ! COMPUTE S_ij:
     do j=1,3
        do i=1,3
-          Sij(i,j,:,:,:) = 0.5d0 * (A(i,j,:,:,:) + A(j,i,:,:,:))
+          Sij(:,:,:,i,j) = 0.5d0 * (A(:,:,:,i,j) + A(:,:,:,j,i))
        end do
     end do
     call cpu_time(toc)
@@ -76,9 +76,9 @@ contains
     do k=1,grid
     do j=1,grid
     do i=1,grid
-       grad_f(1,i,j,k) = dx_inv * (  u(i+1,j,k) - u(i-1,j,k) )
-       grad_f(2,i,j,k) = dx_inv * (  u(i,j+1,k) - u(i,j-1,k) )
-       grad_f(3,i,j,k) = dx_inv * (  u(i,j,k+1) - u(i,j,k-1) )
+       grad_f(i,j,k,1) = dx_inv * (  u(i+1,j,k) - u(i-1,j,k) )
+       grad_f(i,j,k,2) = dx_inv * (  u(i,j+1,k) - u(i,j-1,k) )
+       grad_f(i,j,k,3) = dx_inv * (  u(i,j,k+1) - u(i,j,k-1) )
     end do
     end do
     end do

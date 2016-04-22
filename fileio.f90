@@ -117,7 +117,7 @@ contains
      end if
         
      ! CHECK DATA READ:
-     call check_dataRead(u_i(1,15,24,10))
+     call check_dataRead(u_i(15,24,10,1))
 
      return
    end subroutine readData
@@ -169,7 +169,7 @@ contains
            end do
         end do
      end do
-     u_i(fID,:,:,:) = u_s
+     u_i(:,:,:,fID) = u_s
      close(fID)
 
    end subroutine readBinSingle
@@ -221,7 +221,7 @@ contains
            end do
         end do
      end do
-     u_i(fID,:,:,:) = u_d
+     u_i(:,:,:,fID) = u_d
      close(fID)
 
    end subroutine readBinDouble
@@ -280,7 +280,8 @@ contains
    !
    ! BEHAVIOR:
    !
-   ! STATUS : HDF5 files do not exist. They are saved in Ocotillo
+   ! STATUS : *** Reverse index order ****
+   !          HDF5 files do not exist. They are saved in Ocotillo
    !          Need to create a test section.
    !          To handle large dataset - implement parallel I/O (MPI)
    !----------------------------------------------------------------

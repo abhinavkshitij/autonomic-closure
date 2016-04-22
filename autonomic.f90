@@ -32,10 +32,10 @@ character(10):: f_CUT
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
 logical :: debug(2) = [0,2]
 
-logical :: computeStresses = 0
-logical :: computeStrain = 0
-logical :: filterVelocities = 0
-logical :: readFile = 0
+logical :: readFile = 1
+logical :: computeStresses = 1
+logical :: computeStrain = 1
+logical :: filterVelocities = 1
 logical :: computeVolterra = 1
 
 real(8) :: pre_cut, post_cut
@@ -62,13 +62,13 @@ end if
 
 !! Select file to read:
 if(readFile)then
-allocate(u(n_u,GRID,GRID,GRID))
+allocate(u(GRID,GRID,GRID,n_u))
    call readData(u,  DIM=n_u)
 end if
 
 
-allocate(u_f(n_u,GRID,GRID,GRID))
-allocate(u_t(n_u,GRID,GRID,GRID))
+allocate(u_f(GRID,GRID,GRID,n_u))
+allocate(u_t(GRID,GRID,GRID,n_u))
 if (filterVelocities) then
    !! Create filters:
    allocate(LES(GRID,GRID,GRID))
@@ -83,16 +83,16 @@ if (filterVelocities) then
    print*,'Filter velocities ... '
 
    filter:do i=1,n_u
-      u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
-      u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
+      u_f(:,:,:,i) = sharpFilter(u(:,:,:,i),LES) ! Speed up this part -- Bottleneck
+      u_t(:,:,:,i) = sharpFilter(u_f(:,:,:,i),test) ! Speed up this part -- Bottleneck
    end do filter
 
 
    ! CHECK FFT:
-   if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
+   if (u_t(15,24,10,1).ne.-0.48241021987284982d0) then
       print*, 'Precision test for FFT: Failed'
       print*, 'Check precision or data for testing is not JHU 256'
-      print*, u_t(1,15,24,10)
+      print*, u_t(15,24,10,1)
       stop
    else
       print*, 'Precision test for FFT: Passed'
@@ -105,8 +105,8 @@ if (n_uu.ne.6) then
    stop
 end if
 
-   allocate(tau_ij(n_uu,GRID,GRID,GRID))
-   allocate(T_ij(n_uu,GRID,GRID,GRID))
+   allocate(tau_ij(GRID,GRID,GRID,n_uu))
+   allocate(T_ij(GRID,GRID,GRID,n_uu))
 
 ! COMPUTE STRESS:
 if(computeStresses)then
@@ -134,13 +134,13 @@ else
    end do
    
    ! CHECK INPUT DATA:
-if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
+if (u_t(15,24,10,1).ne.-0.48241021987284982d0) then
          print*, 'ERROR READING DATA'
-         print*, u_t(1,15,24,10)
+         print*, u_t(15,24,10,1)
          stop
-      elseif(T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
+      elseif(T_ij(15,24,10,1).ne.-5.2544371578038401d-3) then
             print*, 'ERROR COMPUTING T_ij'
-            print*,'T_ij(1,15,24,10)',T_ij(1,15,24,10)
+            print*,'T_ij(15,24,10,1)',T_ij(15,24,10,1)
             stop
          else
          print*, 'Read data saved from main.f90: Passed'
@@ -159,16 +159,16 @@ if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
 
 ! ! COMPUTE STRAIN RATE:
 if(computeStrain)then
-   allocate (Sij_f(3,3,grid,grid,grid))
-   allocate (Sij_t(3,3,grid,grid,grid))
+   allocate (Sij_f(grid,grid,grid,3,3))
+   allocate (Sij_t(grid,grid,grid,3,3))
 
    print*, 'Compute strain rate'
    call computeSij(u_f, Sij_f)
    call computeSij(u_t, Sij_t)
 
-   print*,'Sij_fl(1,2,15,24,10)',Sij_f(1,2,15,24,10)
-   print*,'Sij_ft(1,2,15,24,10)',Sij_t(1,2,15,24,10)
-   print*,'Sij_ft(1,2,1,3,5)',Sij_t(1,2,1,3,5)
+   print*,'Sij_fl(1,2,15,24,10)',Sij_f(15,24,10,1,2)
+   print*,'Sij_ft(1,2,15,24,10)',Sij_t(15,24,10,1,2)
+   print*,'Sij_ft(1,2,1,3,5)',Sij_t(1,3,5,1,2)
 
    deallocate (Sij_f, Sij_t)
 end if
@@ -194,24 +194,24 @@ else
 end if
 stop
 !close(1)
-if (allocated(TijOpt).neqv..true.) allocate(TijOpt(n_uu,grid,grid,grid))
-if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(n_uu,grid,grid,grid))
+if (allocated(TijOpt).neqv..true.) allocate(TijOpt(grid,grid,grid,n_uu))
+if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(grid,grid,grid,n_uu))
 
 stop
 
 call optimizedTij(u_f,u_t,h_ij,TijOpt,tau_ijOpt)
 open(11,file='./run/apples/TijOpt.dat')
 open(12,file='./run/apples/tau_ijOpt.dat')
-read(11,*)TijOpt(1,:,:,129)
-read(12,*)tau_ijOpt(1,:,:,129)
+read(11,*)TijOpt(:,:,129,1)
+read(12,*)tau_ijOpt(:,:,129,1)
 
 stop
 !PRODUCTION FIELD
 open(13,file='./run/apples/P11_t.dat')
 open(14,file='./run/apples/P11_f.dat')
 
-write(13,*) TijOpt(1,:,:,129)*Sij_t(1,1,:,:,129)
-write(14,*) tau_ijOpt(1,:,:,129)*Sij_f(1,1,:,:,129)
+write(13,*) TijOpt(:,:,129,1)*Sij_t(:,:,129,1,1)
+write(14,*) tau_ijOpt(:,:,129,1)*Sij_f(:,:,129,1,1)
 
 close(11)
 close(12)

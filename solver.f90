@@ -95,11 +95,11 @@ subroutine cutout(array,n_comp)
   real(8), allocatable, dimension(:,:,:,:),intent(inout) :: array
   real(8), allocatable, dimension(:,:,:,:):: temp
 
-  allocate (temp(n_comp,testcutSize,testcutSize,testcutSize))
-  temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
+  allocate (temp(testcutSize,testcutSize,testcutSize,n_comp))
+  temp = array(lBound:uBound,lBound:uBound,lBound:uBound,:)
   deallocate(array)
 
-  allocate(array(n_comp,testcutSize,testcutSize,testcutSize))
+  allocate(array(testcutSize,testcutSize,testcutSize,n_comp))
   array = temp   
   deallocate(temp)
 
@@ -109,7 +109,7 @@ end subroutine cutout
 
 ! RANDOM NUMBER GENERATION
 subroutine init_random_seed()
-
+implicit none
   integer, dimension(:), allocatable :: seed
   integer :: i, n_seed, clock
 
@@ -237,7 +237,7 @@ character(4) ::  z_plane,idx
 integer      ::  vizPlaneC, vizPlaneF
 
 ! DEBUG SWITCHES:
-logical :: debug(4) = [1,1,0,0]
+logical :: debug(4) = [1,0,0,0]
 ! 1 - Takes just one (tau_ij_11) for testing purpose. 
 ! 2 - Prints cutout shapes to check if cutout ops have gone well.
 ! 3 - Performs all computations on just the first point.
@@ -251,20 +251,20 @@ print*, 'Computing SGS stress...'
 ! the fine stencil will require LES scale values to compute tau_ijOpt
 
 
-allocate(uu_t(n_uu,testcutSize,testcutSize,testcutSize)) !(6,51,51,51)
-allocate(uu_f(n_uu,testcutSize,testcutSize,testcutSize))
+allocate(uu_t(testcutSize,testcutSize,testcutSize,n_uu)) !(6,51,51,51)
+allocate(uu_f(testcutSize,testcutSize,testcutSize,n_uu))
 
 
 if (debug(1)) then
-   allocate(TijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
-   allocate(tau_ijOpt(1,testSize,testSize,testSize))
+   allocate(TijOpt(testSize,testSize,testSize,1)) !(17,17,17,1)
+   allocate(tau_ijOpt(testSize,testSize,testSize,1))
 else
-   allocate(TijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
-   allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
+   allocate(TijOpt(testSize,testSize,testSize,n_uu)) !(17,17,17,6)
+   allocate(tau_ijOpt(testSize,testSize,testSize,n_uu))
 end if
 
 !allocate (V(M,N),T(M,P))
-print*, shape(V)
+
 TijOpt=0.
 tau_ijOpt=0.
 
@@ -278,6 +278,7 @@ end if
 ! COLOCATED FORMULATION:
 if (coloc) then
 
+!! *** CHANGE ORDER TO FORTRAN ORDER ***
 ! ! Compute velocity products:(Lower triangle order for ij)
 ! k = 0
 ! do j=1,n_u
@@ -371,12 +372,12 @@ if (coloc) then
 
 !          do u_comp = 1,n_u ! 1 to 3
 !             col = col+1
-!             TijOpt(1,i_proj,j_proj,k_proj) = TijOpt(1,i_proj,j_proj,k_proj)&
+!             TijOpt(i_proj,j_proj,k_proj,1) = TijOpt(i_proj,j_proj,k_proj,1)&
 !                  + u_t(u_comp,i_opt,j_opt,k_opt) * h_ij(col)
 !          end do
 !          do uu_comp = 1,n_uu ! 1 to 6
 !             col = col+1
-!             TijOpt(1,i_proj,j_proj,k_proj) = TijOpt(1,i_proj,j_proj,k_proj)&
+!             TijOpt(i_proj,j_proj,k_proj,1) = TijOpt(i_proj,j_proj,k_proj,1)&
 !                  + uu_t(uu_comp,i_opt,j_opt,k_opt) * h_ij(col)
 !          end do
 
@@ -392,12 +393,12 @@ if (coloc) then
 
 !          do u_comp = 1,n_u ! 1 to 3
 !             col = col+1
-!             tau_ijOpt(1,i_proj,j_proj,k_proj) = tau_ijOpt(1,i_proj,j_proj,k_proj)&
+!             tau_ijOpt(i_proj,j_proj,k_proj,1) = tau_ijOpt(i_proj,j_proj,k_proj,1)&
 !                  + u_f(u_comp,i_opt,j_opt,k_opt) * h_ij(col)
 !          end do
 !          do uu_comp = 1,n_uu ! 1 to 6
 !             col = col+1
-!             tau_ijOpt(1,i_proj,j_proj,k_proj) = tau_ijOpt(1,i_proj,j_proj,k_proj)&
+!             tau_ijOpt(i_proj,j_proj,k_proj,1) = tau_ijOpt(i_proj,j_proj,k_proj,1)&
 !                  + uu_f(uu_comp,i_opt,j_opt,k_opt) * h_ij(col)
 !          end do
 
@@ -426,12 +427,12 @@ else
           col_index = 0 
           row_index = row_index + 1
          
-         ! ENTER 3x3x3 STENCIL: C-ORDER
+         ! ENTER 3x3x3 STENCIL: C-ORDER for i,j,k
                                                                             
-          u_n = reshape(u_t (:,i_box-2:i_box+2:2, & 
-                               j_box-2:j_box+2:2, &
-                               k_box-2:k_box+2:2),&
-                               [stencil_size]   )
+          u_n = reshape(u_t ( i_box-2:i_box+2:2, & 
+                              j_box-2:j_box+2:2, &
+                              k_box-2:k_box+2:2,:),&
+                              [stencil_size]   )
 
           ! ZERO ORDER TERMS:
           col_index = col_index+1
@@ -452,35 +453,35 @@ else
              end do
           end do
 
-          T(row_index,:) = T_ij(:,i_box,j_box,k_box) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
+          T(row_index,:) = T_ij(i_box,j_box,k_box,:) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
 
       end do
       end do
       end do ! BOUNDING BOX
 
-
-      ! CHECK V:
-      if (V(1500,2000).ne.2.0009431419772586d-2) then
-         print*, "Error! Check sorting order in  V matrix!"
-         print*, 'V(1500,2000)', V(1500,2000)
-         stop
-      else 
-         print*,'V matrix check ... Passed'
-      end if
+!! *** FIND NEW VLAUES FOR V(1500,2000) and T(3,1) since the order is changed ***
+!       ! CHECK V:
+!       if (V(1500,2000).ne.2.0009431419772586d-2) then
+!          print*, "Error! Check sorting order in  V matrix!"
+!          print*, 'V(1500,2000)', V(1500,2000)
+!          stop
+!       else 
+!          print*,'V matrix check ... Passed'
+!       end if
 
 
       !CHECK T:
-      if (T(3,1).ne.8.7759832493259110d-2)then
-         print*, "Error! Check sorting order in  T vector!"
-         print*,T(3,1)
-         stop
-      else 
-         print*,'T vector check ... Passed'
-      end if
-      !print*, 'T(1,2)', T(2)
-      !print*, 'T(1,3)', T(3)
-      print*, 'T(1,4)', T(1,4)
-      !print*, 'T(1,5)', T(5)
+!       if (T(3,1).ne.8.7759832493259110d-2)then
+!          print*, "Error! Check sorting order in  T vector!"
+!          print*,T(3,1)
+!          stop
+!       else 
+!          print*,'T vector check ... Passed'
+!       end if
+!       !print*, 'T(1,2)', T(2)
+!       !print*, 'T(1,3)', T(3)
+!       print*, 'T(1,4)', T(1,4)
+!       !print*, 'T(1,5)', T(5)
       
       
 !      if (computeVolterra) then
@@ -515,7 +516,7 @@ else
 
 end if
 
-
+!! *** CHANGE TO FORTRAN ORDER HERE ***
 ! !  POST-PROCESSING:
 ! !  Write 3-plane slices of all 4 stresses for MATLAB plots.
 ! !  Convert to subroutine later; combine with matrixview()
@@ -574,8 +575,8 @@ end subroutine synStress
    integer :: i_stencil, j_stencil, k_stencil
 
 
-   allocate (TijOpt(1,grid,grid,grid))
-   allocate (tau_ijOpt(1,grid,grid,grid))
+   allocate (TijOpt(grid,grid,grid,1))
+   allocate (tau_ijOpt(grid,grid,grid,1))
    ! WHOLE DOMAIN COMPUTATION: 
    do i_test = 129, 129
    do j_test = 129, 129
@@ -589,28 +590,28 @@ end subroutine synStress
          col_index = 0 
          
          ! ENTER 3x3x3 STENCIL: C-ORDER                                       
-          u_t_stencil = reshape(u_t(:,i_opt-2:i_opt+2:2, j_opt-2:j_opt+2:2,k_opt-2:k_opt+2:2),(/stencil_size/)) 
-          u_f_stencil = reshape(u_f(:,i_opt-1:i_opt+1:1, j_opt-1:j_opt+1:1,k_opt-1:k_opt+1:1),(/stencil_size/)) 
+          u_t_stencil = reshape(u_t(i_opt-2:i_opt+2:2, j_opt-2:j_opt+2:2,k_opt-2:k_opt+2:2,:),[stencil_size]) 
+          u_f_stencil = reshape(u_f(i_opt-1:i_opt+1:1, j_opt-1:j_opt+1:1,k_opt-1:k_opt+1:1,:),[stencil_size]) 
 
           ! ZERO ORDER TERMS:
           col_index = col_index+1
-          TijOpt(:,i_opt,j_opt,k_opt) = h_ij(col_index,:) ! = 1
-          tau_ijOpt(:,i_opt,j_opt,k_opt) = h_ij(col_index,:) ! = 1
+          TijOpt(i_opt,j_opt,k_opt,:) = h_ij(col_index,:) ! = 1
+          tau_ijOpt(i_opt,j_opt,k_opt,:) = h_ij(col_index,:) ! = 1
 
           ! FIRST ORDER TERMS:             
           do non_col_1 = 1,stencil_size 
              col_index = col_index+1
-             TijOpt(:,i_opt,j_opt,k_opt) = TijOpt(:,i_opt,j_opt,k_opt) + (u_t_stencil(non_col_1)*h_ij(col_index,:))
-             tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) + (u_f_stencil(non_col_1)*h_ij(col_index,:))
+             TijOpt(i_opt,j_opt,k_opt,:) = TijOpt(i_opt,j_opt,k_opt,:) + (u_t_stencil(non_col_1)*h_ij(col_index,:))
+             tau_ijOpt(i_opt,j_opt,k_opt,:) = tau_ijOpt(i_opt,j_opt,k_opt,:) + (u_f_stencil(non_col_1)*h_ij(col_index,:))
           end do
 
           ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
           do non_col_1 = 1, stencil_size
           do non_col_2 = non_col_1, stencil_size
              col_index = col_index+1
-             TijOpt(:,i_opt,j_opt,k_opt) = TijOpt(:,i_opt,j_opt,k_opt) &
+             TijOpt(i_opt,j_opt,k_opt,:) = TijOpt(i_opt,j_opt,k_opt,:) &
                   + (u_t_stencil(non_col_1) * u_t_stencil(non_col_2)*h_ij(col_index,:))
-             tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
+             tau_ijOpt(i_opt,j_opt,k_opt,:) = tau_ijOpt(i_opt,j_opt,k_opt,:) &
                   + (u_f_stencil(non_col_1) * u_f_stencil(non_col_2)*h_ij(col_index,:))
           end do
           end do
@@ -624,12 +625,12 @@ end subroutine synStress
     ! WRITE COMPUTED STRESS:
     open(1,file='./run/apples/T_ijOpt.dat')
     open(2,file='./run/apples/tau_ijOpt.dat')
-    write(1,*) TijOpt(1,:,:,129)
-    write(2,*) tau_ijOpt(1,:,:,129)
+    write(1,*) TijOpt(:,:,129,1)
+    write(2,*) tau_ijOpt(:,:,129,1)
     close(1)
     close(2)
-    print*,'TijOpt(1,15,24,10):',TijOpt(1,15,24,10)
-    print*,'tau_ijOpt(1,15,24,10):',tau_ijOpt(1,15,24,10)
+    print*,'TijOpt(1,15,24,10):',TijOpt(15,24,10,1)
+    print*,'tau_ijOpt(1,15,24,10):',tau_ijOpt(15,24,10,1)
     return
   end subroutine optimizedTij
 

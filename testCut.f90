@@ -1,7 +1,7 @@
 program testCut
 
 use fileio
-use linsolve
+use solver
 implicit none
 
 integer                     :: i,j,k,p,DIM

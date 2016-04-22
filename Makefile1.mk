@@ -19,8 +19,8 @@ FFLAGS  = -O3
 testCut : testCut.exe
 	./testCut.exe
 
-testCut.exe: fileio.o linsolve.o testCut.o
-	$(FC) -o testCut.exe testCut.o fileio.o $(HDF5_LIB) linsolve.o $(LFLAGS)
+testCut.exe: fileio.o solver.o testCut.o
+	$(FC) -o testCut.exe testCut.o fileio.o $(HDF5_LIB) solver.o $(LFLAGS)
 
 %.o : %.f90
 	$(FC) $(FFLAGS) -c $< $(HDF5_INC)

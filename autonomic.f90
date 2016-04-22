@@ -1,7 +1,8 @@
-program apples
+program autonomic
 
+use fourier
 use actools
-use linsolve
+use solver
 
 implicit none
 
@@ -174,7 +175,7 @@ end if
 
 
 if (allocated(h_ij).neqv..true.) allocate(h_ij(N,P))
-print*,shape(h_ij)
+
 ! COMPUTE h_ij:
 !call testNonCo(u_f,u_t,tau_ij,T_ij,h_ij)
 call synStress(u_f,u_t,tau_ij,T_ij,h_ij)
@@ -217,7 +218,7 @@ close(12)
 close(13)
 close(14)
 
-end program apples
+end program autonomic
 
 
 

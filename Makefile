@@ -6,7 +6,7 @@
 # macros.mk contains user-defined macros - create-exe.
 
 # DEVELOPMENT NOTES:
-# The next thing will be to build a library with global, fileio, fourier and linsolve.
+# The next thing will be to build a library with global, fileio, fourier and solver.
 # Archive library and link with -l flag while making the executable.
 
 #
@@ -19,23 +19,23 @@ include $(WORK)/../config/macros.mk
 
 #
 # MAIN : takes in .bin files and gives cutout
-OBJECTS_MAIN = global.o fileio.o fourier.o linsolve.o main.o
+OBJECTS_MAIN = global.o fileio.o fourier.o solver.o main.o
 main :  $(OBJECTS_MAIN) 
 	$(build-exe)
 
 
 #
 # OPTIMIZE : runs the optimization problem on the cutout data.
-OBJECTS_OPTIMIZE = global.o fileio.o linsolve.o optimize.o
+OBJECTS_OPTIMIZE = global.o fileio.o solver.o optimize.o
 optimize : LFLAGS = -lblas -llapack $(HDF5_LIB)
 optimize : $(OBJECTS_OPTIMIZE)
 	   $(build-exe)
 
 
 #
-# APPLES : Validation case.
-OBJECTS_APPLES = global.o fileio.o fourier.o actools.o linsolve.o apples.o
-apples : $(OBJECTS_APPLES)
+# AUTONOMIC : Validation case.
+OBJECTS_AUTONOMIC = global.o fileio.o fourier.o actools.o solver.o autonomic.o
+autonomic : $(OBJECTS_AUTONOMIC)
 	 $(build-exe)
 
 

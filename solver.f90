@@ -7,15 +7,11 @@
 !      
 !      
 !      
-!
 ! FORM: module solver
 !          contains
-!       subroutine createFilter   [SOURCE]
-!       subroutine fftshift       [FILTER]
-!       function sharpFilter      [FILTER]
-!       subroutine computeStress  [FILTER]
+!       
 !
-! BEHAVIOR: Needs C-binding for FFTW libraries. 
+! BEHAVIOR: 
 !           
 !
 ! STATUS : Refactoring this unit.
@@ -25,9 +21,10 @@
 !! Linsolve is a collection of subroutines that perform linear algebra operations
 !! and related operations to solve the inverse problem.
 
-module linsolve
+module solver
+
+ ! use fileio
   use global
-  use fileio
 
   ! Stencil parameters:
   integer,parameter :: stride = 1 ! Is the ratio between LES(taken as 1) and test scale
@@ -426,7 +423,6 @@ else
        do i_box = i_test-126, i_test+125, 10
        do j_box = j_test-126, j_test+125, 10
        do k_box = k_test-126, k_test+125, 10 ! i_box = 3,49,2
-
           col_index = 0 
           row_index = row_index + 1
          
@@ -783,5 +779,5 @@ end subroutine synStress
 
 
 
-end module linsolve
+end module solver
 

@@ -9,7 +9,7 @@ program optimize
 ! Notes  : Retained testing for matrixview, using 'test.dat'(Commented out).
 
 !use fileio
-use linsolve
+use solver
 implicit none
 
 

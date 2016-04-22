@@ -218,11 +218,9 @@ contains
     !
     !    ..LOCAL VARS..
     type(C_PTR)              :: plan
-
    
     allocate(in_cmplx(GRID,GRID,GRID))
     allocate(out_cmplx(GRID,GRID,GRID))
-
 
     in_cmplx = dcmplx (array_work) / (dble(GRID**3)) 
 

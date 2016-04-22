@@ -7,7 +7,7 @@ program main
 ! Notes  : 
 
 use actools
-use linsolve
+use solver
 
 implicit none
 

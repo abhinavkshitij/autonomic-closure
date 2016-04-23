@@ -18,6 +18,13 @@ include $(WORK)/../config/macros.mk
 
 
 #
+# AUTONOMIC : Validation case.
+OBJECTS_AUTONOMIC = global.o fileio.o fourier.o actools.o solver.o autonomic.o
+autonomic : $(OBJECTS_AUTONOMIC)
+	 $(build-exe)
+
+
+#
 # MAIN : takes in .bin files and gives cutout
 OBJECTS_MAIN = global.o fileio.o fourier.o solver.o main.o
 main :  $(OBJECTS_MAIN) 
@@ -33,16 +40,9 @@ optimize : $(OBJECTS_OPTIMIZE)
 
 
 #
-# AUTONOMIC : Validation case.
-OBJECTS_AUTONOMIC = global.o fileio.o fourier.o actools.o solver.o autonomic.o
-autonomic : $(OBJECTS_AUTONOMIC)
-	 $(build-exe)
-
-
-#
-# ORDER : Test matrix order for performance
-OBJECTS_ORDER = global.o order.o
-order : $(OBJECTS_ORDER)
+# TESTCUT : test run for colocated formuation.
+OBJECT_TESTCUT = global.o fileio.o solver.o testCut.o
+testCut : $(OBJECTS_TESTCUT)
 	$(build-exe)
 
 #----------------------------------------------------------------

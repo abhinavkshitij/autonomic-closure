@@ -62,17 +62,17 @@ end if
 
 !! Select file to read:
 if(readFile)then
-allocate(u(n_u,GRID,GRID,GRID))
+allocate(u(n_u,i_GRID,j_GRID,k_GRID))
    call readData(u,  DIM=n_u)
 end if
 
 
-allocate(u_f(n_u,GRID,GRID,GRID))
-allocate(u_t(n_u,GRID,GRID,GRID))
+allocate(u_f(n_u,i_GRID,j_GRID,k_GRID))
+allocate(u_t(n_u,i_GRID,j_GRID,k_GRID))
 if (filterVelocities) then
    !! Create filters:
-   allocate(LES(GRID,GRID,GRID))
-   allocate(test(GRID,GRID,GRID))
+   allocate(LES(f_GRID,f_GRID,f_GRID))
+   allocate(test(f_GRID,f_GRID,f_GRID))
    call createFilter(LES,LES_scale)
    call createFilter(test,test_scale)
    call fftshift(LES)
@@ -105,8 +105,8 @@ if (n_uu.ne.6) then
    stop
 end if
 
-   allocate(tau_ij(n_uu,GRID,GRID,GRID))
-   allocate(T_ij(n_uu,GRID,GRID,GRID))
+   allocate(tau_ij(n_uu,i_GRID,j_GRID,k_GRID))
+   allocate(T_ij(n_uu,i_GRID,j_GRID,k_GRID))
 
 ! COMPUTE STRESS:
 if(computeStresses)then
@@ -155,12 +155,13 @@ if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
 !close(1)
 !close(2)
 
-
+call printplane(u_f(1,:,:,:),frameLim=4)
 
 ! ! COMPUTE STRAIN RATE:
 if(computeStrain)then
-   allocate (Sij_f(3,3,grid,grid,grid))
-   allocate (Sij_t(3,3,grid,grid,grid))
+   allocate (Sij_f(3,3,i_GRID,j_GRID,k_GRID))
+   allocate (Sij_t(3,3,i_GRID,j_GRID,k_GRID))
+
 
    print*, 'Compute strain rate'
    call computeSij(u_f, Sij_f)
@@ -194,8 +195,8 @@ else
 end if
 stop
 !close(1)
-if (allocated(TijOpt).neqv..true.) allocate(TijOpt(n_uu,grid,grid,grid))
-if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(n_uu,grid,grid,grid))
+if (allocated(TijOpt).neqv..true.) allocate(TijOpt(n_uu,i_GRID,j_GRID,k_GRID))
+if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(n_uu,i_GRID,j_GRID,k_GRID))
 
 stop
 

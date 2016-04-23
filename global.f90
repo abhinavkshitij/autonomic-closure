@@ -1,3 +1,29 @@
+
+!****************************************************************
+!                          MODULE: GLOBAL
+!****************************************************************
+!  
+!----------------------------------------------------------------
+! USE:  
+!     Contains global definitions.
+!       
+! FORM:
+!      module global
+!          contains
+!          interface printplane
+!              subroutine plane3
+!              subroutine plane2
+
+!
+! BEHAVIOR:
+!      * Check array rank while passing into printplane.
+!      * 
+!        
+!      * 
+!      * 
+!  
+!----------------------------------------------------------------
+
 module global
 
   ! TYPE: STRING(16)
@@ -16,7 +42,12 @@ module global
   character(4) :: ext   = 'bin'
 
 
-  integer, parameter :: GRID = 256
+  integer, parameter :: i_GRID = 256
+  integer, parameter :: j_GRID = 256
+  integer, parameter :: k_GRID = 256
+  integer, parameter :: f_GRID = 256 !For FFT ops, the grid must be cubic.
+
+
   integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
   integer, parameter :: N = 3403
   integer, parameter :: P = 6

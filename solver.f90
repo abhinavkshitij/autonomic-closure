@@ -50,8 +50,8 @@ module solver
 
 
   ! Cutout parameters:
-  integer,parameter :: lBound = 0.5*(GRID - testcutSize)
-  integer,parameter :: uBound = 0.5*(GRID + testcutSize) - 1
+  integer,parameter :: lBound = 0.5*(f_GRID - testcutSize)
+  integer,parameter :: uBound = 0.5*(f_GRID + testcutSize) - 1
 
 
 contains
@@ -212,7 +212,7 @@ integer                :: u_comp, uu_comp ! Indices to select u_i,u_iu_j compone
 ! FOR NON-COLOCATED FORMULATION:
 logical :: coloc = 0            !0 means use non-coloc
 integer,parameter :: stencil_size = 3*(3*3*3) !3 * 27 = 81
-real(8) ::u_n(stencil_size)
+real(8) :: u_n(stencil_size)
 integer :: non_col_1, non_col_2                   ! To run non coloc combinantions
 
 ! FOR RANDOM TRAINING POINTS (STENCIL-CENTERS):
@@ -574,8 +574,9 @@ end subroutine synStress
    integer :: i_stencil, j_stencil, k_stencil
 
 
-   allocate (TijOpt(1,grid,grid,grid))
-   allocate (tau_ijOpt(1,grid,grid,grid))
+   allocate (TijOpt(1,i_GRID,j_GRID,k_GRID))
+   allocate (tau_ijOpt(1,i_GRID,j_GRID,k_GRID))
+
    ! WHOLE DOMAIN COMPUTATION: 
    do i_test = 129, 129
    do j_test = 129, 129

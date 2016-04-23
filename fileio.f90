@@ -84,7 +84,7 @@ contains
         time = '0460'
         endian = 'big_endian'
 
-        allocate(u_s(GRID,GRID,GRID))
+        allocate(u_s(i_GRID,j_GRID,k_GRID))
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
@@ -98,7 +98,7 @@ contains
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
      elseif (d_set.eq.'jhu256'.or.d_set.eq.'sin3D') then
 
-        allocate(u_d(GRID,GRID,GRID))
+        allocate(u_d(i_GRID,j_GRID,k_GRID))
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
@@ -161,9 +161,9 @@ contains
           recl   =  4                 )
 
      position = 0
-     do k=1,GRID
-        do j=1,GRID
-           do i=1,GRID
+     do k=1,k_GRID
+        do j=1,j_GRID
+           do i=1,i_GRID
               position = position + 1
               read (fID,rec=position) u_s(i,j,k)
            end do
@@ -213,9 +213,9 @@ contains
           recl   =  8                 )
 
      position = 0
-     do k=1,GRID
-        do j=1,GRID
-           do i=1,GRID
+     do k=1,k_GRID
+        do j=1,j_GRID
+           do i=1,i_GRID
               position = position + 1
               read (fID,rec=position) u_d(i,j,k)
            end do

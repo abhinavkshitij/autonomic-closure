@@ -50,7 +50,7 @@ end if
 
 
 !! Select file to read:
-allocate(u(n_u,GRID,GRID,GRID))
+allocate(u(n_u,i_GRID,j_GRID,k_GRID))
 
 call readData(u, DIM = n_u)
 write(f_CUT,'(a3,2(i2),a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
@@ -58,8 +58,8 @@ call printplane(u(1,:,:,:),frameLim=4)
 
 
 !! Create filters:
-allocate(LES(GRID,GRID,GRID))
-allocate(test(GRID,GRID,GRID))
+allocate(LES(f_GRID,f_GRID,f_GRID))
+allocate(test(f_GRID,f_GRID,f_GRID))
 call createFilter(LES,LES_scale)
 call createFilter(test,test_scale)
 call fftshift(LES)
@@ -68,8 +68,8 @@ call fftshift(test)
 
 ! FILTER VELOCITIES AND CHECK:
 print*,'Filter velocities ... '
-allocate(u_f(n_u,GRID,GRID,GRID))
-allocate(u_t(n_u,GRID,GRID,GRID))
+allocate(u_f(n_u,i_GRID,j_GRID,k_GRID))
+allocate(u_t(n_u,i_GRID,j_GRID,k_GRID))
 
 filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
@@ -86,8 +86,8 @@ end if
 
 
 ! COMPUTE STRESS AND CHECK:
-allocate(tau_ij(n_uu,GRID,GRID,GRID))
-allocate(T_ij(n_uu,GRID,GRID,GRID))
+allocate(tau_ij(n_uu,i_GRID,j_GRID,k_GRID))
+allocate(T_ij(n_uu,i_GRID,j_GRID,k_GRID))
 call cpu_time(tic)
 print*,'Compute stress:',stress
 call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test)

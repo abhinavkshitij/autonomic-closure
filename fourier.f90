@@ -30,7 +30,7 @@ module fourier
   use, intrinsic :: iso_c_binding
   include '/opt/fftw-3.3.4/include/fftw3.f03' 
  
-  integer :: center = (0.5d0 * GRID) + 1.d0
+  integer :: center = (0.5d0 * f_GRID) + 1.d0
 
 contains
 
@@ -43,7 +43,7 @@ contains
   !      
   ! FORM: subroutine createFilter(filter, scale)
   !       
-  ! BEHAVIOR: 
+  ! BEHAVIOR: GRID must be cubic for spherical symmetry.
   !          
   ! Layout: The center should lie at an unit offset from the geometric center.
   !         This is because the DC component occupies the first index. 
@@ -80,9 +80,9 @@ contains
     real(8) :: distance
 
     !  Create spectrally sharp filter:
-    do k = 1,GRID
-       do j = 1,GRID
-          do i = 1,GRID
+    do k = 1,f_GRID
+       do j = 1,f_GRID
+          do i = 1,f_GRID
 
              distance = sqrt( dble((i - center)**2) &
                   +           dble((j - center)**2) &
@@ -157,13 +157,13 @@ contains
     allocate(H ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
 
 
-    A = filter( center:GRID  ,  1:(center-1) ,  center:GRID  )
-    B = filter( center:GRID  ,  center:GRID  ,  center:GRID  )
-    C = filter( center:GRID  ,  center:GRID  ,  1:(center-1) )
-    D = filter( center:GRID  ,  1:(center-1) ,  1:(center-1) )
-    E = filter( 1:(center-1) ,  1:(center-1) ,  center:GRID  )
-    F = filter( 1:(center-1) ,  center:GRID  ,  center:GRID  )
-    G = filter( 1:(center-1) ,  center:GRID  ,  1:(center-1) )
+    A = filter( center:f_GRID  ,  1:(center-1) ,  center:f_GRID  )
+    B = filter( center:f_GRID  ,  center:f_GRID  ,  center:f_GRID  )
+    C = filter( center:f_GRID  ,  center:f_GRID  ,  1:(center-1) )
+    D = filter( center:f_GRID  ,  1:(center-1) ,  1:(center-1) )
+    E = filter( 1:(center-1) ,  1:(center-1) ,  center:f_GRID  )
+    F = filter( 1:(center-1) ,  center:f_GRID  ,  center:f_GRID  )
+    G = filter( 1:(center-1) ,  center:f_GRID  ,  1:(center-1) )
     H = filter( 1:(center-1) ,  1:(center-1) ,  1:(center-1) )
 
     ! SWAP SUBARRAYS: (_SHIFT)
@@ -173,13 +173,13 @@ contains
     temp = B ; B = H ; H = temp
 
     ! RECREATE FILTER WITH FFTSHIFT:
-    filter( center:GRID  , 1:(center-1) , center:GRID  ) = A
-    filter( center:GRID  , center:GRID  , center:GRID  ) = B
-    filter( center:GRID  , center:GRID  , 1:(center-1) ) = C
-    filter( center:GRID  , 1:(center-1) , 1:(center-1) ) = D
-    filter( 1:(center-1) , 1:(center-1) , center:GRID  ) = E
-    filter( 1:(center-1) , center:GRID  , center:GRID  ) = F
-    filter( 1:(center-1) , center:GRID  , 1:(center-1) ) = G
+    filter( center:f_GRID  , 1:(center-1) , center:f_GRID  ) = A
+    filter( center:f_GRID  , center:f_GRID  , center:f_GRID  ) = B
+    filter( center:f_GRID  , center:f_GRID  , 1:(center-1) ) = C
+    filter( center:f_GRID  , 1:(center-1) , 1:(center-1) ) = D
+    filter( 1:(center-1) , 1:(center-1) , center:f_GRID  ) = E
+    filter( 1:(center-1) , center:f_GRID  , center:f_GRID  ) = F
+    filter( 1:(center-1) , center:f_GRID  , 1:(center-1) ) = G
     filter( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
 
     deallocate (temp,A,B,C,D,E,F,G,H)
@@ -195,7 +195,7 @@ contains
   !      
   ! FORM:  function sharpFilter(array_work,filter)  
   !       
-  ! BEHAVIOR: 
+  ! BEHAVIOR: array_work must be of size(f_GRID,f_GRID,f_GRID)
   !         
   ! STATUS : > Passed test with MATLAB results (10/21/2015).    
   ! Notes  : 
@@ -211,7 +211,7 @@ contains
     !
     !    ..ARRAY ARGUMENTS..
     real(C_DOUBLE),dimension(:,:,:) :: array_work,filter
-    real(C_DOUBLE),dimension(GRID,GRID,GRID) :: sharpFilter 
+    real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: sharpFilter 
     !
     !    ..WORK ARRAYS..
     complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:)     :: in_cmplx, out_cmplx
@@ -219,20 +219,20 @@ contains
     !    ..LOCAL VARS..
     type(C_PTR)              :: plan
    
-    allocate(in_cmplx(GRID,GRID,GRID))
-    allocate(out_cmplx(GRID,GRID,GRID))
+    allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
+    allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
 
-    in_cmplx = dcmplx (array_work) / (dble(GRID**3)) 
+    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
 
     ! FFT:
-    call dfftw_plan_dft_3d(plan,GRID,GRID,GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
+    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)    
     call dfftw_destroy_plan(plan)
 
     out_cmplx = out_cmplx * filter 
 
     ! IFFT:
-    call dfftw_plan_dft_3d(plan,GRID,GRID,GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
+    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)
     call dfftw_destroy_plan(plan)
 
@@ -320,7 +320,7 @@ contains
              end if
           end do
        end do
-       allocate(dev_t(GRID,GRID,GRID))
+       allocate(dev_t(i_GRID,j_GRID,k_GRID))
 
        dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
        tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t

@@ -28,7 +28,7 @@ character(10):: f_CUT
 ! 1- To select only one velocity component and 3 velocity products.
 ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
 ! 3- Write as binary file [0]
-logical :: debug(3) = [0,1,0]
+logical :: debug(3) = [1,1,0]
 
 
 
@@ -71,12 +71,14 @@ print*,'Filter velocities ... '
 allocate(u_f(n_u,i_GRID,j_GRID,k_GRID))
 allocate(u_t(n_u,i_GRID,j_GRID,k_GRID))
 
+call cpu_time(tic)
 filter:do i=1,n_u
    u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
    u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
 end do filter
 call check_FFT(u_t(1,15,24,10))
-
+call cpu_time(toc)
+print*, 'Elapsed time FFT:' ,toc-tic
 
 ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
 if (n_uu.ne.6) then
@@ -99,8 +101,8 @@ deallocate(LES,test)
 
 
  ! COMPUTE STRAIN RATE:
- call computeSij(u_f, Sij_f)
- call computeSij(u_t, Sij_t)
+! call computeSij(u_f, Sij_f)
+! call computeSij(u_t, Sij_t)
 
 
 ! CUTOUT:

@@ -79,7 +79,7 @@ if (filterVelocities) then
    call fftshift(test)
 
    ! FILTER VELOCITIES:
-
+   print*
    print*,'Filter velocities ... '
 
    filter:do i=1,n_u
@@ -112,6 +112,7 @@ end if
 if(computeStresses)then
 
    call cpu_time(tic)
+   print*
    print*,'Compute stress:',stress
    call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test)
    call cpu_time(toc)
@@ -125,7 +126,6 @@ else
       filename = trim(CUT_DATA)//trim(f_CUT)//trim(var_FFT(i)%name)//'.bin'
       print*, filename
       open(i,file = filename,form='unformatted')
-
       if (i.eq.1) read(i) u_f
       if (i.eq.2) read(i) u_t
       if (i.eq.3) read(i) tau_ij
@@ -161,7 +161,6 @@ call printplane(u_f(1,:,:,:),frameLim=4)
 if(computeStrain)then
    allocate (Sij_f(3,3,i_GRID,j_GRID,k_GRID))
    allocate (Sij_t(3,3,i_GRID,j_GRID,k_GRID))
-
 
    print*, 'Compute strain rate'
    call computeSij(u_f, Sij_f)
@@ -201,10 +200,7 @@ if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(n_uu,i_GRID,j_GRID,k_GR
 stop
 
 call optimizedTij(u_f,u_t,h_ij,TijOpt,tau_ijOpt)
-open(11,file='./run/apples/TijOpt.dat')
-open(12,file='./run/apples/tau_ijOpt.dat')
-read(11,*)TijOpt(1,:,:,129)
-read(12,*)tau_ijOpt(1,:,:,129)
+
 
 stop
 !PRODUCTION FIELD

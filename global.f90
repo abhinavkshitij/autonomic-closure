@@ -13,7 +13,6 @@
 !          interface printplane
 !              subroutine plane3
 !              subroutine plane2
-
 !
 ! BEHAVIOR:
 !      * Check array rank while passing into printplane.
@@ -26,7 +25,7 @@
 
 module global
 
-  ! TYPE: STRING(16)
+  ! DEFINE STRING ARRAY:
   type str16
      character (16) :: name
   end type str16
@@ -37,9 +36,10 @@ module global
 
   integer, parameter :: case(1) = [2]
 
+  integer, parameter :: dp = selected_real_kind(15,307)
 
   character(8) :: d_set = trim (dataset(case(1)) % name)
-  character(4) :: ext   = 'bin'
+  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [hdf]5 format. 
 
 
   integer, parameter :: i_GRID = 256
@@ -51,7 +51,7 @@ module global
   integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
   integer, parameter :: N = 3403
   integer, parameter :: P = 6
-  
+  integer, parameter :: stencil_size = 3*(3*3*3) !3 * 27 = 81  
   integer, parameter :: LES_scale  = 40
   integer, parameter :: test_scale = 20
 
@@ -81,6 +81,8 @@ module global
 
 contains
 
+
+
   !****************************************************************
   !                          PLANE3
   !****************************************************************
@@ -93,7 +95,7 @@ contains
   !      plane3 (box, [frameLim], [x], [y], [z], [fID])
   !         
   ! BEHAVIOR:
-  !      * Dumps the entire z-plane (z=1) to the standard output (screen)
+  !      * Dumps the entire z-plane (z=1) to the standard output (default:screen)
   !      * Looks for [frameLim] to limit output size of the plane (useful for
   !        large boxes).
   !      * Looks for specified [x-  y-  z-] plane. (default: z=1 plane)

@@ -6,8 +6,9 @@
 # macros.mk contains user-defined macros - create-exe.
 
 # DEVELOPMENT NOTES:
-# The next thing will be to build a library with global, fileio, fourier and solver.
-# Archive library and link with -l flag while making the executable.
+# 	* Build a library with global, fileio, fourier and solver.
+# 	* Archive library and link with -l flag while making the executable.
+# 	* Create .lst file. Send filenames to .lst files. Refer ../makefile/makefile_BLAS
 
 #
 # INCLUDE FILES:
@@ -26,7 +27,7 @@ autonomic : $(OBJECTS_AUTONOMIC)
 
 #
 # MAIN : takes in .bin files and gives cutout
-OBJECTS_MAIN = global.o fileio.o fourier.o solver.o main.o
+OBJECTS_MAIN = global.o fileio.o fourier.o actools.o solver.o main.o
 main :  $(OBJECTS_MAIN) 
 	$(build-exe)
 
@@ -45,6 +46,7 @@ OBJECT_TESTCUT = global.o fileio.o solver.o testCut.o
 testCut : $(OBJECTS_TESTCUT)
 	$(build-exe)
 
+
 #----------------------------------------------------------------
 
 #
@@ -53,6 +55,22 @@ fileio.o  : FFLAGS += $(HDF5_INC)
 fourier.o : FFLAGS += $(FFTW_INC)
 %.o : %.f90
 	@$(FC) -c $(FFLAGS) $< 
+
+
+#----------------------------------------------------------------
+
+
+OUTPUT_DIR=$()
+DAT_FILES=$(wildcard $(OUTPUT_DIR)/dat/*.dat)
+PNG_FILES=$(patsubst %.dat, %.png, $(DAT_FILES))
+vpath %.dat run/dat
+vpath %.png run/plots
+
+#
+# BUILD PLOTS:
+plots : %.png : %.dat
+	$(PLOT_EXE) $< $*.dat
+
 
 
 #

@@ -15,6 +15,8 @@
 !       subroutine readHDF5            [SOURCE]
 !       subroutine writeBin            [BUFFER]
 !       subroutine check_dataRead      [TEST] 
+!       subroutine contour             [SINK]
+!
 !
 ! BEHAVIOR: readData can read binary format dataset in single or
 !           double precision. Each read operation is checked at 
@@ -404,7 +406,62 @@ contains
     end if
     return
   end subroutine check_dataRead
+  
+  
+  !****************************************************************
+  !                           CONTOUR
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE : Saves a plane in .dat format (delimiter: space)
+  !      
+  !
+  ! FORM: 
+  !
+  ! BEHAVIOR: Calls printplane() with fID to save in [RESULT] dir.
+  !
+  !
+  ! STATUS : 
+  ! 
+  !----------------------------------------------------------------
+  
+  
+  subroutine contour(var,var_name)
+    implicit none
 
+    !    ..ARRAY ARGUMENTS..
+    real(8),dimension(:,:), intent(in) :: var
+    character,intent(in) :: var_name
+
+  end subroutine contour
+
+
+
+  !****************************************************************
+  !                           XYPLOT
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE : Saves XY data with option of multiple columns. Can be used
+  !       for line plot, scatter plots and bar plots.
+  !      
+  !
+  ! FORM: 
+  !
+  ! BEHAVIOR: Needs allocated, defined arrays.
+  !
+  ! STATUS : 
+  ! 
+  !----------------------------------------------------------------
+
+  subroutine xyplot(var,var_name)
+    implicit none
+
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:), intent(in) :: var
+    character, intent(in) :: var_name
+
+  end subroutine xyplot
 
 
 end module fileio

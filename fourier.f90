@@ -28,7 +28,7 @@ module fourier
   use global
 
   use, intrinsic :: iso_c_binding
-  include '/opt/fftw-3.3.4/include/fftw3.f03' 
+  include 'fftw3.f03' 
  
   integer :: center = (0.5d0 * f_GRID) + 1.d0
 

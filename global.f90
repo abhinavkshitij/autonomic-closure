@@ -70,6 +70,7 @@ module global
   real,    parameter :: eps = 1e-3 
   real(8), parameter :: pi = 4.d0 * atan(1.d0)
 
+
   integer  :: i, j, k
   integer  :: fileID = 6
   real(8)  :: tic, toc

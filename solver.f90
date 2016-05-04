@@ -864,7 +864,7 @@ contains
   !        T Matmul takes 1300 secs for (M=17576),(N=3403)
   !        + Vinv = matmul(matmul(transpose(VT),D),transpose(U)) 
   !       ++ h_ij = matmul(Vinv,T)
-  !        T Psuedoinverse computation: takes about 280 secs
+  !        T Psuedoinverse computation now takes about 280 secs
   !        * Can use VT(i,:) = VT(i,:) * S(i) / (S(i)**2 +lambda**2), i=1,N ...
   !          to compute VT'D first and then multiply VT'D with first N rows ...
   !          of U to get Vinv. Will require a DO-LOOP to implement in parallel.
@@ -875,6 +875,11 @@ contains
   !       D =  0 S 0 0 0
   !            0 0 S 0 0
   !       D is a large sparse matrix!!        
+  !
+  !  +++ ALTERNATE FASTER METHOD TO COMPUTE PSEUDOINVERSE: GIVES ERROR - Vinv=0!!  
+  !     allocate(Vinv(N,M), temp(N,N))
+  !     forall (i=1:N) temp(i,:) = VT(i,:) * S(i) / (S(i)**2 + lambda**2)
+  !     call DGEMM('N','T',N,M,N, alpha, temp,N, U(1:N,1:M),N, beta, Vinv, N)
   !----------------------------------------------------------------
   
   subroutine SVD (A, T, h_ij, lambda, printval)
@@ -905,8 +910,8 @@ contains
     real(8), dimension(:,:), allocatable :: Vinv
     real(8) :: alpha = 1.d0
     real(8) :: beta = 0.d0
-
-
+ 
+ 
     ! 
     ! SVD DECOMPOSITION: A(M,N) = U(M,M) S([M],N) V'(N,N)
     ! DGESVD returns N diagonal entries to S(N)
@@ -941,16 +946,17 @@ contains
     allocate(D(N,M))
     D = 0.d0
     forall(i=1:N) D(i,i) = S(i) / (S(i)**2 + lambda**2) 
-! **  
+    ! **  DEVELOPMENTAL NOTE IN THE HEADER
     !
     ! COMPUTE PSEUDOINVERSE: Vinv(N,M) = (VT'(N,N) * D(N,M)) * U(M,M) 
     allocate (Vinv(N,M), temp(N,M))
     call DGEMM('T','N', N, M, N, alpha, VT,   N, D, N, beta, temp, N)
     call DGEMM('N','T', N, M, M, alpha, temp, N, U, M, beta, Vinv, N)
     deallocate (temp)
-    ! + Alternate option: matmul(). Stashed above.
+    ! + Alternate option: matmul(). Differs after 13 d.p. Stashed above.
+    ! +++ Alternate method to compute pseudoinverse. Stashed above.
 
-    !
+
     ! Compute h_ij(N,P) = Vinv(N,M) * T(M,P)
     call DGEMM('N','N', N, P, M, alpha, Vinv, N, T, M, beta, h_ij, N)
     ! ++ Alternate option: matmul(). Stashed above.
@@ -958,7 +964,7 @@ contains
     !
     ![RUN DIAGNOSTICS]:
     if(printval) then
-       print*,'Vinv'                     ! Vinv MATRIX - DIAG MATRIX
+       print*,'Vinv'                     ! Vinv MATRIX
        call printplane(Vinv,frameLim=4)
     end if
 

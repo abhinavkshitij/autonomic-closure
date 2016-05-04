@@ -18,7 +18,7 @@ real(8),allocatable,dimension(:,:,:) :: LES,test
 
 ! DEFINE STRAIN RATES:
 real(8),allocatable,dimension(:,:,:,:,:) :: Sij_f, Sij_t
-real(8),allocatable,dimension(:,:):: h_ij
+real(8),allocatable,dimension(:,:) :: h_ij
 
 integer :: n_u, n_uu
 

@@ -29,7 +29,6 @@
 
 module solver
 
-  ! use fileio
   use global
 
   ! Stencil parameters:
@@ -322,8 +321,7 @@ contains
     integer :: non_col_1, non_col_2
     !
     !    ..LOCAL SCALARS..
-!    integer :: n_u = 3, n_uu = 6
-    real(8), parameter :: lambda = 1.d-1
+    real(8) :: lambda = 1.d-1
     !
     !    ..RANDOM TRAINING POINTS (STENCIL-CENTERS)..
     integer :: rand_count

@@ -29,9 +29,8 @@ program main
 
   implicit none
   
-!  integer :: n_u, n_uu
-  real(8) :: pre_cut, post_cut
 
+  real(8) :: pre_cut, post_cut
   character(50):: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
   character(10):: f_CUT 
 
@@ -50,7 +49,6 @@ program main
 
 
   !! Set debug flags for velocity components:
-!  n_u=3; n_uu = 6
   if (debug(1)) then
      n_u = 1
      n_uu = 3

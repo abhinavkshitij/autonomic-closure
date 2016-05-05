@@ -214,10 +214,10 @@ contains
     real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: sharpFilter 
     !
     !    ..WORK ARRAYS..
-    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:)     :: in_cmplx, out_cmplx
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: in_cmplx, out_cmplx
     !
     !    ..LOCAL VARS..
-    type(C_PTR)              :: plan
+    type(C_PTR) :: plan
    
     allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
@@ -273,16 +273,13 @@ contains
   !----------------------------------------------------------------
 
 
-  subroutine computeStress(u, u_f, u_t, tau_ij, T_ij, n_u, n_uu, LES, test)
+  subroutine computeStress(u, u_f, u_t, tau_ij, T_ij, LES, test)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8),dimension(:,:,:,:),intent(in)  :: u, u_f, u_t
     real(8),dimension(  :,:,:),intent(in)  :: LES, test
     real(8),dimension(:,:,:,:),intent(out) :: tau_ij, T_ij
-    !
-    !    ..SCALAR ARGUMENTS..
-    integer, intent(in)  :: n_u, n_uu
     !
     !    ..WORK ARRAY..
     real(8),allocatable,dimension(:,:,:)   :: dev_t

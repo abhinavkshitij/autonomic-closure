@@ -35,8 +35,6 @@ program autonomic
 
   implicit none
 
-!  integer :: n_u, n_uu
-
   character(50) :: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
   character(64) :: filename
   character(10) :: f_CUT 
@@ -44,7 +42,7 @@ program autonomic
 
   !
   !    ..CONTROL SWITCHES..
-  logical :: useTestData = 1
+  logical :: useTestData = 0
   logical :: writeStressBin = 0
   logical :: readFile = 1
   logical :: filterVelocities = 1
@@ -65,7 +63,6 @@ program autonomic
   !call printParams()
 
   !! Set debug flags for velocity components:
-!  n_u = 3; n_uu = 6
   if (useTestData) then
      n_u = 1
      n_uu = 3
@@ -117,7 +114,7 @@ program autonomic
      call cpu_time(tic)
      print*
      print*,'Compute stress:',stress
-     call computeStress(u,u_f,u_t,tau_ij,T_ij,n_u,n_uu,LES,test)
+     call computeStress(u, u_f, u_t, tau_ij, T_ij, LES, test)
      call cpu_time(toc)
      write(*,307),'computeStress - time elapsed:',toc-tic
      deallocate(LES,test)

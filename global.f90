@@ -24,24 +24,23 @@
 
 module global
 
+  integer, parameter :: dp = selected_real_kind(15,307)
+
+  real,    parameter :: eps = 1e-3 
+  real(8), parameter :: pi = 4.d0 * atan(1.d0)
+
   ! DEFINE STRING ARRAY:
   type str16
      character (16) :: name
   end type str16
+
 
   type(str16), parameter :: var(2) = [ str16('Velocity'), str16('Pressure')]
   type(str16), parameter :: dataset(4) = [ str16('nrl'),  str16('jhu256'), str16('sin3D'), str16('jhu1024')]
   type(str16), parameter :: var_FFT(4) = [ str16('u_f'),  str16('u_t'),    str16('tau_ij'), str16('T_ij')]  
   type(str16), parameter :: solv(2) = [ str16('LU'), str16('SVD') ]
 
-  integer, parameter :: case(1) = [2]
-
-  integer, parameter :: dp = selected_real_kind(15,307)
-
-  character(8) :: d_set = trim (dataset(case(1)) % name)
-  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [hdf]5 format. 
-
-
+  
   integer, parameter :: i_GRID = 256
   integer, parameter :: j_GRID = 256
   integer, parameter :: k_GRID = 256
@@ -56,24 +55,69 @@ module global
   integer, parameter :: test_scale = 20
 
   character(3) :: stress = 'dev'
-  character(8) :: linSolver = trim(solv(2)%name)
+  character(8) :: linSolver = trim(solv(1)%name)
 
-  ! DIRS:
+  
+  !----------------------------------------------------------------
+  !
+  !****************************************************************
+  !                       ..NAMESPACE..                          !
+  !****************************************************************
+
+  !
+  !    ..VELOCITIES..
+  real(8), dimension(:,:,:,:), allocatable :: u
+  real(8), dimension(:,:,:,:), allocatable :: u_f 
+  real(8), dimension(:,:,:,:), allocatable :: u_t
+  !
+  !    ..STRESSES..
+  real(8), dimension(:,:,:,:), allocatable :: tau_ij
+  real(8), dimension(:,:,:,:), allocatable :: T_ij
+  real(8), dimension(:,:,:,:), allocatable :: TijOpt
+  real(8), dimension(:,:,:,:), allocatable :: tau_ijOpt
+  !
+  !    ..FILTERS..
+  real(8), dimension(:,:,:), allocatable :: LES
+  real(8), dimension(:,:,:), allocatable :: test
+  !
+  !    ..STRAIN RATES..
+  real(8), dimension(:,:,:,:,:), allocatable :: Sij_f
+  real(8), dimension(:,:,:,:,:), allocatable :: Sij_t
+  !
+  !    ..COEFFICIENTS..
+  real(8), dimension(:,:), allocatable :: h_ij
+
+
+  !
+  !    ..FILEIO..
+  !
+  !    .. DIRS..
   character(*), parameter :: DATA_DIR = '../data/'
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RUN_DIR  = '../run/'
 
+
+  integer, parameter :: case(1) = [2]
+  character(8) :: d_set = trim (dataset(case(1)) % name)
+  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [hdf]5 format. 
+
+  !
+  !    ..FORMATS..
   character(*), parameter :: long = 'es23.17'
   character(*), parameter :: short = 'f10.4'
 
-
-  real,    parameter :: eps = 1e-3 
-  real(8), parameter :: pi = 4.d0 * atan(1.d0)
-
-
+  !
+  !    ..INDICES..
   integer  :: i, j, k
   integer  :: fileID = 6
+  integer  :: n_u = 3 , n_uu = 6
   real(8)  :: tic, toc
+
+  !----------------------------------------------------------------
+  !
+  !****************************************************************
+  !                       ..INTERFACES..                          !
+  !****************************************************************
 
   interface printplane
      module procedure plane2, plane3

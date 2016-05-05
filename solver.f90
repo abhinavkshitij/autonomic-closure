@@ -14,7 +14,7 @@
 !      subroutine cutout            [FILTER]
 !      subroutine init_random_seed  [SOURCE]
 !      subroutine randTrainingSet   [FILTER]
-!      subroutine calc_h_ij         [FILTER] 
+!      subroutine autonomicClosure         [FILTER] 
 !      subroutine optimizedTij      [FILTER]
 !      subroutine LU                [SOLVER]
 !      subroutine SVD               [SOLVER]
@@ -264,7 +264,7 @@ contains
 
   
   !****************************************************************
-  !                        CALC_H_IJ                              !
+  !                        AUTONOMIC CLOSURE                      !
   !****************************************************************
   
   !----------------------------------------------------------------
@@ -272,7 +272,7 @@ contains
   !      
   !      
   !      
-  ! FORM: subroutine calc_h_ij (u_f, u_t, tau_ij, T_ij, h_ij)
+  ! FORM: subroutine autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
   !       
   !      
   ! BEHAVIOR: Enter only one DAMPING value.
@@ -289,7 +289,8 @@ contains
   !          _box     : for a point in bounding BOX (stencil-center)
   !          _stencil : for a point in the 3x3x3 STENCIL
   !          _opt     : for computed(OPTIMIZED)values at LES and Test scales.
-  !          
+  !          _proj    : to project stresses  for postprocessing
+  !
   !          coloc    : 0  means use non-coloc
   !
   ! STATUS : Suppressed all printing and outputs the data files for images.
@@ -300,7 +301,7 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine calc_h_ij(u_f, u_t, tau_ij, T_ij, h_ij)
+  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
@@ -317,12 +318,11 @@ contains
     real(8), dimension(:,:),     allocatable :: T  
     !
     !    .. NON-COLOCATED..
-    logical :: coloc = 0    
-    real(8),dimension(:), allocatable :: u_n
+    real(8), dimension(:), allocatable :: u_n
     integer :: non_col_1, non_col_2
     !
     !    ..LOCAL SCALARS..
-    integer :: n_u = 3, n_uu = 6
+!    integer :: n_u = 3, n_uu = 6
     real(8), parameter :: lambda = 1.d-1
     !
     !    ..RANDOM TRAINING POINTS (STENCIL-CENTERS)..
@@ -334,11 +334,12 @@ contains
     integer :: i_box,     j_box,     k_box  
     integer :: i_stencil, j_stencil, k_stencil 
     integer :: i_opt,     j_opt,     k_opt     
-    integer :: i_proj,    j_proj,    k_proj    ! to PROJECT final computed data for postprocessing
+    integer :: i_proj,    j_proj,    k_proj    
     integer :: row_index, col_index, row, col 
     integer :: u_comp, uu_comp 
     !
     !    ..DEBUG..
+    logical :: coloc = 0    
     logical :: printval
     logical :: debug(4) = [1,0,0,0]
     ! 1 - Takes just one (tau_ij_11) for testing purpose. 
@@ -368,7 +369,7 @@ contains
 
     allocate (V(M,N),T(M,P))
     
-    TijOpt=0.
+    TijOpt = 0.
     tau_ijOpt=0.
 
     if(debug(2)) then
@@ -599,7 +600,7 @@ contains
 
     end if
 
-  end subroutine calc_h_ij
+  end subroutine autonomicClosure
   
   
   !****************************************************************

@@ -44,7 +44,7 @@ contains
 
   !----------------------------------------------------------------
   ! USE : Read binary datasets - NRL, JHU, TEST(sinusoidal). This
-  !      is a source procudure and generates data -- u_i
+  !      is a source procedure and generates data -- u_i
   !
   ! FORM: 
   !

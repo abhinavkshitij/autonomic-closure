@@ -1,3 +1,32 @@
+!****************************************************************
+!                            AUTONOMIC
+!****************************************************************
+
+!----------------------------------------------------------------
+! USE: 1)
+!      
+!      
+!      
+!
+! FORM: program autonomic
+!       
+!       
+!       
+!       
+!       
+!
+! BEHAVIOR: 
+!           
+! DEBUG FLAGS:
+!     useTestData:  Use only one velocity component and 3 velocity products
+!     writeStressBin:  Write stress binary file [0]
+!
+!           
+!
+! STATUS : 
+! 
+!----------------------------------------------------------------
+
 program autonomic
   
   use fourier
@@ -5,37 +34,24 @@ program autonomic
   use solver
 
   implicit none
- 
- 
-  ! DEFINE VELOCITIES:
-  real(8),allocatable,dimension(:,:,:,:) :: u, u_f, u_t
-  real(8),allocatable,dimension(:,:,:,:) :: tau_ij,T_ij
-  real(8),allocatable,dimension(:,:,:,:) :: TijOpt, tau_ijOpt
-  real(8),allocatable,dimension(:,:,:) :: LES,test
 
-  ! DEFINE STRAIN RATES:
-  real(8),allocatable,dimension(:,:,:,:,:) :: Sij_f, Sij_t
-  real(8),allocatable,dimension(:,:) :: h_ij
+!  integer :: n_u, n_uu
 
-  integer :: n_u, n_uu
-
-  character(50):: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
+  character(50) :: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
   character(64) :: filename
-  character(10):: f_CUT 
+  character(10) :: f_CUT 
 
 
-  ! DEBUG FLAGS:
-  ! 1- To select only one velocity component and 3 velocity products.
-  ! 2- Choose between NRL/JHU256 database[1] or JHU(HDF5) database[0]
-  logical :: debug(2) = [0,2]
-
-  logical :: computeStresses = 0
+  !
+  !    ..CONTROL SWITCHES..
+  logical :: useTestData = 1
+  logical :: writeStressBin = 0
+  logical :: readFile = 1
+  logical :: filterVelocities = 1
+  logical :: computeStresses = 1
   logical :: computeStrain = 0
-  logical :: filterVelocities = 0
-  logical :: readFile = 0
   logical :: computeVolterra = 1
 
-  real(8) :: pre_cut, post_cut
 
 
   write(f_CUT,'(a3, 2(i2), a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
@@ -49,8 +65,8 @@ program autonomic
   !call printParams()
 
   !! Set debug flags for velocity components:
-  n_u=3; n_uu = 6
-  if (debug(1)) then
+!  n_u = 3; n_uu = 6
+  if (useTestData) then
      n_u = 1
      n_uu = 3
      print*, 'Debug mode for velocity components...'
@@ -59,13 +75,13 @@ program autonomic
 
   !! Select file to read:
   if(readFile)then
-     allocate(u(n_u,i_GRID,j_GRID,k_GRID))
-     call readData(u,  DIM=n_u)
+     allocate(u (n_u, i_GRID,j_GRID,k_GRID))
+     call readData(u, DIM=n_u)
   end if
 
 
-  allocate(u_f(n_u,i_GRID,j_GRID,k_GRID))
-  allocate(u_t(n_u,i_GRID,j_GRID,k_GRID))
+  allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
+  allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
   if (filterVelocities) then
      !! Create filters:
      allocate(LES(f_GRID,f_GRID,f_GRID))
@@ -83,17 +99,7 @@ program autonomic
         u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
         u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
      end do filter
-
-
-     ! CHECK FFT:
-     if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
-        print*, 'Precision test for FFT: Failed'
-        print*, 'Check precision or data for testing is not JHU 256'
-        print*, u_t(1,15,24,10)
-        stop
-     else
-        print*, 'Precision test for FFT: Passed'
-     end if
+     call check_FFT(u_t(1,15,24,10))
   end if
 
   ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
@@ -174,8 +180,8 @@ program autonomic
   if (allocated(h_ij).neqv..true.) allocate(h_ij(N,P))
 
   
-  ! COMPUTE h_ij:
-  call calc_h_ij(u_f, u_t, tau_ij, T_ij, h_ij)
+  ! COMPUTE h_ij using autonomic closure:
+  call autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
 
   
   ! PRINT h_ij:
@@ -191,7 +197,7 @@ program autonomic
   if (h_ij(350,1).ne.-4.5121154730201521d-2)then
      print*, "Error! Check lambda, method or sorting order for h_ij computation:"
      print*,h_ij(350,1)
-     !        stop
+     stop
   else 
      print*,'SVD check ... Passed'
   end if
@@ -202,7 +208,7 @@ program autonomic
 
   
   call cpu_time(tic)
-  call optimizedTij(u_f,u_t,h_ij,TijOpt,tau_ijOpt)
+  call optimizedTij(u_f, u_t, h_ij, TijOpt, tau_ijOpt)
   call cpu_time(toc)
   print*,'Elapsed time', toc-tic
 

@@ -110,8 +110,8 @@ contains
         end do
         deallocate(u_d)
 
-      elseif (d_set.eq.'jhu'.and.ext.eq.'h5') then
-         call readHDF5()
+      elseif (d_set.eq.'jhu1024'.and.ext.eq.'h5') then
+         call readHDF5(u_i)
       
         ! DEFAULT:
      else
@@ -279,43 +279,63 @@ contains
    ! USE : Read HDF5 dataset JHU
    !      * source procudure, generates data (u_i)
    !
-   ! FORM: 
+   ! FORM:    subroutine readHDF5(u, [n_files])
    !
-   ! BEHAVIOR:
+   ! BEHAVIOR: If no n_files is specified then it reads all .h5 files
+   !
+   !
    !
    ! STATUS : HDF5 files do not exist. They are saved in Ocotillo
    !          Need to create a test section.
    !          To handle large dataset - implement parallel I/O (MPI)
    !----------------------------------------------------------------
 
-   subroutine readHDF5()
+   subroutine readHDF5(u, n_files)
      implicit none
 
-     integer, parameter :: n_files = 2 ! n is the number of files to be loaded.
+!     real(8), dimension(:,:,:,:), allocatable, intent(in) :: u
+     integer, optional, intent(in)  :: n_files  
 
-     character(32) :: PATH 
+     !
+     !    ..LOCAL VARS..
      character(30) :: fName = "isotropic1024coarse"
-     character(100) :: filename
-     character(4) :: L_Index, U_Index
-     character(10)  :: dset_u = "u10240", dset_p = "p10240", fL_Index, fU_Index  
+     character(32) :: PATH 
 
+     character(100) :: filename
+
+
+     !
+     !    ..HDF5 VARS..
+     character(10)  :: dset_u = "u10240" 
+     character(10)  :: dset_p = "p10240"
      integer(HID_T) :: file_id       ! File identifier
      integer(HID_T) :: dset_id       ! Dataset identifier
      integer(HSIZE_T), dimension(4) :: data_dims
+
      !  real(kind=8), dimension(1,1024,1024,96) :: dset_data
-     real(8), dimension(3,1024,1024,96*n_files) :: u ! Data buffers
+!     real(8), dimension(3,1024,1024,96*n_files) :: u ! Data buffers
+    real(8), dimension(3,1024,1024,96*1) :: u ! Data buffers
 
 
+     !
+     !    ..INDICES..
      integer     ::   error 
      integer     ::   fCount
      integer     ::   lowerIndex, upperIndex
-
+     character(4)::   L_Index,    U_Index
      !
      ! Initilize file indices:
      !
      lowerIndex = 0
      upperIndex = 95
-
+     
+     ! ALLOCATE ARRAY SIZE:
+ !    if present(n_files) then
+        if (n_files.le.10)then
+!           allocate(u(3,i_GRID,j_GRID, 96*n_files))
+     else
+!        allocate(u(3,i_GRID,j_GRID, k_GRID))
+     end if
      PATH = trim(DATA_DIR)//trim(fName)
 
      call h5open_f(error)   ! Begin HDF5

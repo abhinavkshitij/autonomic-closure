@@ -14,7 +14,7 @@
 !      subroutine cutout            [FILTER]
 !      subroutine init_random_seed  [SOURCE]
 !      subroutine randTrainingSet   [FILTER]
-!      subroutine synStress         [FILTER] 
+!      subroutine calc_h_ij         [FILTER] 
 !      subroutine optimizedTij      [FILTER]
 !      subroutine LU                [SOLVER]
 !      subroutine SVD               [SOLVER]
@@ -264,7 +264,7 @@ contains
 
   
   !****************************************************************
-  !                        SYNSTRESS                              !
+  !                        CALC_H_IJ                              !
   !****************************************************************
   
   !----------------------------------------------------------------
@@ -272,7 +272,7 @@ contains
   !      
   !      
   !      
-  ! FORM: subroutine synStress (u_f, u_t, tau_ij, T_ij, h_ij)
+  ! FORM: subroutine calc_h_ij (u_f, u_t, tau_ij, T_ij, h_ij)
   !       
   !      
   ! BEHAVIOR: Enter only one DAMPING value.
@@ -300,7 +300,7 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine synStress(u_f, u_t, tau_ij, T_ij, h_ij)
+  subroutine calc_h_ij(u_f, u_t, tau_ij, T_ij, h_ij)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
@@ -318,7 +318,7 @@ contains
     !
     !    .. NON-COLOCATED..
     logical :: coloc = 0    
-    real(8) :: u_n(stencil_size)
+    real(8),dimension(:), allocatable :: u_n
     integer :: non_col_1, non_col_2
     !
     !    ..LOCAL SCALARS..
@@ -513,7 +513,9 @@ contains
 !        end do ! test
        
     else
-       
+
+       allocate (u_n(stencil_size))
+
        ! WHOLE DOMAIN COMPUTATION: 
        do i_test = 129, 129, 2 
        do j_test = 129, 129, 2
@@ -579,41 +581,25 @@ contains
           else 
              print*,'T vector check ... Passed'
           end if
-
-
-          !      if (computeVolterra) then
-
-          call SVD(V,T,h_ij,lambda,printval) ! TSVD
-          !call LU(V,T,h_ij,lambda)           !Damped least squares
-    
-          ! PRINT h_ij:
-          print*, 'h_ij(1,1):',h_ij(1,1)
-          print*, 'h_ij(20,1):', h_ij(20,1)
-          print*, 'h_ij(350,1):', h_ij(350,1)
-
-
-          ! CHECK h_ij:
-          if (h_ij(350,1).ne.-4.5121154730201521d-2)then
-             print*, "Error! Check lambda, method or sorting order for h_ij computation:"
-             print*,h_ij(350,1)
+          
+          !
+          ! CALL SOLVER
+          if (linSolver.eq.'LU') then
+             call LU(V, T, h_ij, lambda)           !Damped least squares
+          elseif(linSolver.eq.'SVD') then
+             call SVD(V, T, h_ij, lambda, printval) ! TSVD
+          else
+             print*, 'Choose correct solver: LU, SVD'
              stop
-          else 
-             print*,'SVD check ... Passed'
           end if
-          !      end if
 
-          ! SAVE/READ h_ij:
-          open(1,file='../run/apples/h_ij.dat')
-          read(1,*) h_ij
-          print*,'h_ij(350,1) from file: ',h_ij(350,1)
-          close(1)
        end do
        end do
        end do ! test
 
     end if
 
-  end subroutine synStress
+  end subroutine calc_h_ij
   
   
   !****************************************************************
@@ -902,6 +888,7 @@ contains
     !
     !    .. DGESVD..
     real(8), dimension(:),allocatable :: WORK
+    integer, dimension(:),allocatable :: IWORK
     integer :: LWMAX = M * N
     integer :: info, LWORK
     !
@@ -910,23 +897,33 @@ contains
     real(8), dimension(:,:), allocatable :: Vinv
     real(8) :: alpha = 1.d0
     real(8) :: beta = 0.d0
- 
+    !
+    !    .DEBUG..
+    logical :: GESVD = 1
+
  
     ! 
     ! SVD DECOMPOSITION: A(M,N) = U(M,M) S([M],N) V'(N,N)
     ! DGESVD returns N diagonal entries to S(N)
     allocate (U(M,M), VT(N,N), S(N), work(LWMAX))
     LWORK = -1
-    call DGESVD('All','All', M, N, A, M, S, U, M, VT, N, WORK, LWORK, info)
-    LWORK = min( LWMAX, int(WORK(1)) ) 
-    call DGESVD('All','All', M, N, A, M, S, U, M, VT, N, WORK, LWORK, info) !BOTTLENECK = 850 SECS
+
+    if (GESVD) then     
+       call DGESVD('All','All', M, N, A, M, S, U, M, VT, N, WORK, LWORK, info)
+       LWORK = min( LWMAX, int(WORK(1)) ) 
+       call DGESVD('All','All', M, N, A, M, S, U, M, VT, N, WORK, LWORK,  info) !BOTTLENECK = 850 SECS
+    else
+       allocate(IWORK(40000))
+       call DGESDD('S', M, N, A, M, S, U, M, VT, N, WORK, LWORK, IWORK, info)
+       LWORK = min( LWMAX, int(WORK(1)) ) 
+       call DGESDD('S', M, N, A, M, S, U, M, VT, N, WORK, LWORK, IWORK, info) !BOTTLENECK = 850 SECS
+    end if
 
     ! Convergence check:
     if (info.gt.0) then
        print*, 'Failed to converge'
        stop
     end if
-
 
     !
     ! [RUN DIAGNOSTICS]:
@@ -941,6 +938,7 @@ contains
        call printplane(VT,frameLim=4)
     end if
 
+
     !
     ! Create D(N,M) with S(i) as damped diagonal entries.
     allocate(D(N,M))
@@ -948,7 +946,7 @@ contains
     forall(i=1:N) D(i,i) = S(i) / (S(i)**2 + lambda**2) 
     ! **  DEVELOPMENTAL NOTE IN THE HEADER
     !
-    ! COMPUTE PSEUDOINVERSE: Vinv(N,M) = (VT'(N,N) * D(N,M)) * U(M,M) 
+    ! COMPUTE PSEUDOINVERSE: Vinv(N,M) = (VT'(N,N) * D(N,M)) * U'(M,M) 
     allocate (Vinv(N,M), temp(N,M))
     call DGEMM('T','N', N, M, N, alpha, VT,   N, D, N, beta, temp, N)
     call DGEMM('N','T', N, M, M, alpha, temp, N, U, M, beta, Vinv, N)

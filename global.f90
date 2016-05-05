@@ -1,4 +1,3 @@
-
 !****************************************************************
 !                          MODULE: GLOBAL
 !****************************************************************
@@ -31,8 +30,9 @@ module global
   end type str16
 
   type(str16), parameter :: var(2) = [ str16('Velocity'), str16('Pressure')]
-  type(str16), parameter :: dataset(3) = [ str16('nrl'),  str16('jhu256'), str16('sin3D')]
+  type(str16), parameter :: dataset(4) = [ str16('nrl'),  str16('jhu256'), str16('sin3D'), str16('jhu1024')]
   type(str16), parameter :: var_FFT(4) = [ str16('u_f'),  str16('u_t'),    str16('tau_ij'), str16('T_ij')]  
+  type(str16), parameter :: solv(2) = [ str16('LU'), str16('SVD') ]
 
   integer, parameter :: case(1) = [2]
 
@@ -56,13 +56,13 @@ module global
   integer, parameter :: test_scale = 20
 
   character(3) :: stress = 'dev'
+  character(8) :: linSolver = trim(solv(2)%name)
 
   ! DIRS:
   character(*), parameter :: DATA_DIR = '../data/'
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RUN_DIR  = '../run/'
 
-  
   character(*), parameter :: long = 'es23.17'
   character(*), parameter :: short = 'f10.4'
 

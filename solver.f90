@@ -14,7 +14,7 @@
 !      subroutine cutout            [FILTER]
 !      subroutine init_random_seed  [SOURCE]
 !      subroutine randTrainingSet   [FILTER]
-!      subroutine autonomicClosure         [FILTER] 
+!      subroutine autonomicClosure  [FILTER] 
 !      subroutine optimizedTij      [FILTER]
 !      subroutine LU                [SOLVER]
 !      subroutine SVD               [SOLVER]
@@ -104,7 +104,7 @@ contains
   !      
   !      
   ! FORM: cutout(array, n_comp)
-  !       
+  !       n_comp stands for number of components. 
   !      
   ! BEHAVIOR: 
   !           
@@ -115,7 +115,7 @@ contains
   !----------------------------------------------------------------
 
 
-  subroutine cutout(array,n_comp)
+  subroutine cutout(array, n_comp)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..

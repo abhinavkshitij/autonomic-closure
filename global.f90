@@ -97,8 +97,8 @@ module global
   character(*), parameter :: RUN_DIR  = '../run/'
 
 
-  integer, parameter :: case(1) = [2]
-  character(8) :: d_set = trim (dataset(case(1)) % name)
+
+  character(8) :: d_set = trim (dataset(2) % name)
   character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [hdf]5 format. 
 
   !

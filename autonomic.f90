@@ -24,7 +24,9 @@
 !           
 !
 ! STATUS : 
-! 
+!    +  allocate(u (n_u, i_GRID,j_GRID,k_GRID))
+!    +  call readData(u, DIM=n_u)
+!   ++  call printplane(u_f(1,:,:,:),frameLim=4)
 !----------------------------------------------------------------
 
 program autonomic
@@ -42,13 +44,13 @@ program autonomic
 
   !
   !    ..CONTROL SWITCHES..
-  logical :: useTestData = 0
-  logical :: writeStressBin = 0
-  logical :: readFile = 1
-  logical :: filterVelocities = 1
-  logical :: computeStresses = 1
-  logical :: computeStrain = 0
-  logical :: computeVolterra = 1
+  logical :: useTestData      =  0
+  logical :: writeStressBin   =  0
+  logical :: readFile         =  1
+  logical :: filterVelocities =  1
+  logical :: computeStresses  =  1
+  logical :: computeStrain    =  0
+  logical :: computeVolterra  =  1
 
 
 
@@ -70,16 +72,18 @@ program autonomic
   end if
 
 
-  !! Select file to read:
-  if(readFile)then
-     allocate(u (n_u, i_GRID,j_GRID,k_GRID))
-     call readData(u, DIM=n_u)
-  end if
+  ! LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
+  if(readFile) call readData(DIM=n_u)
 
+  
+  ! FILTER VELOCITIES:
 
   allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
   allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
   if (filterVelocities) then
+     print*
+     print*,'Filter velocities ... '
+
      !! Create filters:
      allocate(LES(f_GRID,f_GRID,f_GRID))
      allocate(test(f_GRID,f_GRID,f_GRID))
@@ -87,10 +91,6 @@ program autonomic
      call createFilter(test,test_scale)
      call fftshift(LES)
      call fftshift(test)
-
-     ! FILTER VELOCITIES:
-     print*
-     print*,'Filter velocities ... '
 
      filter:do i=1,n_u
         u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
@@ -122,10 +122,12 @@ program autonomic
   else
 
      ! READ STRESS files:
+     print*
+     print*,'READ STRESS files'
      do i = 1,size(var_FFT)
         filename = trim(CUT_DATA)//trim(f_CUT)//trim(var_FFT(i)%name)//'.bin'
         print*, filename
-        open(i,file = filename,form='unformatted')
+        open(i, file = filename,form='unformatted')
         if (i.eq.1) read(i) u_f
         if (i.eq.2) read(i) u_t
         if (i.eq.3) read(i) tau_ij
@@ -134,6 +136,7 @@ program autonomic
      end do
 
      ! CHECK INPUT DATA:
+     ! ++
      if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
         print*, 'ERROR READING DATA'
         print*, u_t(1,15,24,10)
@@ -155,29 +158,25 @@ program autonomic
   !close(1)
   !close(2)
 
-  call printplane(u_f(1,:,:,:),frameLim=4)
+
 
   ! COMPUTE STRAIN RATE:
   if(computeStrain)then
-     allocate (Sij_f(3,3,i_GRID,j_GRID,k_GRID))
-     allocate (Sij_t(3,3,i_GRID,j_GRID,k_GRID))
-
+     allocate (Sij_f(n_u,n_u,i_GRID,j_GRID,k_GRID))
+     allocate (Sij_t(n_u,n_u,i_GRID,j_GRID,k_GRID))
+     print*
      print*, 'Compute strain rate'
      call computeSij(u_f, Sij_f)
      call computeSij(u_t, Sij_t)
 
      print*,'Sij_fl(1,2,15,24,10)',Sij_f(1,2,15,24,10)
      print*,'Sij_ft(1,2,15,24,10)',Sij_t(1,2,15,24,10)
-     print*,'Sij_ft(1,2,1,3,5)',Sij_t(1,2,1,3,5)
 
      deallocate (Sij_f, Sij_t)
   end if
-
-
-  if (allocated(h_ij).neqv..true.) allocate(h_ij(N,P))
-
   
   ! COMPUTE h_ij using autonomic closure:
+  if (allocated(h_ij).neqv..true.) allocate(h_ij(N,P))
   call autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
 
   
@@ -212,7 +211,7 @@ program autonomic
 
   stop
   !PRODUCTION FIELD
- open(13,file='./run/apples/P11_t.dat')
+  open(13,file='./run/apples/P11_t.dat')
   open(14,file='./run/apples/P11_f.dat')
 
   write(13,*) TijOpt(1,:,:,129)*Sij_t(1,1,:,:,129)

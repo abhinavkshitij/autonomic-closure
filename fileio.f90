@@ -48,25 +48,21 @@ contains
   !
   ! FORM: 
   !
-  ! BEHAVIOR:
+  ! BEHAVIOR: u_s: for binary read for single precision files.
   !
   ! STATUS : Refactoring this unit.
   ! 
   !----------------------------------------------------------------
 
 
-  subroutine readData(u_i, DIM) 
+  subroutine readData(DIM) 
     implicit none  
     !
     !    ..SCALAR ARGUMENTS..
     integer,intent(in)                         :: DIM
     !
-    !    ..ARRAY ARGUMENTS..
-    real(8),dimension(:,:,:,:),intent(out)     :: u_i
-    !
     !    ..WORK ARRAY..
-    real(4),dimension(:,:,:),allocatable       :: u_s ! Data is stored in single precision kind.
-    real(8),dimension(:,:,:),allocatable       :: u_d
+    real(4),dimension(:,:,:), allocatable      :: u_s !  single precision kind
     !
     !    ..INTERNAL VARIABLES..
     integer                                    :: fID
@@ -87,31 +83,35 @@ contains
         time = '0460'
         endian = 'big_endian'
 
+        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         allocate(u_s(i_GRID,j_GRID,k_GRID))
+        
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
            filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
-           call readBin(u_i,u_s,fID,filename,endian)
+           call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
-
-        u_i = u_i * 1.d-2 ! scale  original data by 1/100
+        
+        ! scale  original data by 1/100
+        u = u * 1.d-2 
 
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
      elseif (d_set.eq.'jhu256'.or.d_set.eq.'sin3D') then
 
-        allocate(u_d(i_GRID,j_GRID,k_GRID))
+        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
            filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
-           call readBin(u_i,u_d,fID,filename,endian)
+           call readBin(fID,filename,endian)
         end do
-        deallocate(u_d)
 
+        ! READ DOUBLE PRECISION DATA - JHU1024 - HDF5
       elseif (d_set.eq.'jhu1024'.and.ext.eq.'h5') then
-         call readHDF5(u_i)
+
+         call readHDF5(n_files=1)
       
         ! DEFAULT:
      else
@@ -120,7 +120,7 @@ contains
      end if
         
      ! CHECK DATA READ:
-     call check_dataRead(u_i(1,15,24,10))
+     call check_dataRead(u(1,15,24,10))
 
      return
    end subroutine readData
@@ -132,7 +132,7 @@ contains
    !----------------------------------------------------------------
    ! USE : Reads single precision data for NRL 256 dataset
    !      
-   ! FORM: readBinSingle(u_i, u_s, fID, filename, endian)
+   ! FORM: readBinSingle(u, u_s, fID, filename, endian)
    !
    ! BEHAVIOR: Convert to big endian while reading in data.
    !
@@ -140,11 +140,10 @@ contains
    ! 
    !----------------------------------------------------------------
 
-   subroutine readBinSingle(u_i,u_s,fID,filename,endian)
+   subroutine readBinSingle(u_s,fID,filename,endian)
      implicit none
      !
      !    ..ARRAY ARGUMENTS..
-     real(8), dimension(:,:,:,:),intent(inout) :: u_i
      real(4), dimension(:,:,:),intent(inout)   :: u_s
      !
      !    ..SCALAR ARGUMENTS..
@@ -172,7 +171,7 @@ contains
            end do
         end do
      end do
-     u_i(fID,:,:,:) = u_s
+     u(fID,:,:,:) = u_s
      close(fID)
 
    end subroutine readBinSingle
@@ -192,19 +191,15 @@ contains
    ! 
    !----------------------------------------------------------------
 
-   subroutine readBinDouble(u_i,u_d,fID,filename,endian)
+   subroutine readBinDouble(fID,filename,endian)
      implicit none
      !
-     !    ..ARRAY ARGUMENTS..
-     real(8), dimension(:,:,:,:),intent(inout) :: u_i
-     real(8), dimension(:,:,:),intent(inout)   :: u_d
-     !
      !    ..SCALAR ARGUMENTS..
+     integer,intent(in) :: fID
      character(*), intent(in) :: filename
      character(*), intent(in),optional :: endian
      !
      !    ..LOCAL VARIABLES..
-     integer :: fID
      integer :: position
 
 
@@ -220,11 +215,10 @@ contains
         do j=1,j_GRID
            do i=1,i_GRID
               position = position + 1
-              read (fID,rec=position) u_d(i,j,k)
+              read (fID,rec=position) u(fID,i,j,k)
            end do
         end do
      end do
-     u_i(fID,:,:,:) = u_d
      close(fID)
 
    end subroutine readBinDouble
@@ -261,14 +255,13 @@ contains
      character(32) :: filename
      integer :: fID
 
-!     write(scale,'a3,2(i2),a1')
-
-!     PATH = trim(TEMP_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+     !     write(scale,'a3,2(i2),a1')
+     
+     !     PATH = trim(TEMP_DIR) // trim(d_set) // '/' // trim(ext) // '/'
      filename = trim(PATH)
 
 
    end subroutine writeBin
-
 
 
 
@@ -282,41 +275,36 @@ contains
    ! FORM:    subroutine readHDF5(u, [n_files])
    !
    ! BEHAVIOR: If no n_files is specified then it reads all .h5 files
-   !
+   !           Allocates u(:,:,:,:) accessed from GLOBAL.
    !
    !
    ! STATUS : HDF5 files do not exist. They are saved in Ocotillo
    !          Need to create a test section.
    !          To handle large dataset - implement parallel I/O (MPI)
+   ! STASHED LINES:
+   !     # real(8), dimension(3,1024,1024,96) :: dset_data
+   !     ...
+   !    + call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, dset_data, data_dims, error) 
+   !   ++ u(1,:,:,lowerIndex+1:upperIndex+1) = dset_data(1,:,:,:)
    !----------------------------------------------------------------
 
-   subroutine readHDF5(u, n_files)
+   subroutine readHDF5(n_files)
      implicit none
-
-!     real(8), dimension(:,:,:,:), allocatable, intent(in) :: u
+     !
+     !    ..SCALAR ARGUMENTS..
      integer, optional, intent(in)  :: n_files  
-
      !
      !    ..LOCAL VARS..
      character(30) :: fName = "isotropic1024coarse"
      character(32) :: PATH 
-
      character(100) :: filename
-
-
-     !
+     !#
      !    ..HDF5 VARS..
      character(10)  :: dset_u = "u10240" 
      character(10)  :: dset_p = "p10240"
-     integer(HID_T) :: file_id       ! File identifier
-     integer(HID_T) :: dset_id       ! Dataset identifier
+     integer(HID_T) :: file_id       ! POINTER TO FILE
+     integer(HID_T) :: dset_id       ! POINTER TO DATASET
      integer(HSIZE_T), dimension(4) :: data_dims
-
-     !  real(kind=8), dimension(1,1024,1024,96) :: dset_data
-!     real(8), dimension(3,1024,1024,96*n_files) :: u ! Data buffers
-    real(8), dimension(3,1024,1024,96*1) :: u ! Data buffers
-
-
      !
      !    ..INDICES..
      integer     ::   error 
@@ -324,60 +312,69 @@ contains
      integer     ::   lowerIndex, upperIndex
      character(4)::   L_Index,    U_Index
      !
-     ! Initilize file indices:
+     !SET PATH:
+     PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+     !
+     ! Initialize file indices:
      !
      lowerIndex = 0
      upperIndex = 95
-     
+     !
      ! ALLOCATE ARRAY SIZE:
- !    if present(n_files) then
+     if (present(n_files)) then
+
         if (n_files.le.10)then
-!           allocate(u(3,i_GRID,j_GRID, 96*n_files))
-     else
-!        allocate(u(3,i_GRID,j_GRID, k_GRID))
-     end if
-     PATH = trim(DATA_DIR)//trim(fName)
-
-     call h5open_f(error)   ! Begin HDF5
-
-     do fCount=1,n_files
-        if (fCount.eq.1) then
-           write(L_Index,'(i1)') lowerIndex
-           write(U_Index,'(i2)') upperIndex
-        else if (fCount.eq.2) then
-           write(L_Index,'(i2)') lowerIndex
-           write(U_Index,'(i3)') upperIndex
-        else if(fCount.ge.3.and.fCount.lt.10) then
-           write(L_Index,'(i3)') lowerIndex
-           write(U_Index,'(i3)') upperIndex
+           allocate(u(n_u, i_GRID,j_GRID, 96*n_files))
+        end if
         else
-           write(L_Index,'(i3)') lowerIndex
-           write(U_Index,'(i4)') upperIndex
+           allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         end if
 
-        filename = trim(PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240.h5'
-        print*,filename
-        stop
-        call h5fopen_f (filename, H5F_ACC_RDWR_F, file_id, error) ! Access file
-        call h5dopen_f(file_id, dset_u, dset_id, error) ! Access dataset
+        ! HDF5_INIT
+        call h5open_f(error)  
 
-        !     call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, dset_data, data_dims, error) ! Read into dset_data
-        call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) ! Read into dset_data 
-        !u(1,:,:,lowerIndex+1:upperIndex+1) = dset_data
+        ! SET INDICES
+        do fCount=1,n_files
+           if (fCount.eq.1) then
+              write(L_Index,'(i1)') lowerIndex
+              write(U_Index,'(i2)') upperIndex
+           else if (fCount.eq.2) then
+              write(L_Index,'(i2)') lowerIndex
+              write(U_Index,'(i3)') upperIndex
+           else if(fCount.ge.3.and.fCount.lt.10) then
+              write(L_Index,'(i3)') lowerIndex
+              write(U_Index,'(i3)') upperIndex
+           else
+              write(L_Index,'(i3)') lowerIndex
+              write(U_Index,'(i4)') upperIndex
+           end if
 
-        call h5dclose_f(dset_id, error)    
-        call h5fclose_f(file_id, error)
+           filename = trim(PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240'//'.'//trim(ext)
+           print*, filename
 
-        lowerIndex = lowerIndex + 96
-        upperIndex = upperIndex + 96
-     end do
-     call h5close_f(error)
+           ! ACCESS [F]ILE
+           call h5fopen_f (filename, H5F_ACC_RDWR_F, file_id, error) 
 
-     ! Check for bin files:
-     print*,u(2,1,5,89) , u(3,5,5,89)
-     print*,u(2,1,5,185), u(3,5,5,185)
-     return
-   end subroutine readHDF5
+           ! ACCESS [D]ATASET
+           call h5dopen_f(file_id, dset_u, dset_id, error) 
+
+           ! LOAD DATA
+           ! +     
+           call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) 
+           ! ++ 
+           ! ALTERNATE METHOD:READ INTO DSET_DATA. STASHED ABOVE.
+           call h5dclose_f(dset_id, error)    
+           call h5fclose_f(file_id, error)
+
+           lowerIndex = lowerIndex + 96
+           upperIndex = upperIndex + 96
+
+        end do
+
+        ! HDF5_FINALIZE
+        call h5close_f(error)
+
+      end subroutine readHDF5
 
    !****************************************************************
    !                           CHECK_DATA_READ
@@ -418,6 +415,14 @@ contains
     ! SIN 3D
     elseif (d_set.eq.'sin3D') then 
        if (value.ne.2.2787249947361117d0) then
+          print*, 'Error reading data!'
+          print*, value
+          stop
+       end if
+
+       !
+    elseif (d_set.eq.'jhu1024') then 
+       if (value.ne.0.41232076287269592d0) then
           print*, 'Error reading data!'
           print*, value
           stop

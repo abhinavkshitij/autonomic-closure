@@ -22,7 +22,7 @@ real(8),allocatable,dimension(:,:):: h_ij
 
 integer :: n_u, n_uu
 
-character(50):: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
+character(50):: CUT_DATA = '../temp/jhu256/' !Change bin4020 by 'sed' in shell script
 character(64) :: filename
 character(10):: f_CUT 
 
@@ -33,9 +33,9 @@ character(10):: f_CUT
 logical :: debug(2) = [0,2]
 
 logical :: readFile = 1
+logical :: filterVelocities = 1
 logical :: computeStresses = 1
 logical :: computeStrain = 1
-logical :: filterVelocities = 1
 logical :: computeVolterra = 1
 
 real(8) :: pre_cut, post_cut

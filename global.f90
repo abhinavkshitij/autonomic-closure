@@ -94,12 +94,12 @@ module global
   !    .. DIRS..
   character(*), parameter :: DATA_DIR = '../data/'
   character(*), parameter :: TEMP_DIR = '../temp/'
-  character(*), parameter :: RUN_DIR  = '../run/'
-
+  character(*), parameter :: RES_DIR  = '../results/'
+  
 
 
   character(8) :: d_set = trim (dataset(2) % name)
-  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [hdf]5 format. 
+  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [h5] format. 
 
   !
   !    ..FORMATS..
@@ -125,7 +125,13 @@ module global
 
 
 contains
+  
+  subroutine setEnv()
+    
 
+  
+
+  end subroutine setEnv
 
 
   !****************************************************************

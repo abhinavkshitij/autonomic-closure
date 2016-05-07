@@ -37,24 +37,19 @@ program autonomic
 
   implicit none
 
-  character(50) :: CUT_DATA = '../temp/cutout-valid/jhu/' !Change bin4020 by 'sed' in shell script
+
   character(64) :: filename
-  character(10) :: f_CUT 
-
-
+  character(10) :: scale
   !
   !    ..CONTROL SWITCHES..
   logical :: useTestData      =  0
-  logical :: writeStressBin   =  0
-  logical :: readFile         =  1
-  logical :: filterVelocities =  1
-  logical :: computeStresses  =  1
+  logical :: readFile         =  0
+  logical :: filterVelocities =  0
+  logical :: computeOrigStress   =  0
+  logical :: save_FFT_data    =  0
+  logical :: plot_FFT_data    =  1
   logical :: computeStrain    =  0
-  logical :: computeVolterra  =  1
-
-
-
-  write(f_CUT,'(a3, 2(i2), a1)') 'bin',LES_scale,test_scale,'/' !Write dirname
+  logical :: computeVolterra  =  0
 
 
   ! FORMAT:
@@ -77,6 +72,12 @@ program autonomic
 
   
   ! FILTER VELOCITIES:
+
+  ! SET READ/WRITE PATH FOR FFT_DATA:
+  write(scale,'(2(i2))') LES_scale, test_scale 
+  TEMP_PATH = trim(TEMP_DIR)//trim(d_set)//'/'//'bin'//trim(scale)//'/'
+  RES_PATH =  trim(RES_DIR)//trim(d_set)//'/'//'dat'//trim(scale)//'/'
+
 
   allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
   allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
@@ -109,7 +110,7 @@ program autonomic
   allocate(T_ij(n_uu,i_GRID,j_GRID,k_GRID))
 
   ! COMPUTE STRESS:
-  if(computeStresses)then
+  if(computeOrigStress)then
 
      call cpu_time(tic)
      print*
@@ -118,22 +119,14 @@ program autonomic
      call cpu_time(toc)
      write(*,307),'computeStress - time elapsed:',toc-tic
      deallocate(LES,test)
+     if (save_FFT_DATA) then 
+        call saveFFT_data()
+     end if
 
   else
 
-     ! READ STRESS files:
-     print*
-     print*,'READ STRESS files'
-     do i = 1,size(var_FFT)
-        filename = trim(CUT_DATA)//trim(f_CUT)//trim(var_FFT(i)%name)//'.bin'
-        print*, filename
-        open(i, file = filename,form='unformatted')
-        if (i.eq.1) read(i) u_f
-        if (i.eq.2) read(i) u_t
-        if (i.eq.3) read(i) tau_ij
-        if (i.eq.4) read(i) T_ij
-        close(i)
-     end do
+     ! LOAD SAVED FFT_DATA : Filtered velocities and stress files: 
+     call loadFFT_data()
 
      ! CHECK INPUT DATA:
      ! ++
@@ -148,17 +141,14 @@ program autonomic
      else
         print*, 'Read data saved from main.f90: Passed'
      end if
+
   end if
+  
+  if (plot_FFT_data) call plotFFT_data() 
+  
 
 
-  !open(1,file='./run/apples/T_ij.dat')
-  !open(2,file='./run/apples/tau_ij.dat')
-  !write(1,*) T_ij(1,:,:,129)
-  !write(2,*) tau_ij(1,:,:,129)
-  !close(1)
-  !close(2)
-
-
+stop
 
   ! COMPUTE STRAIN RATE:
   if(computeStrain)then

@@ -32,6 +32,9 @@ module fileio
   use HDF5  
   use global
 
+  character(64) :: TEMP_PATH 
+  character(64) :: RES_PATH
+
   interface readBin
      module procedure readBinSingle, readBinDouble
   end interface
@@ -110,7 +113,6 @@ contains
 
         ! READ DOUBLE PRECISION DATA - JHU1024 - HDF5
       elseif (d_set.eq.'jhu1024'.and.ext.eq.'h5') then
-
          call readHDF5(n_files=1)
       
         ! DEFAULT:
@@ -223,45 +225,6 @@ contains
 
    end subroutine readBinDouble
 
-
-   !****************************************************************
-   !                            WRITEBIN
-   !****************************************************************
-
-   !----------------------------------------------------------------
-   ! USE : Writes a 3D array into binary files in [TEMP] dir
-   !      
-   !
-   ! FORM: 
-   !
-   ! BEHAVIOR: Needs allocated, defined arrays.
-   !
-   ! STATUS : 
-   ! 
-   !----------------------------------------------------------------
-
-   subroutine writeBin(var, var_name, PATH)
-     implicit none
-     !
-     !    ..ARRAY ARGUMENTS..
-     real(8), dimension (:,:,:), intent(in) :: var
-     !
-     !    ..SCALAR ARGUMENTS..
-     character(*), intent(in) :: var_name
-     character(*), intent(in) :: PATH
-     !
-     !    ..LOCAL VARIABLES..
-     character(16) :: scale
-     character(32) :: filename
-     integer :: fID
-
-     !     write(scale,'a3,2(i2),a1')
-     
-     !     PATH = trim(TEMP_DIR) // trim(d_set) // '/' // trim(ext) // '/'
-     filename = trim(PATH)
-
-
-   end subroutine writeBin
 
 
 
@@ -428,12 +391,139 @@ contains
           stop
        end if
 
-
     end if
     return
   end subroutine check_dataRead
+
+
+   !****************************************************************
+   !                          LOAD FFT_DATA
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Writes a 3D array into binary files in [TEMP] dir
+   !      
+   !
+   ! FORM: 
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+  subroutine loadFFT_data()
+    implicit none
+     !
+     !    ..LOCAL VARIABLES..
+     character(64) :: filename
+     integer :: i
+
+     print*
+     print*,'Load filtered variables ... '
+     do i = 1,size(var_FFT)
+        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+        print*, filename
+        open(i, file = filename,form='unformatted')
+        if (i.eq.1) read(i) u_f
+        if (i.eq.2) read(i) u_t
+        if (i.eq.3) read(i) tau_ij
+        if (i.eq.4) read(i) T_ij
+        close(i)
+     end do
+   end subroutine loadFFT_data
+
+   !****************************************************************
+   !                          SAVE FFT_DATA
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Writes a 3D array into binary files in [TEMP] dir
+   !      
+   !
+   ! FORM: 
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+   subroutine saveFFT_data()
+     implicit none
+     !
+     !    ..LOCAL VARIABLES..
+     character(64) :: filename 
+     integer :: i
+
+     ! save FFT_DATA : Filtered velocities and stress files: 
+     print*
+     print*,'Write filtered variables ... '
+     call system ('mkdir -p '//trim(TEMP_PATH))
+     do i = 1,size(var_FFT)
+        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+        print*, filename
+        open(i, file = filename,form='unformatted')
+        if (i.eq.1) write(i) u_f
+        if (i.eq.2) write(i) u_t
+        if (i.eq.3) write(i) tau_ij
+        if (i.eq.4) write(i) T_ij
+        close(i)
+     end do
+
+   end subroutine saveFFT_data
   
-  
+   
+   !****************************************************************
+   !                            PLOT FFT_DATA
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM: 
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !       do i = 1, size(var_FFT)
+   !         filename = trim(RES_PATH)//trim(var_FFT(i)%name)//'.dat'
+   !         print*, filename
+   !         open(i, file = filename)
+   !         if (i.eq.1) call printPlane (u_f(1,:,:,1),   fID=i)
+   !         if (i.eq.2) call printPlane (u_t(1,:,:,1),   fID=i)
+   !         if (i.eq.3) call printPlane (tau_ij(1,:,:,1),fID=i)
+   !         if (i.eq.4) call printPlane (T_ij(1,:,:,1),  fID=i)
+   !         close(i)
+   !      end do
+   !
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine plotFFT_data()
+     implicit none
+     !
+     !    ..LOCAL VARIABLES..
+     character(64) :: filename
+     integer :: i
+
+     ! SAVE FFT_DATA : Filtered velocities and stress files: 
+     print*
+     print*,'Saving filtered variables in', RES_PATH
+     call system ('mkdir -p '//trim(RES_PATH))
+     
+     open(1,file=trim(RES_PATH)//'T_ij.dat')
+     open(2,file=trim(RES_PATH)//'tau_ij.dat')
+     write(1,*) T_ij(1,:,:,129)
+     write(2,*) tau_ij(1,:,:,129)
+     close(1)
+     close(2)
+
+   end subroutine plotFFT_data
+
+
+
   !****************************************************************
   !                           CONTOUR
   !****************************************************************

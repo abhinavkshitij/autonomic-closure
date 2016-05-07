@@ -86,8 +86,10 @@ module global
   !
   !    ..COEFFICIENTS..
   real(8), dimension(:,:), allocatable :: h_ij
-
-
+  !
+  !    ..PRODUCTION TERM..
+  real(8), dimension(:,:,:), allocatable :: P_f
+  real(8), dimension(:,:,:), allocatable :: P_t
   !
   !    ..FILEIO..
   !
@@ -96,7 +98,6 @@ module global
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RES_DIR  = '../results/'
   
-
 
   character(8) :: d_set = trim (dataset(2) % name)
   character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [h5] format. 

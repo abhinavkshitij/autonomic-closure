@@ -381,16 +381,8 @@ contains
     if (coloc) then
        
 !        ! Compute velocity products:(Lower triangle order for ij): Send to actools.f90
-!        k = 0
-!        do j=1,n_u
-!        do i=1,n_u
-!           if (i.ge.j) then          
-!              k=k+1
-!              uu_t(k,:,:,:) = u_t(i,:,:,:) * u_t(j,:,:,:)
-!              uu_f(k,:,:,:) = u_f(i,:,:,:) * u_f(j,:,:,:)
-!           end if
-!        end do
-!        end do
+!        call velocityProducts(uu_f, u_f)
+!        call velocityProducts(uu_t, u_t)
        
        
 !        ! WHOLE DOMAIN COMPUTATION: 

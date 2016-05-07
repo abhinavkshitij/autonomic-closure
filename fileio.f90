@@ -522,7 +522,43 @@ contains
 
    end subroutine plotFFT_data
 
+  !****************************************************************
+  !                       PLOT PRODUCTION TERM
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE : Writes .dat file at z-midplane
+  !      
+  !
+  ! FORM: 
+  !
+  ! BEHAVIOR: Calls printplane() with fID to save in [RESULT] dir.
+  !
+  !
+  ! STATUS : 
+  ! 
+  !----------------------------------------------------------------
 
+   subroutine plotProductionTerm()
+     implicit none
+     
+     
+     ! SAVE PRODUCTION TERM
+     print*
+     print*,'Saving Production terms in', RES_PATH
+     call system ('mkdir -p '//trim(RES_PATH))
+     
+     open(1,file = trim(RES_PATH)//'P_f.dat')
+     open(2,file = trim(RES_PATH)//'P_t.dat')
+     write(1,*) P_f(:,:,129)
+     write(2,*) P_t(:,:,129)
+     close(1)
+     close(2)
+     
+     
+     
+   end subroutine plotProductionTerm
+   
 
   !****************************************************************
   !                           CONTOUR

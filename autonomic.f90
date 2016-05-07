@@ -30,7 +30,7 @@
 !----------------------------------------------------------------
 
 program autonomic
-  
+
   use fourier
   use actools
   use solver
@@ -43,14 +43,15 @@ program autonomic
   !
   !    ..CONTROL SWITCHES..
   logical :: useTestData      =  0
-  logical :: readFile         =  0
-  logical :: filterVelocities =  0
+  logical :: readFile         =  1
+  logical :: filterVelocities =  1
   logical :: computeOrigStress   =  0
   logical :: save_FFT_data    =  0
   logical :: plot_FFT_data    =  1
   logical :: computeStrain    =  0
   logical :: computeVolterra  =  0
-
+  logical :: production_Term   =  0
+  logical :: save_ProductionTerm = 0
 
   ! FORMAT:
 3015 format(a30,f22.15)
@@ -58,6 +59,7 @@ program autonomic
 507 format(a50,f22.7)
   !call system('clear')
   !call printParams()
+
 
   !! Set debug flags for velocity components:
   if (useTestData) then
@@ -67,11 +69,10 @@ program autonomic
   end if
 
 
-  ! LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
+  ! 1] LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
   if(readFile) call readData(DIM=n_u)
 
   
-  ! FILTER VELOCITIES:
 
   ! SET READ/WRITE PATH FOR FFT_DATA:
   write(scale,'(2(i2))') LES_scale, test_scale 
@@ -79,6 +80,7 @@ program autonomic
   RES_PATH =  trim(RES_DIR)//trim(d_set)//'/'//'dat'//trim(scale)//'/'
 
 
+  ! 2] FILTER VELOCITIES:
   allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
   allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
   if (filterVelocities) then
@@ -93,13 +95,14 @@ program autonomic
      call fftshift(LES)
      call fftshift(test)
 
+
      filter:do i=1,n_u
         u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
         u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
      end do filter
      call check_FFT(u_t(1,15,24,10))
   end if
-
+stop
   ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
   if (n_uu.ne.6) then
      print*,"Need all 6 ij components to compute stress... Aborting"
@@ -109,7 +112,7 @@ program autonomic
   allocate(tau_ij(n_uu,i_GRID,j_GRID,k_GRID))
   allocate(T_ij(n_uu,i_GRID,j_GRID,k_GRID))
 
-  ! COMPUTE STRESS:
+  ! 3] COMPUTE ORIGINAL STRESS:
   if(computeOrigStress)then
 
      call cpu_time(tic)
@@ -125,7 +128,7 @@ program autonomic
 
   else
 
-     ! LOAD SAVED FFT_DATA : Filtered velocities and stress files: 
+     ! LOAD SAVED FFT_DATA: Filtered velocities and stress files: 
      call loadFFT_data()
 
      ! CHECK INPUT DATA:
@@ -141,16 +144,15 @@ program autonomic
      else
         print*, 'Read data saved from main.f90: Passed'
      end if
-
   end if
   
-  if (plot_FFT_data) call plotFFT_data() 
+  if (plot_FFT_data) then
+     call plotFFT_data()
+  end if
   
 
 
-stop
-
-  ! COMPUTE STRAIN RATE:
+  ! 4] COMPUTE STRAIN RATE:
   if(computeStrain)then
      allocate (Sij_f(n_u,n_u,i_GRID,j_GRID,k_GRID))
      allocate (Sij_t(n_u,n_u,i_GRID,j_GRID,k_GRID))
@@ -164,12 +166,23 @@ stop
 
      deallocate (Sij_f, Sij_t)
   end if
-  
+
+  ! 5] PRODUCTION FIELD - ORIGINAL 
+  if(production_Term) then
+     allocate (P_f(i_GRID, j_GRID, k_GRID))
+     allocate (P_t(i_GRID, j_GRID, k_GRID))
+     call productionTerm(P_f, tau_ij, Sij_f)
+     call productionTerm(P_t, T_ij,   Sij_t)
+     if (save_ProductionTerm) then
+        call plotProductionTerm()
+     end if
+  end if
+
+ 
   ! COMPUTE h_ij using autonomic closure:
-  if (allocated(h_ij).neqv..true.) allocate(h_ij(N,P))
+  allocate(h_ij(N,P))
   call autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
 
-  
   ! PRINT h_ij:
   print*, 'h_ij(1,1):',h_ij(1,1)
   print*, 'h_ij(20,1):', h_ij(20,1)
@@ -188,29 +201,14 @@ stop
      print*,'SVD check ... Passed'
   end if
 
-
-  if (allocated(TijOpt).neqv..true.) allocate(TijOpt(n_uu,i_GRID,j_GRID,k_GRID))
-  if (allocated(tau_ijOpt).neqv..true.) allocate(tau_ijOpt(n_uu,i_GRID,j_GRID,k_GRID))
-
-  
+  ! OPTIMIZED STRESS:
+  allocate(TijOpt(n_uu,i_GRID,j_GRID,k_GRID))
+  allocate(tau_ijOpt(n_uu,i_GRID,j_GRID,k_GRID))
   call cpu_time(tic)
   call optimizedTij(u_f, u_t, h_ij, TijOpt, tau_ijOpt)
   call cpu_time(toc)
   print*,'Elapsed time', toc-tic
 
-
-  stop
-  !PRODUCTION FIELD
-  open(13,file='./run/apples/P11_t.dat')
-  open(14,file='./run/apples/P11_f.dat')
-
-  write(13,*) TijOpt(1,:,:,129)*Sij_t(1,1,:,:,129)
-  write(14,*) tau_ijOpt(1,:,:,129)*Sij_f(1,1,:,:,129)
-
-  close(11)
-  close(12)
-  close(13)
-  close(14)
 
 end program autonomic
 

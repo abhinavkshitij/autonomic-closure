@@ -11,8 +11,8 @@
 !          contains
 !       subroutine computeS_ij         [FILTER]
 !       subroutine gradient            [FILTER]    
-!          
-!
+!       subroutine productionTerm      [FILTER]
+!       subroutine velocityProducts    [FILTER]
 ! BEHAVIOR: 
 !           
 !           
@@ -30,6 +30,8 @@ module actools
 
 contains
   
+
+
   !****************************************************************
   !                        COMPUTE S_IJ                           !
   !****************************************************************
@@ -167,4 +169,95 @@ contains
     end do
   end subroutine gradient
 
+
+  
+  !****************************************************************
+  !                        PRODUCTION TERM                        !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Calculates production term P = tau_ij * S_ij
+  !       
+  !       
+  !
+  ! FORM: subroutine productionTerm(P, tau_ij, S_ij)
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS : 
+  !          
+  !----------------------------------------------------------------
+
+  subroutine productionTerm(P, tau_ij, S_ij)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(in) :: tau_ij
+    real(8), dimension(:,:,:,:,:), intent(in) :: S_ij
+    real(8), dimension(:,:,:), intent(out) :: P
+    !
+    !   .. LOCAL VARS..
+    integer :: count = 0
+    P = 0
+    do j = 1,3
+       do i = 1,3
+          if(i.ge.j) then
+             count = count + 1
+             P(:,:,:) = P(:,:,:) + tau_ij(count,:,:,:) * S_ij (i,j,:,:,:) 
+          end if
+       end do
+    end do
+  end subroutine productionTerm
+
+  
+  !****************************************************************
+  !                        VELOCITY PRODUCTS                      !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Calculates velocity products uiuj
+  !       
+  !       
+  !
+  ! FORM: subroutine productionTerm(P, tau_ij, S_ij)
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS : 
+  !          
+  !----------------------------------------------------------------
+
+  subroutine velocityProducts(uiuj,ui)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(in) :: ui
+    real(8), dimension(:,:,:,:), intent(out) :: uiuj
+    !
+    !   .. LOCAL VARS..
+    integer :: count = 0
+
+    do j = 1,3
+       do i = 1,3
+          if(i.ge.j) then
+             count = count + 1
+             uiuj(count,:,:,:) = ui(i,:,:,:) * ui(j,:,:,:)
+          end if
+       end do
+    end do
+    
 end module actools

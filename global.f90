@@ -35,16 +35,17 @@ module global
   end type str16
 
 
-  type(str16), parameter :: var(2) = [ str16('Velocity'), str16('Pressure')]
-  type(str16), parameter :: dataset(4) = [ str16('nrl'),  str16('jhu256'), str16('sin3D'), str16('jhu1024')]
-  type(str16), parameter :: var_FFT(4) = [ str16('u_f'),  str16('u_t'),    str16('tau_ij'), str16('T_ij')]  
+  type(str16), parameter :: var(2) = [str16('Velocity'),  str16('Pressure')]
+  type(str16), parameter :: dataset(5) = [str16('nrl'),   str16('jhu256'),  str16('hst'), &
+                                          str16('sin3D'), str16('jhu1024')]
+  type(str16), parameter :: var_FFT(4) = [ str16('u_f'),  str16('u_t'), str16('tau_ij'), str16('T_ij')]  
   type(str16), parameter :: solv(2) = [ str16('LU'), str16('SVD') ]
-
+  type(str16), parameter :: S_HST(3) = [ str16('S1'), str16('S3'), str16('S6') ]
   
-  integer, parameter :: i_GRID = 256
-  integer, parameter :: j_GRID = 256
-  integer, parameter :: k_GRID = 256
-  integer, parameter :: f_GRID = 256 !For FFT ops, the grid must be cubic.
+  integer, parameter  :: i_GRID = 256
+  integer, parameter  :: j_GRID = 129
+  integer, parameter  :: k_GRID = 256
+  integer, parameter  :: f_GRID = 256  !For FFT ops, the grid must be cubic.
 
 
   integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
@@ -99,8 +100,8 @@ module global
   character(*), parameter :: RES_DIR  = '../results/'
   
 
-  character(8) :: d_set = trim (dataset(2) % name)
-  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary or [h5] format. 
+  character(8) :: d_set = trim (dataset(3) % name)
+  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
   !
   !    ..FORMATS..
@@ -129,6 +130,11 @@ contains
   
   subroutine setEnv()
     
+    
+!     i_GRID = 256
+!     j_GRID = 256
+!     k_GRID = 256
+!     f_GRID = 256 !For FFT ops, the grid must be cubic.
 
   
 

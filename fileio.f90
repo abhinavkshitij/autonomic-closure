@@ -96,10 +96,27 @@ contains
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
-        
+
         ! scale  original data by 1/100
         u = u * 1.d-2 
 
+
+     !  READ SINGLE PRECISION DATA - HST
+     elseif (d_set.eq.'hst') then
+        PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/' // trim(S_HST(3)%name) // '/'
+        time = '070'
+
+        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
+        allocate(u_s(i_GRID,j_GRID,k_GRID))
+        
+        do fID = 1,DIM
+           write(fileID, 10) fID
+           write(fIndex,'(i1)') fID
+           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           call readBin(u_s,fID,filename,endian)
+         end do
+        deallocate(u_s)
+        
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
      elseif (d_set.eq.'jhu256'.or.d_set.eq.'sin3D') then
 

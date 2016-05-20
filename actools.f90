@@ -259,5 +259,5 @@ contains
           end if
        end do
     end do
-    
+  end subroutine velocityProducts
 end module actools

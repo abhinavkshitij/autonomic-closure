@@ -42,16 +42,18 @@ program autonomic
   character(10) :: scale
   !
   !    ..CONTROL SWITCHES..
-  logical :: useTestData      =  0
-  logical :: readFile         =  1
-  logical :: filterVelocities =  1
-  logical :: computeOrigStress   =  0
-  logical :: save_FFT_data    =  0
-  logical :: plot_FFT_data    =  1
-  logical :: computeStrain    =  0
-  logical :: computeVolterra  =  0
-  logical :: production_Term   =  0
-  logical :: save_ProductionTerm = 0
+  logical :: useTestData          =  0
+  logical :: readFile             =  1
+  logical :: filterVelocities     =  0
+  logical :: computeOrigStress    =  0
+  logical :: save_FFT_data        =  0
+  logical :: plot_FFT_data        =  0
+  logical :: computeStrain        =  0
+  logical :: production_Term      =  0
+  logical :: save_ProductionTerm  =  0
+  logical :: computeVolterra      =  1
+
+  call setEnv()
 
   ! FORMAT:
 3015 format(a30,f22.15)
@@ -71,8 +73,8 @@ program autonomic
 
   ! 1] LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
   if(readFile) call readData(DIM=n_u)
-
-  
+  print*, u(1,15,24,10)
+  stop
 
   ! SET READ/WRITE PATH FOR FFT_DATA:
   write(scale,'(2(i2))') LES_scale, test_scale 
@@ -102,7 +104,7 @@ program autonomic
      end do filter
      call check_FFT(u_t(1,15,24,10))
   end if
-stop
+
   ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
   if (n_uu.ne.6) then
      print*,"Need all 6 ij components to compute stress... Aborting"
@@ -156,6 +158,7 @@ stop
   if(computeStrain)then
      allocate (Sij_f(n_u,n_u,i_GRID,j_GRID,k_GRID))
      allocate (Sij_t(n_u,n_u,i_GRID,j_GRID,k_GRID))
+  
      print*
      print*, 'Compute strain rate'
      call computeSij(u_f, Sij_f)
@@ -163,9 +166,8 @@ stop
 
      print*,'Sij_fl(1,2,15,24,10)',Sij_f(1,2,15,24,10)
      print*,'Sij_ft(1,2,15,24,10)',Sij_t(1,2,15,24,10)
-
-     deallocate (Sij_f, Sij_t)
   end if
+
 
   ! 5] PRODUCTION FIELD - ORIGINAL 
   if(production_Term) then
@@ -173,16 +175,18 @@ stop
      allocate (P_t(i_GRID, j_GRID, k_GRID))
      call productionTerm(P_f, tau_ij, Sij_f)
      call productionTerm(P_t, T_ij,   Sij_t)
+     print*,'P_f(15,24,10)',P_f(15,24,10)
+     print*,'P_t(15,24,10)',P_t(15,24,10)
      if (save_ProductionTerm) then
         call plotProductionTerm()
      end if
+     deallocate (Sij_f, Sij_t)
   end if
-
  
   ! COMPUTE h_ij using autonomic closure:
   allocate(h_ij(N,P))
   call autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
-
+  
   ! PRINT h_ij:
   print*, 'h_ij(1,1):',h_ij(1,1)
   print*, 'h_ij(20,1):', h_ij(20,1)
@@ -192,20 +196,13 @@ stop
   ! SAVE/READ h_ij: in '../run/apples/h_ij.dat'
 
 
-  ! CHECK h_ij:
-  if (h_ij(350,1).ne.-4.5121154730201521d-2)then
-     print*, "Error! Check lambda, method or sorting order for h_ij computation:"
-     print*,h_ij(350,1)
-     stop
-  else 
-     print*,'SVD check ... Passed'
-  end if
-
   ! OPTIMIZED STRESS:
   allocate(TijOpt(n_uu,i_GRID,j_GRID,k_GRID))
   allocate(tau_ijOpt(n_uu,i_GRID,j_GRID,k_GRID))
   call cpu_time(tic)
   call optimizedTij(u_f, u_t, h_ij, TijOpt, tau_ijOpt)
+  print*, 'tau_ijOpt(1,15,24,10)',tau_ijOpt(1,15,24,10)
+  print*, 'TijOpt(1,15,24,10)',TijOpt(1,15,24,10)
   call cpu_time(toc)
   print*,'Elapsed time', toc-tic
 

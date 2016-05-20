@@ -562,7 +562,7 @@ contains
           else 
              print*,'V matrix check ... Passed'
           end if
-
+          
 
           !CHECK T:
           if (T(3,1).ne.8.7759832493259110d-2)then
@@ -576,12 +576,23 @@ contains
           !
           ! CALL SOLVER
           if (linSolver.eq.'LU') then
-             call LU(V, T, h_ij, lambda)           !Damped least squares
+             !Damped least squares
+             call LU(V, T, h_ij, lambda)           
           elseif(linSolver.eq.'SVD') then
-             call SVD(V, T, h_ij, lambda, printval) ! TSVD
+             ! TSVD
+             call SVD(V, T, h_ij, lambda, printval) 
           else
              print*, 'Choose correct solver: LU, SVD'
              stop
+          end if
+          
+          ! CHECK h_ij:
+          if (h_ij(350,1).ne.-4.5121154730201521d-2)then
+             print*, "Error! Check lambda, method or sorting order for h_ij computation:"
+             print*,h_ij(350,1)
+             !     stop
+          else 
+             print*,'SVD check ... Passed'
           end if
 
        end do
@@ -656,9 +667,12 @@ contains
     do k_test = 129, 129
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-       do i_opt = i_test-127, i_test+126
-       do j_opt = j_test-127, j_test+126
-       do k_opt = k_test-127, k_test+126
+!       do i_opt = i_test-127, i_test+126
+!       do j_opt = j_test-127, j_test+126
+!       do k_opt = k_test-127, k_test+126
+       do i_opt = 15,15
+       do j_opt = 24,24
+       do k_opt = 10,10
 
           col_index = 0 
          
@@ -824,6 +838,8 @@ contains
   !      using
   !            DGEMM  - BLAS LEVEL 3
   !            DGESVD - LAPACK DRIVER ROUTINE
+  !            DGESDD - LAPACK DRIVER FOR FAST SVD
+  !            DGEJSV - LAPACK EXPERT DRIVER 
   !      Can optionally view intermediate matrices for debugging.
   !      
   !
@@ -890,7 +906,7 @@ contains
     real(8) :: beta = 0.d0
     !
     !    .DEBUG..
-    logical :: GESVD = 1
+    logical :: GESVD = 0
 
  
     ! 
@@ -939,12 +955,15 @@ contains
     !
     ! COMPUTE PSEUDOINVERSE: Vinv(N,M) = (VT'(N,N) * D(N,M)) * U'(M,M) 
     allocate (Vinv(N,M), temp(N,M))
+
     call DGEMM('T','N', N, M, N, alpha, VT,   N, D, N, beta, temp, N)
     call DGEMM('N','T', N, M, M, alpha, temp, N, U, M, beta, Vinv, N)
+
     deallocate (temp)
     ! + Alternate option: matmul(). Differs after 13 d.p. Stashed above.
     ! +++ Alternate method to compute pseudoinverse. Stashed above.
-
+  
+ 
 
     ! Compute h_ij(N,P) = Vinv(N,M) * T(M,P)
     call DGEMM('N','N', N, P, M, alpha, Vinv, N, T, M, beta, h_ij, N)

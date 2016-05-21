@@ -31,6 +31,41 @@ module actools
 contains
   
 
+  !****************************************************************
+  !                        ENERGY SPECTRA
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE:  Calculates and plots energy spectra 
+  !       
+  !       
+  !  
+  !
+  ! FORM: subroutine energySpectra(u)
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !          
+  !
+  ! STATUS : 
+  ! 
+  !----------------------------------------------------------------
+  
+  subroutine energySpectra(u)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(in) :: u
+    !
+    !    ..LOCAL VARS..
+    real(8), dimension(:), allocatable :: Ek
+
+    print*, center
+    
+  end subroutine energySpectra
 
   !****************************************************************
   !                        COMPUTE S_IJ                           !

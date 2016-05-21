@@ -186,6 +186,49 @@ contains
     return
   end subroutine fftshift
 
+
+  !****************************************************************
+  !                         FORWARD FFT
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE: Take forward FFT
+  !      
+  ! FORM:  function forwardFFT(array)  
+  !       
+  ! BEHAVIOR: array_work must be of size(f_GRID,f_GRID,f_GRID)
+  !         
+  ! STATUS : 
+  ! Notes  : 
+  !         
+  !----------------------------------------------------------------
+
+!   function forwardFFT(array)
+!     implicit none
+!     !
+!     !    ..ARRAY ARGUMENTS..
+!     real(C_DOUBLE),dimension(:,:,:) :: array, forwardFFT
+!     !
+!     !    ..WORK ARRAYS..
+!     complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: in_cmplx, out_cmplx
+!     !
+!     !    ..LOCAL VARS..
+!     type(C_PTR) :: plan
+   
+!     allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
+!     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
+
+!     in_cmplx = dcmplx (array) / (dble(f_GRID**3)) 
+
+!     ! FFT:
+!     call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
+!     call dfftw_execute(plan)    
+!     call dfftw_destroy_plan(plan)
+
+!     forwardFFT = abs(out_cmplx) 
+    
+!   end function forwardFFT
+
   !****************************************************************
   !                         SHARPFILTER
   !****************************************************************
@@ -204,13 +247,16 @@ contains
   !         3) Makes no diff if I use C_DOUBLE or real(8)
   !         4) Can use ABS(in_cmplx) but residual imaginary values 
   !            are not exactly 0.d0.
+  !         5) Normalization depends in total number of points
+  !            including the padded section. So f_GRID^3 is the
+  !            correct normalization factor.
   !----------------------------------------------------------------
 
   function sharpFilter(array_work,filter)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(C_DOUBLE),dimension(:,:,:) :: array_work,filter
+    real(C_DOUBLE),dimension(:,:,:) :: array_work, filter
     real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: sharpFilter 
     !
     !    ..WORK ARRAYS..
@@ -223,6 +269,10 @@ contains
     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
 
     in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
+
+    ! ****
+    !print*, in_cmplx(256,256,256), array_work(256,256,256) !<- array_work(256,256,256) takes some garbage value 
+    ! ****
 
     ! FFT:
     call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)

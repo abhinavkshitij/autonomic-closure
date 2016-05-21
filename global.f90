@@ -35,18 +35,39 @@ module global
   end type str16
 
 
-  type(str16), parameter :: var(2) = [str16('Velocity'),  str16('Pressure')]
-  type(str16), parameter :: dataset(5) = [str16('nrl'),   str16('jhu256'),  str16('hst'), &
-                                          str16('sin3D'), str16('jhu1024')]
-  type(str16), parameter :: var_FFT(4) = [ str16('u_f'),  str16('u_t'), str16('tau_ij'), str16('T_ij')]  
-  type(str16), parameter :: solv(2) = [ str16('LU'), str16('SVD') ]
-  type(str16), parameter :: S_HST(3) = [ str16('S1'), str16('S3'), str16('S6') ]
+  type(str16), parameter :: var(2) = [str16 ('Velocity'),    &
+                                      str16 ('Pressure')]
+
+  type(str16), parameter :: dataset(5) = [str16 ('nrl'),     & 
+                                          str16 ('jhu256'),  &
+                                          str16 ('hst'),     &
+                                          str16 ('sin3D'),   &
+                                          str16 ('jhu1024')]
+
+  type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),     &
+                                          str16 ('u_t'),     &
+                                          str16 ('tau_ij'),  &
+                                          str16 ('T_ij')]  
+
+  type(str16), parameter :: solv(2) = [str16 ('LU'),         &
+                                       str16 ('SVD')]
+
+
+  character(8) :: d_set     = trim (dataset(3) % name)
+  character(8) :: linSolver = trim (solv(1) % name)
+  character(2) :: hst_set = 'S6' ! HST datasets - S1, S3, S6
   
   integer, parameter  :: i_GRID = 256
   integer, parameter  :: j_GRID = 129
   integer, parameter  :: k_GRID = 256
   integer, parameter  :: f_GRID = 256  !For FFT ops, the grid must be cubic.
+!   integer :: i_GRID 
+!   integer :: j_GRID 
+!   integer :: k_GRID 
+!   integer :: f_GRID 
+!   integer :: center
 
+!   real(8) :: dx
 
   integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
   integer, parameter :: N = 3403
@@ -56,7 +77,7 @@ module global
   integer, parameter :: test_scale = 20
 
   character(3) :: stress = 'dev'
-  character(8) :: linSolver = trim(solv(1)%name)
+
 
   
   !----------------------------------------------------------------
@@ -100,7 +121,7 @@ module global
   character(*), parameter :: RES_DIR  = '../results/'
   
 
-  character(8) :: d_set = trim (dataset(3) % name)
+
   character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
   !
@@ -130,13 +151,18 @@ contains
   
   subroutine setEnv()
     
-    
+!     print*, 'd_set:', d_set
 !     i_GRID = 256
 !     j_GRID = 256
 !     k_GRID = 256
-!     f_GRID = 256 !For FFT ops, the grid must be cubic.
+!     if (d_set.eq.'hst') then
+!        j_GRID = 129
+!     end if
 
-  
+!     ! FFT 
+!     f_GRID = 256 !For FFT ops, the grid must be cubic.
+!     center = (0.5d0 * f_GRID) + 1.d0
+!     dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
 
   end subroutine setEnv
 

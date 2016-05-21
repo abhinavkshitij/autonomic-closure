@@ -42,18 +42,27 @@ program autonomic
   character(10) :: scale
   !
   !    ..CONTROL SWITCHES..
-  logical :: useTestData          =  0
+  logical :: useTestData          =  1
   logical :: readFile             =  1
-  logical :: filterVelocities     =  0
+  logical :: filterVelocities     =  1
+  logical :: plot_Velocities      =  1
   logical :: computeOrigStress    =  0
   logical :: save_FFT_data        =  0
-  logical :: plot_FFT_data        =  0
+  logical :: plot_Stresses        =  0
   logical :: computeStrain        =  0
   logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
   logical :: computeVolterra      =  1
 
   call setEnv()
+
+  ! INITIALIZE PATH: LEVEL 0 (ROOT)
+  TEMP_PATH = trim(TEMP_DIR)//trim(d_set)//'/'
+  RES_PATH =  trim(RES_DIR)//trim(d_set)//'/'
+  if (d_set.eq.'hst') then
+     TEMP_PATH = trim(TEMP_PATH)//trim(hst_set)//'/'
+     RES_PATH = trim(RES_PATH)//trim(hst_set)//'/'
+  end if
 
   ! FORMAT:
 3015 format(a30,f22.15)
@@ -73,13 +82,7 @@ program autonomic
 
   ! 1] LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
   if(readFile) call readData(DIM=n_u)
-  print*, u(1,15,24,10)
-  stop
-
-  ! SET READ/WRITE PATH FOR FFT_DATA:
-  write(scale,'(2(i2))') LES_scale, test_scale 
-  TEMP_PATH = trim(TEMP_DIR)//trim(d_set)//'/'//'bin'//trim(scale)//'/'
-  RES_PATH =  trim(RES_DIR)//trim(d_set)//'/'//'dat'//trim(scale)//'/'
+  call energySpectra(u)
 
 
   ! 2] FILTER VELOCITIES:
@@ -87,7 +90,7 @@ program autonomic
   allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
   if (filterVelocities) then
      print*
-     print*,'Filter velocities ... '
+     write(*, '(a22)', ADVANCE='NO'),'Filter velocities ... '
 
      !! Create filters:
      allocate(LES(f_GRID,f_GRID,f_GRID))
@@ -104,6 +107,19 @@ program autonomic
      end do filter
      call check_FFT(u_t(1,15,24,10))
   end if
+  print*, 'Success'
+
+  ! ADD PATH DEPTH : LEVEL 1 
+  write(scale,'(2(i2))') LES_scale, test_scale 
+  TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
+  RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+
+  if (plot_Velocities) then
+     call plotVelocities()
+  end if
+
+  stop
+
 
   ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
   if (n_uu.ne.6) then
@@ -148,11 +164,11 @@ program autonomic
      end if
   end if
   
-  if (plot_FFT_data) then
+  if (plot_Stresses) then
      call plotFFT_data()
   end if
   
-
+  stop
 
   ! 4] COMPUTE STRAIN RATE:
   if(computeStrain)then

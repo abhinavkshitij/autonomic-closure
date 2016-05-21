@@ -103,7 +103,7 @@ contains
 
      !  READ SINGLE PRECISION DATA - HST
      elseif (d_set.eq.'hst') then
-        PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/' // trim(S_HST(3)%name) // '/'
+        PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
         time = '070'
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
@@ -411,14 +411,52 @@ contains
     end if
     return
   end subroutine check_dataRead
-
-
+  
    !****************************************************************
-   !                          LOAD FFT_DATA
+   !                            PLOT VELOCITIES
    !****************************************************************
 
    !----------------------------------------------------------------
-   ! USE : Writes a 3D array into binary files in [TEMP] dir
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM: 
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !      
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine plotVelocities()
+     implicit none
+     !
+     ! SAVE VELOCITIES:
+     print*
+     print*,'Saving filtered velocities in', RES_PATH
+     call system ('mkdir -p '//trim(RES_PATH))
+          
+     open(20,file=trim(RES_PATH)//'u_i.dat')
+     open(21,file=trim(RES_PATH)//'u_f.dat')
+     open(22,file=trim(RES_PATH)//'u_t.dat')
+     write(20,*) u (1,:,65,:)
+     write(21,*) u_f(1,:,65,:)
+     write(22,*) u_t(1,:,65,:)
+     close(20)
+     close(21)
+     close(22)
+
+   end subroutine plotVelocities
+
+
+
+   !****************************************************************
+   !                          LOAD FFT DATA
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Loads a 3D array into binary files in [TEMP] dir
    !      
    !
    ! FORM: 
@@ -465,7 +503,7 @@ contains
    ! STATUS : 
    ! 
    !----------------------------------------------------------------
-
+   
    subroutine saveFFT_data()
      implicit none
      !
@@ -530,12 +568,13 @@ contains
      print*,'Saving filtered variables in', RES_PATH
      call system ('mkdir -p '//trim(RES_PATH))
      
-     open(1,file=trim(RES_PATH)//'T_ij.dat')
-     open(2,file=trim(RES_PATH)//'tau_ij.dat')
-     write(1,*) T_ij(1,:,:,129)
-     write(2,*) tau_ij(1,:,:,129)
-     close(1)
-     close(2)
+     
+     open(10,file=trim(RES_PATH)//'T_ij.dat')
+     open(12,file=trim(RES_PATH)//'tau_ij.dat')
+     write(10,*) T_ij(1,:,:,129)
+     write(12,*) tau_ij(1,:,:,129)
+     close(10)
+     close(12)
 
    end subroutine plotFFT_data
 

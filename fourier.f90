@@ -257,7 +257,7 @@ contains
     !
     !    ..ARRAY ARGUMENTS..
     real(C_DOUBLE),dimension(:,:,:) :: array_work, filter
-    real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: sharpFilter 
+    real(C_DOUBLE),dimension(f_GRID,j_GRID,f_GRID) :: sharpFilter 
     !
     !    ..WORK ARRAYS..
     complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: in_cmplx, out_cmplx
@@ -265,24 +265,36 @@ contains
     !    ..LOCAL VARS..
     type(C_PTR) :: plan
    
-    allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
-    allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
+    allocate(in_cmplx(f_GRID,j_GRID,f_GRID))
+    allocate(out_cmplx(f_GRID,j_GRID,f_GRID))
 
-    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
+    in_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:j_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
+!    in_cmplx(:,:,:) = dcmplx (array_work(:,:,:)) !/ (dble(f_GRID**3)) 
+
 
     ! ****
-    !print*, in_cmplx(256,256,256), array_work(256,256,256) !<- array_work(256,256,256) takes some garbage value 
+    print*, in_cmplx(256,256,256), array_work(2,256,256) !<- array_work(256,256,256) takes some garbage value 
     ! ****
 
     ! FFT:
-    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
+    call dfftw_plan_dft_3d(plan,f_GRID,j_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)    
     call dfftw_destroy_plan(plan)
 
-    out_cmplx = out_cmplx * filter 
+    ! ****
+    open(1, file='../results/hst/S6/dat4020/out_cmplx.dat')
+    open(2, file='../results/hst/S6/dat4020/in_cmplx.dat')
+    write(1,*) abs(out_cmplx(:,:,1))
+    write(2,*) real(in_cmplx(:,:,1))
+    close(1)
+    close(2)
+
+    ! ****
+
+    out_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = out_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) * filter(1:i_GRID,1:j_GRID,1:k_GRID) 
 
     ! IFFT:
-    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
+    call dfftw_plan_dft_3d(plan,f_GRID,j_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)
     call dfftw_destroy_plan(plan)
 

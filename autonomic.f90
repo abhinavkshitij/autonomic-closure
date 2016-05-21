@@ -85,6 +85,12 @@ program autonomic
   call energySpectra(u)
 
 
+  ! ADD PATH DEPTH : LEVEL 1 
+  write(scale,'(2(i2))') LES_scale, test_scale 
+  TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
+  RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+
+
   ! 2] FILTER VELOCITIES:
   allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
   allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
@@ -108,11 +114,8 @@ program autonomic
      call check_FFT(u_t(1,15,24,10))
   end if
   print*, 'Success'
-
-  ! ADD PATH DEPTH : LEVEL 1 
-  write(scale,'(2(i2))') LES_scale, test_scale 
-  TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
-  RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+  print*, u_f(1,15,24,10)
+!  print*, u_t(1,15,24,10)
 
   if (plot_Velocities) then
      call plotVelocities()

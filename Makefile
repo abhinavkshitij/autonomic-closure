@@ -68,8 +68,8 @@ vpath %.png run/plots
 
 #
 # BUILD PLOTS:
-plots : %.png : %.dat
-	$(PLOT_EXE) $< $*.dat
+#plots : %.png : %.dat
+#	$(PLOT_EXE) $< $*.dat
 
 
 

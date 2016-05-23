@@ -64,33 +64,43 @@ contains
 
   
   subroutine printParams()
+
     
-    write(fileID, * ), ''
-    write(fileID, * ), 'Dataset:            ', d_set
-    write(fileID, * ), ''
-    write(fileID, * ), 'Stencil parameters:'
-    write(fileID, * ), ''
-    write(fileID, * ), 'Training points :    ',M
-    write(fileID, * ), 'Features :           ',N
-    write(fileID, * ), ''
-    !   write(fileID, * ), 'Box parameters:      '
-    !   write(fileID, * ), 'Bounding box:        ',box
-    !   write(fileID, * ), 'bigHalf:             ',bigHalf
-    !   write(fileID, * ), 'smallHalf:           ',smallHalf
-    !   write(fileID, * ), 'boxCenter:           ',boxCenter
-    !   write(fileID, * ), 'boxLower:            ',boxLower
-    !   write(fileID, * ), 'boxUpper:            ',boxUpper
-    !   write(fileID, * ), ''
-    !   write(fileID, * ), 'Test field parameters:'
-    !   write(fileID, * ), 'testcutSize:         ',testcutSize
-    !   write(fileID, * ), 'testLower:           ',testLower
-    !   write(fileID, * ), 'testUpper:           ',testUpper
-    !   write(fileID, * ), ''
-    !   write(fileID, * ), 'Cutout parameters:'
-    !   write(fileID, * ), 'lower bound:         ',lBound
-    !   write(fileID, * ), 'upper bound:         ',uBound
-    write(fileID, * ), ''
-    return
+    open(23, file = trim(RES_DIR)//'params.txt')
+    write(23,*) i_GRID
+    write(23,*) j_GRID
+    write(23,*) k_GRID
+    write(23,*) d_set
+    write(23,*) hst_set
+    close(23)
+
+    
+     write(fileID, * ), ''
+     write(fileID, * ), 'Dataset:            ', d_set
+     write(fileID, * ), ''
+!     write(fileID, * ), 'Stencil parameters:'
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Training points :    ',M
+!     write(fileID, * ), 'Features :           ',N
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Box parameters:      '
+!     write(fileID, * ), 'Bounding box:        ',box
+!     write(fileID, * ), 'bigHalf:             ',bigHalf
+!     write(fileID, * ), 'smallHalf:           ',smallHalf
+!     write(fileID, * ), 'boxCenter:           ',boxCenter
+!     write(fileID, * ), 'boxLower:            ',boxLower
+!     write(fileID, * ), 'boxUpper:            ',boxUpper
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Test field parameters:'
+!     write(fileID, * ), 'testcutSize:         ',testcutSize
+!     write(fileID, * ), 'testLower:           ',testLower
+!     write(fileID, * ), 'testUpper:           ',testUpper
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Cutout parameters:'
+!     write(fileID, * ), 'lower bound:         ',lBound
+!     write(fileID, * ), 'upper bound:         ',uBound
+!     write(fileID, * ), ''
+
   end subroutine printParams
 
 

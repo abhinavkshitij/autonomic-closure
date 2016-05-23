@@ -433,7 +433,6 @@ contains
      ! SAVE VELOCITIES:
      print*
      print*,'Saving filtered velocities in', RES_PATH
-!     call system ('mkdir -p '//trim(RES_PATH))
           
      open(20,file=trim(RES_PATH)//'u_i.dat')
      open(21,file=trim(RES_PATH)//'u_f.dat')

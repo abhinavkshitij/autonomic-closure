@@ -42,7 +42,7 @@ program autonomic
   character(10) :: scale
   !
   !    ..CONTROL SWITCHES..
-  logical :: useTestData          =  0
+  logical :: useTestData          =  1
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
@@ -65,7 +65,7 @@ program autonomic
 307 format(a30,f22.7)
 507 format(a50,f22.7)
   !call system('clear')
-  !call printParams()
+  call printParams()
 
 
   !! Set debug flags for velocity components:
@@ -121,14 +121,14 @@ program autonomic
 
      filter:do i=1,n_u
         u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
-        u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
+!        u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
      end do filter
      call check_FFT(u_t(1,15,24,10))
   end if
   print*, 'Success'
   print*, u_f(1,15,24,10)
-  print*, u_t(1,15,24,10)
-
+!  print*, u_t(1,15,24,10)
+stop
   if (plot_Velocities) then
      call plotVelocities()
   end if

@@ -12,6 +12,7 @@
 !          interface printplane
 !              subroutine plane3
 !              subroutine plane2
+!        subroutine printParams       [SINK]
 !
 ! BEHAVIOR:
 !      * Check array rank while passing into printplane.
@@ -53,21 +54,10 @@ module global
                                        str16 ('SVD')]
 
 
-  character(8) :: d_set     = trim (dataset(3) % name)
-  character(8) :: linSolver = trim (solv(1) % name)
+  character(8) :: d_set     = trim (dataset(2) % name)
+  character(8) :: linSolver = trim (solv(2) % name)
   character(2) :: hst_set = 'S6' ! HST datasets - S1, S3, S6
-  
-  integer, parameter  :: i_GRID = 256
-  integer, parameter  :: j_GRID = 129
-  integer, parameter  :: k_GRID = 256
-  integer, parameter  :: f_GRID = 256  !For FFT ops, the grid must be cubic.
-!   integer :: i_GRID 
-!   integer :: j_GRID 
-!   integer :: k_GRID 
-!   integer :: f_GRID 
-!   integer :: center
-
-!   real(8) :: dx
+ 
 
   integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
   integer, parameter :: N = 3403
@@ -112,6 +102,46 @@ module global
   !    ..PRODUCTION TERM..
   real(8), dimension(:,:,:), allocatable :: P_f
   real(8), dimension(:,:,:), allocatable :: P_t
+ 
+  integer :: i_GRID 
+  integer :: j_GRID 
+  integer :: k_GRID 
+  integer :: f_GRID 
+  integer :: center
+
+  real(8) :: dx ! To calculate gradient
+
+
+  ! Stencil parameters:
+  integer :: stride ! Is the ratio between LES(taken as 1) and test scale
+  integer :: skip 
+  integer :: X ! Number of realizations
+  integer :: n_DAMP  ! Number of lambdas
+  
+ 
+  ! Bounding Box parameters:  
+  integer :: box 
+  integer :: boxSize  
+  integer :: maskSize  
+  integer :: bigHalf   
+  integer :: smallHalf  
+  integer :: boxCenter
+  integer :: boxLower 
+  integer :: boxUpper 
+
+  ! Test field parameters: 
+  integer :: testSize 
+  integer :: testcutSize 
+  integer :: testLower 
+  integer :: testUpper 
+
+
+  ! Cutout parameters:
+  integer :: lBound 
+  integer :: uBound 
+
+
+
   !
   !    ..FILEIO..
   !
@@ -153,20 +183,112 @@ contains
   
   subroutine setEnv()
     
-!     i_GRID = 256
-!     j_GRID = 256
-!     k_GRID = 256
-!     if (d_set.eq.'hst') then
-!        j_GRID = 129
-!     end if
+    i_GRID = 256
+    j_GRID = 256
+    k_GRID = 256
+    if (d_set.eq.'hst') then
+       j_GRID = 129
+    end if
 
-!     ! FFT 
-!     f_GRID = 256 !For FFT ops, the grid must be cubic.
-!     center = (0.5d0 * f_GRID) + 1.d0
-!     dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
+    ! FFT 
+    f_GRID = 256 !For FFT ops, the grid must be cubic.
+    center = (0.5d0 * f_GRID) + 1.d0
+    dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
+
+
+  ! Stencil parameters:
+  stride = 1 
+  skip = 10
+  X = 1     
+  n_DAMP = 1 
+  
+ 
+  ! Bounding Box parameters:  
+  box       = 252
+  boxSize   = box**3
+  maskSize = boxSize - M ! 512-Training points(243) = 269
+  bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
+  smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
+  boxCenter = smallHalf * box*(box + 1) + bigHalf
+  boxLower  = stride * (bigHalf - 1)
+  boxUpper  = stride * (box - bigHalf)
+
+  ! Test field parameters: 
+  testSize = 1
+  testcutSize = stride * (testSize + box) + 1
+  testLower = stride * bigHalf + 1
+  testUpper = stride * (bigHalf - 1 + testSize) + 1
+
+
+  ! Cutout parameters:
+  lBound = 0.5*(f_GRID - testcutSize)
+  uBound = 0.5*(f_GRID + testcutSize) - 1
 
 
   end subroutine setEnv
+
+
+  !****************************************************************
+  !                         PRINT PARAMETERS                      !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Display main parameters either onto the screen or writes
+  !      to a file. Writes PATHS and parameters for postprocessing
+  !      in MATLAB
+  !      
+  !      
+  ! FORM:   subroutine printParams()
+  ! 
+  !      
+  ! BEHAVIOR: 
+  !           
+  !
+  ! STATUS : 
+  !          
+  !
+  !----------------------------------------------------------------
+
+  
+  subroutine printParams()
+
+    
+    open(23, file = trim(RES_DIR)//'params.txt')
+    write(23,*) i_GRID
+    write(23,*) j_GRID
+    write(23,*) k_GRID
+    write(23,*) d_set
+    write(23,*) hst_set
+    close(23)
+
+    
+     write(fileID, * ), ''
+     write(fileID, * ), 'Dataset:            ', d_set
+     write(fileID, * ), ''
+!     write(fileID, * ), 'Stencil parameters:'
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Training points :    ',M
+!     write(fileID, * ), 'Features :           ',N
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Box parameters:      '
+!     write(fileID, * ), 'Bounding box:        ',box
+!     write(fileID, * ), 'bigHalf:             ',bigHalf
+!     write(fileID, * ), 'smallHalf:           ',smallHalf
+!     write(fileID, * ), 'boxCenter:           ',boxCenter
+!     write(fileID, * ), 'boxLower:            ',boxLower
+!     write(fileID, * ), 'boxUpper:            ',boxUpper
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Test field parameters:'
+!     write(fileID, * ), 'testcutSize:         ',testcutSize
+!     write(fileID, * ), 'testLower:           ',testLower
+!     write(fileID, * ), 'testUpper:           ',testUpper
+!     write(fileID, * ), ''
+!     write(fileID, * ), 'Cutout parameters:'
+!     write(fileID, * ), 'lower bound:         ',lBound
+!     write(fileID, * ), 'upper bound:         ',uBound
+!     write(fileID, * ), ''
+
+  end subroutine printParams
 
 
   !****************************************************************

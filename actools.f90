@@ -9,6 +9,7 @@
 !
 ! FORM: module actools
 !          contains
+!       subroutine energySpectra       [FILTER]
 !       subroutine computeS_ij         [FILTER]
 !       subroutine gradient            [FILTER]    
 !       subroutine productionTerm      [FILTER]
@@ -173,7 +174,6 @@ contains
     real(8), allocatable,dimension (:,:,:) :: u
     !
     !    ..LOCAL SCALARS..
-    real(8) :: dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.
     real(8) :: dx_inv
 
     !

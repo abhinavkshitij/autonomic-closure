@@ -10,7 +10,6 @@
 !    
 ! FORM: module solver
 !          contains
-!      subroutine printParams       [SINK]
 !      subroutine cutout            [FILTER]
 !      subroutine init_random_seed  [SOURCE]
 !      subroutine randTrainingSet   [FILTER]
@@ -31,77 +30,7 @@ module solver
 
   use global
 
-  ! Stencil parameters:
-  integer,parameter :: stride = 1 ! Is the ratio between LES(taken as 1) and test scale
-  integer,parameter :: skip = 10
-  integer,parameter :: X = 1     ! Number of realizations
-  integer,parameter :: n_DAMP = 1  ! Number of lambda's
-  
- 
-  ! Bounding Box parameters:  
-  integer,parameter :: box       = 252
-  integer,parameter :: boxSize   = box**3
-  integer,parameter :: maskSize = boxSize - M ! 512-Training points(243) = 269
-  integer,parameter :: bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
-  integer,parameter :: smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
-  integer,parameter :: boxCenter = smallHalf * box*(box + 1) + bigHalf
-  integer,parameter :: boxLower  = stride * (bigHalf - 1)
-  integer,parameter :: boxUpper  = stride * (box - bigHalf)
-
-  ! Test field parameters: 
-  integer,parameter :: testSize = 1
-  integer,parameter :: testcutSize = stride * (testSize + box) + 1
-  integer,parameter :: testLower = stride * bigHalf + 1
-  integer,parameter :: testUpper = stride * (bigHalf - 1 + testSize) + 1
-
-
-  ! Cutout parameters:
-  integer,parameter :: lBound = 0.5*(f_GRID - testcutSize)
-  integer,parameter :: uBound = 0.5*(f_GRID + testcutSize) - 1
-
-
 contains
-
-  
-  subroutine printParams()
-
-    
-    open(23, file = trim(RES_DIR)//'params.txt')
-    write(23,*) i_GRID
-    write(23,*) j_GRID
-    write(23,*) k_GRID
-    write(23,*) d_set
-    write(23,*) hst_set
-    close(23)
-
-    
-     write(fileID, * ), ''
-     write(fileID, * ), 'Dataset:            ', d_set
-     write(fileID, * ), ''
-!     write(fileID, * ), 'Stencil parameters:'
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Training points :    ',M
-!     write(fileID, * ), 'Features :           ',N
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Box parameters:      '
-!     write(fileID, * ), 'Bounding box:        ',box
-!     write(fileID, * ), 'bigHalf:             ',bigHalf
-!     write(fileID, * ), 'smallHalf:           ',smallHalf
-!     write(fileID, * ), 'boxCenter:           ',boxCenter
-!     write(fileID, * ), 'boxLower:            ',boxLower
-!     write(fileID, * ), 'boxUpper:            ',boxUpper
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Test field parameters:'
-!     write(fileID, * ), 'testcutSize:         ',testcutSize
-!     write(fileID, * ), 'testLower:           ',testLower
-!     write(fileID, * ), 'testUpper:           ',testUpper
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Cutout parameters:'
-!     write(fileID, * ), 'lower bound:         ',lBound
-!     write(fileID, * ), 'upper bound:         ',uBound
-!     write(fileID, * ), ''
-
-  end subroutine printParams
 
 
 

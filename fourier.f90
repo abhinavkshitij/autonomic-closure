@@ -30,8 +30,6 @@ module fourier
   use, intrinsic :: iso_c_binding
   include 'fftw3.f03' 
  
-  integer :: center = (0.5d0 * f_GRID) + 1.d0
-
 contains
 
   !****************************************************************
@@ -276,7 +274,7 @@ contains
 
 
     ! ****
-    print*, real(in_cmplx(15,24,10))* (dble(f_GRID**3)) , array_work(15,24,10) !<- array_work(256,256,256) takes some garbage value 
+!    print*, real(in_cmplx(15,24,10))* (dble(f_GRID**3)) , array_work(15,24,10) !<- array_work(256,256,256) takes some garbage value 
     ! ****
 
     ! FFT:
@@ -284,17 +282,17 @@ contains
     call dfftw_execute(plan)    
     call dfftw_destroy_plan(plan)
 
-    ! ****
-    print*,'Write FFT files from sharpFilter()'
-    open(1, file= trim(RES_PATH)//'out_cmplx1.dat')
-    open(11,file= trim(RES_PATH)//'out_cmplx2.dat')
-    open(2, file= trim(RES_PATH)//'in_cmplx.dat')
-    write(1,*) abs(out_cmplx(:,1,:))
-    write(11,*) abs(out_cmplx(:,:,1))
-    write(2,*) real(in_cmplx(:,:,129))
-    close(1)
-    close(11)
-    close(2)
+!     ! ****
+!     print*,'Write FFT files from sharpFilter()'
+!     open(1, file= trim(RES_PATH)//'out_cmplx1.dat')
+!     open(11,file= trim(RES_PATH)//'out_cmplx2.dat')
+!     open(2, file= trim(RES_PATH)//'in_cmplx.dat')
+!     write(1,*) abs(out_cmplx(:,1,:))
+!     write(11,*) abs(out_cmplx(:,:,1))
+!     write(2,*) real(in_cmplx(:,:,129))
+!     close(1)
+!     close(11)
+!     close(2)
     ! ****
 
 !    out_cmplx(1:i_GRID,1:f_GRID,1:k_GRID) = out_cmplx(1:i_GRID,1:f_GRID,1:k_GRID) * filter(1:i_GRID,1:f_GRID,1:k_GRID) 

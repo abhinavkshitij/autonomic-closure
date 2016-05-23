@@ -13,9 +13,14 @@
 !           subroutine readBinSingle   [SOURCE]
 !           subroutine readBinDouble   [SOURCE]
 !       subroutine readHDF5            [SOURCE]
-!       subroutine writeBin            [BUFFER]
-!       subroutine check_dataRead      [TEST] 
+!       subroutine check_dataRead      [TEST]
+!       subroutine plotVelocities      [SINK]
+!       subroutine loadFFT_data        [BUFFER]
+!       subroutine saveFFT_data        [BUFFER]
+!       subroutine plotFFT_data        [SINK]
+!       subroutine plotProductionTerm  [SINK]
 !       subroutine contour             [SINK]
+!       subroutine xyplot              [SINK]
 !
 !
 ! BEHAVIOR: readData can read binary format dataset in single or
@@ -216,7 +221,7 @@ contains
      character(*), intent(in),optional :: endian
      !
      !    ..LOCAL VARIABLES..
-     integer :: position
+     integer :: position        
 
 
      open(unit = fID, file = filename, &
@@ -418,7 +423,7 @@ contains
    ! USE : Saves [z-midplane] in RESULTS directory
    !      
    !
-   ! FORM: 
+   ! FORM:    subroutine plotVelocities()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -456,7 +461,7 @@ contains
    ! USE : Loads a 3D array into binary files in [TEMP] dir
    !      
    !
-   ! FORM: 
+   ! FORM:   subroutine loadFFT_data()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -493,7 +498,7 @@ contains
    ! USE : Writes a 3D array into binary files in [TEMP] dir
    !      
    !
-   ! FORM: 
+   ! FORM:    subroutine saveFFT_data()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -534,7 +539,7 @@ contains
    ! USE : Saves [z-midplane] in RESULTS directory
    !      
    !
-   ! FORM: 
+   ! FORM:    subroutine plotFFT_data()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -581,7 +586,7 @@ contains
   ! USE : Writes .dat file at z-midplane
   !      
   !
-  ! FORM: 
+  ! FORM:    subroutine plotProductionTerm()
   !
   ! BEHAVIOR: Calls printplane() with fID to save in [RESULT] dir.
   !
@@ -649,7 +654,7 @@ contains
   !       for line plot, scatter plots and bar plots.
   !      
   !
-  ! FORM: 
+  ! FORM:   subroutine xyplot(var,var_name)
   !
   ! BEHAVIOR: Needs allocated, defined arrays.
   !

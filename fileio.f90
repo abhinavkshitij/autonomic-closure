@@ -32,9 +32,6 @@ module fileio
   use HDF5  
   use global
 
-  character(64) :: TEMP_PATH 
-  character(64) :: RES_PATH
-
   interface readBin
      module procedure readBinSingle, readBinDouble
   end interface
@@ -74,7 +71,7 @@ contains
     character(16)                              :: endian
 
     !    ..DEFAULT VALUES..
-    PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+    DATA_PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
     variableName = trim(var(1)%name)! var(1) --> 'Velocity'; Expand for Pressure dataset.
     time = '256'
     endian = 'little_endian'
@@ -92,7 +89,7 @@ contains
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
-           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
@@ -103,7 +100,7 @@ contains
 
      !  READ SINGLE PRECISION DATA - HST
      elseif (d_set.eq.'hst') then
-        PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
+        DATA_PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
         time = '070'
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
@@ -112,7 +109,7 @@ contains
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
-           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
@@ -124,7 +121,7 @@ contains
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
-           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
            call readBin(fID,filename,endian)
         end do
 
@@ -276,7 +273,7 @@ contains
      !
      !    ..LOCAL VARS..
      character(30) :: fName = "isotropic1024coarse"
-     character(32) :: PATH 
+     !character(32) :: PATH 
      character(100) :: filename
      !#
      !    ..HDF5 VARS..
@@ -293,7 +290,7 @@ contains
      character(4)::   L_Index,    U_Index
      !
      !SET PATH:
-     PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+     DATA_PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
      !
      ! Initialize file indices:
      !
@@ -329,7 +326,7 @@ contains
               write(U_Index,'(i4)') upperIndex
            end if
 
-           filename = trim(PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240'//'.'//trim(ext)
+           filename = trim(DATA_PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240'//'.'//trim(ext)
            print*, filename
 
            ! ACCESS [F]ILE
@@ -394,10 +391,11 @@ contains
 
     ! SIN 3D
     elseif (d_set.eq.'sin3D') then 
-       if (value.ne.2.2787249947361117d0) then
+!       if (value.ne.2.2787249947361117d0) then
+       if (value.ne.5.9589822233083432d0) then
           print*, 'Error reading data!'
           print*, value
-          stop
+!          stop
        end if
 
        !
@@ -435,7 +433,7 @@ contains
      ! SAVE VELOCITIES:
      print*
      print*,'Saving filtered velocities in', RES_PATH
-     call system ('mkdir -p '//trim(RES_PATH))
+!     call system ('mkdir -p '//trim(RES_PATH))
           
      open(20,file=trim(RES_PATH)//'u_i.dat')
      open(21,file=trim(RES_PATH)//'u_f.dat')
@@ -514,7 +512,7 @@ contains
      ! save FFT_DATA : Filtered velocities and stress files: 
      print*
      print*,'Write filtered variables ... '
-     call system ('mkdir -p '//trim(TEMP_PATH))
+ 
      do i = 1,size(var_FFT)
         filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
         print*, filename
@@ -566,9 +564,7 @@ contains
      ! SAVE FFT_DATA : Filtered velocities and stress files: 
      print*
      print*,'Saving filtered variables in', RES_PATH
-     call system ('mkdir -p '//trim(RES_PATH))
-     
-     
+         
      open(10,file=trim(RES_PATH)//'T_ij.dat')
      open(12,file=trim(RES_PATH)//'tau_ij.dat')
      write(10,*) T_ij(1,:,:,129)

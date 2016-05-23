@@ -120,7 +120,9 @@ module global
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RES_DIR  = '../results/'
   
-
+  character(64) :: DATA_PATH
+  character(64) :: TEMP_PATH
+  character(64) :: RES_PATH
 
   character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
@@ -151,7 +153,7 @@ contains
   
   subroutine setEnv()
     
-!     print*, 'd_set:', d_set
+     print*, 'd_set:', d_set
 !     i_GRID = 256
 !     j_GRID = 256
 !     k_GRID = 256
@@ -163,6 +165,14 @@ contains
 !     f_GRID = 256 !For FFT ops, the grid must be cubic.
 !     center = (0.5d0 * f_GRID) + 1.d0
 !     dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
+
+  open(23, file = trim(RES_DIR)//'params.txt')
+  write(23,*) i_GRID
+  write(23,*) j_GRID
+  write(23,*) k_GRID
+  close(23)
+
+
 
   end subroutine setEnv
 

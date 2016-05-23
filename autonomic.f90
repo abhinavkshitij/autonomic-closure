@@ -42,7 +42,7 @@ program autonomic
   character(10) :: scale
   !
   !    ..CONTROL SWITCHES..
-  logical :: useTestData          =  1
+  logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
@@ -55,14 +55,10 @@ program autonomic
   logical :: computeVolterra      =  1
 
   call setEnv()
+  !
+  !    ..INIT POSTPROCESSING..
+  open(22, file = trim(RES_DIR)//'path.txt')
 
-  ! INITIALIZE PATH: LEVEL 0 (ROOT)
-  TEMP_PATH = trim(TEMP_DIR)//trim(d_set)//'/'
-  RES_PATH =  trim(RES_DIR)//trim(d_set)//'/'
-  if (d_set.eq.'hst') then
-     TEMP_PATH = trim(TEMP_PATH)//trim(hst_set)//'/'
-     RES_PATH = trim(RES_PATH)//trim(hst_set)//'/'
-  end if
 
   ! FORMAT:
 3015 format(a30,f22.15)
@@ -81,22 +77,38 @@ program autonomic
 
 
   ! 1] LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
-  if(readFile) call readData(DIM=n_u)
+  if(readFile) call readData(DIM = n_u)
+
+
+  ! INITIALIZE PATH: LEVEL 1 (DATASET)
+  write(22,*) trim(DATA_PATH)
+  TEMP_PATH = trim(TEMP_DIR)//trim(d_set)//'/'
+  RES_PATH =  trim(RES_DIR)//trim(d_set)//'/'
+  if (d_set.eq.'hst') then
+     TEMP_PATH = trim(TEMP_PATH)//trim(hst_set)//'/'
+     RES_PATH = trim(RES_PATH)//trim(hst_set)//'/'
+  end if
+  write(22,*) RES_PATH
+  call system ('mkdir -p '//trim(TEMP_PATH))
+  call system ('mkdir -p '//trim(RES_PATH))
+
+  ! PLOT Energy spectra:
   call energySpectra(u)
 
-
-  ! ADD PATH DEPTH : LEVEL 1 
-  write(scale,'(2(i2))') LES_scale, test_scale 
+  ! ADD PATH DEPTH : LEVEL 2 - (SCALE)
+  write(scale,'(2(i0))') LES_scale, test_scale 
   TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
   RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
-
+  write(22,*) RES_PATH
+  call system ('mkdir -p '//trim(TEMP_PATH))
+  call system ('mkdir -p '//trim(RES_PATH))
 
   ! 2] FILTER VELOCITIES:
   allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
   allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
   if (filterVelocities) then
      print*
-     write(*, '(a22)', ADVANCE='NO'),'Filter velocities ... '
+     write(*, '(a32)', ADVANCE='NO'), 'Filter velocities ... '
 
      !! Create filters:
      allocate(LES(f_GRID,f_GRID,f_GRID))
@@ -115,7 +127,7 @@ program autonomic
   end if
   print*, 'Success'
   print*, u_f(1,15,24,10)
-!  print*, u_t(1,15,24,10)
+  print*, u_t(1,15,24,10)
 
   if (plot_Velocities) then
      call plotVelocities()

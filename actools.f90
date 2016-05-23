@@ -63,7 +63,7 @@ contains
     !    ..LOCAL VARS..
     real(8), dimension(:), allocatable :: Ek
 
-    print*, center
+    !print*, center
     
   end subroutine energySpectra
 

@@ -17,7 +17,7 @@
 !       subroutine plotVelocities      [SINK]
 !       subroutine loadFFT_data        [BUFFER]
 !       subroutine saveFFT_data        [BUFFER]
-!       subroutine plotFFT_data        [SINK]
+!       subroutine plotOriginalStress  [SINK]
 !       subroutine plotProductionTerm  [SINK]
 !       subroutine contour             [SINK]
 !       subroutine xyplot              [SINK]
@@ -530,16 +530,16 @@ contains
 
    end subroutine saveFFT_data
   
-   
+  
    !****************************************************************
-   !                            PLOT FFT_DATA
+   !                        PLOT ORIGINAL STRESS
    !****************************************************************
 
    !----------------------------------------------------------------
    ! USE : Saves [z-midplane] in RESULTS directory
    !      
    !
-   ! FORM:    subroutine plotFFT_data()
+   ! FORM:    subroutine plotOriginalStress()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -558,25 +558,65 @@ contains
    !   
    !----------------------------------------------------------------
    
-   subroutine plotFFT_data()
+   subroutine plotOriginalStress()
      implicit none
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename
      integer :: i
 
-     ! SAVE FFT_DATA : Filtered velocities and stress files: 
+     ! SAVE ORIGINAL STRESS
      print*
-     print*,'Saving filtered variables in', RES_PATH
+     print*,'Saving original stress in', RES_PATH
          
      open(10,file=trim(RES_PATH)//'T_ij.dat')
-     open(12,file=trim(RES_PATH)//'tau_ij.dat')
+     open(11,file=trim(RES_PATH)//'tau_ij.dat')
      write(10,*) T_ij(1,:,:,129)
-     write(12,*) tau_ij(1,:,:,129)
+     write(11,*) tau_ij(1,:,:,129)
      close(10)
-     close(12)
+     close(11)
 
-   end subroutine plotFFT_data
+   end subroutine plotOriginalStress
+
+  
+   !****************************************************************
+   !                        PLOT COMPUTED STRESS
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM:    subroutine plotComputedStress()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !   
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine plotComputedStress()
+     implicit none
+     !
+     !    ..LOCAL VARIABLES..
+     character(64) :: filename
+     integer :: i
+
+     ! SAVE COMPUTED STRESS
+     print*
+     print*,'Saving computed stresss in', RES_PATH
+         
+     open(10,file=trim(RES_PATH)//'T_ijOpt.dat')
+     open(11,file=trim(RES_PATH)//'tau_ijOpt.dat')
+     write(10,*) T_ijOpt(1,:,:,129)
+     write(11,*) tau_ijOpt(1,:,:,129)
+     close(10)
+     close(11)
+
+   end subroutine plotComputedStress
+
+
 
   !****************************************************************
   !                       PLOT PRODUCTION TERM

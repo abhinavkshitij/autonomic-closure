@@ -20,7 +20,7 @@
 ! BEHAVIOR: Needs C-binding for FFTW libraries. 
 !           
 !
-! STATUS : Refactoring this unit.
+! STATUS : Check for non-uniform domains
 ! 
 !----------------------------------------------------------------
 

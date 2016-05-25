@@ -48,7 +48,7 @@ program autonomic
   logical :: plot_Velocities      =  0
   logical :: computeOrigStress    =  0
   logical :: save_FFT_data        =  0
-  logical :: plot_Stresses        =  0
+  logical :: plot_Stresses        =  1
   logical :: computeStrain        =  0
   logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
@@ -176,12 +176,14 @@ program autonomic
      else
         print*, 'Read data saved from main.f90: Passed'
      end if
+
   end if
-  
+
+  ! PLOT STRESSES - ORIGINAL ON LEVEL 2
   if (plot_Stresses) then
-     call plotFFT_data()
+     call plotOriginalStress()
   end if
-  
+
 !stop
 
   ! 4] COMPUTE STRAIN RATE:
@@ -212,6 +214,15 @@ program autonomic
      end if
      deallocate (Sij_f, Sij_t)
   end if
+
+
+  ! ADD PATH DEPTH : LEVEL 3 - (METHOD) - LU or SVD
+  TEMP_PATH = trim(TEMP_PATH)//trim(linSolver)//'/'
+  RES_PATH =  trim(RES_PATH)//trim(linSolver)//'/'
+  call system ('mkdir -p '//trim(TEMP_PATH))
+  call system ('mkdir -p '//trim(RES_PATH))
+  write(22,*) RES_PATH
+
  
   ! COMPUTE h_ij using autonomic closure:
   allocate(h_ij(N,P))
@@ -227,14 +238,19 @@ program autonomic
 
 
   ! OPTIMIZED STRESS:
-  allocate(TijOpt(n_uu,i_GRID,j_GRID,k_GRID))
+  allocate(T_ijOpt(n_uu,i_GRID,j_GRID,k_GRID))
   allocate(tau_ijOpt(n_uu,i_GRID,j_GRID,k_GRID))
   call cpu_time(tic)
-  call optimizedTij(u_f, u_t, h_ij, TijOpt, tau_ijOpt)
+  call computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
   print*, 'tau_ijOpt(1,15,24,10)',tau_ijOpt(1,15,24,10)
-  print*, 'TijOpt(1,15,24,10)',TijOpt(1,15,24,10)
+  print*, 'T_ijOpt(1,15,24,10)',T_ijOpt(1,15,24,10)
   call cpu_time(toc)
   print*,'Elapsed time', toc-tic
+
+  ! PLOT STRESSES - COMPUTED ON LEVEL 3
+  if (plot_Stresses) then
+     call plotComputedStress()
+  end if
 
 
 end program autonomic

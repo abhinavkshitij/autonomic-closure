@@ -14,7 +14,7 @@
 !      subroutine init_random_seed  [SOURCE]
 !      subroutine randTrainingSet   [FILTER]
 !      subroutine autonomicClosure  [FILTER] 
-!      subroutine optimizedTij      [FILTER]
+!      subroutine computedStress      [FILTER]
 !      subroutine LU                [SOLVER]
 !      subroutine SVD               [SOLVER]
 !
@@ -22,7 +22,7 @@
 ! BEHAVIOR: 
 !           
 !
-! STATUS : Refactoring this unit.
+! STATUS : Merge colocated and non-colocated formulation
 ! 
 !----------------------------------------------------------------
 
@@ -251,16 +251,13 @@ contains
     !
     !    ..LOCAL ARRAYS..
     real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
-    real(8), dimension(:,:,:,:), allocatable :: TijOpt, tau_ijOpt
+    real(8), dimension(:,:,:,:), allocatable :: T_ijOpt, tau_ijOpt
     real(8), dimension(:,:),     allocatable :: V  
     real(8), dimension(:,:),     allocatable :: T  
     !
     !    .. NON-COLOCATED..
     real(8), dimension(:), allocatable :: u_n
     integer :: non_col_1, non_col_2
-    !
-    !    ..LOCAL SCALARS..
-    real(8) :: lambda = 1.d-1
     !
     !    ..RANDOM TRAINING POINTS (STENCIL-CENTERS)..
     integer :: rand_count
@@ -297,16 +294,16 @@ contains
 
 
     if (debug(1)) then
-       allocate(TijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
+       allocate(T_ijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
        allocate(tau_ijOpt(1,testSize,testSize,testSize))
     else
-       allocate(TijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
+       allocate(T_ijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
        allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
     end if
 
     allocate (V(M,N),T(M,P))
     
-    TijOpt = 0.
+    T_ijOpt = 0.
     tau_ijOpt=0.
 
     if(debug(2)) then
@@ -388,7 +385,7 @@ contains
 !              ! heap memory, then it creates a (51,51,51) array and fills
 !              ! unused space with 0. If not, it results in a
 !              ! segmentation fault. Thus the index of the strided elements
-!              ! that are used to form TijOpt and tau_ijOpt arrays should be
+!              ! that are used to form T_ijOpt and tau_ijOpt arrays should be
 !              ! mapped with _test indices to give a contiguous array (17,17,17)
        
 !              i_proj = (i_test-testLower)/stride + 1
@@ -404,12 +401,12 @@ contains
        
 !                 do u_comp = 1,n_u ! 1 to 3
 !                    col = col+1
-!                    TijOpt(1,i_proj,j_proj,k_proj) = TijOpt(1,i_proj,j_proj,k_proj)&
+!                    T_ijOpt(1,i_proj,j_proj,k_proj) = T_ijOpt(1,i_proj,j_proj,k_proj)&
 !                         + u_t(u_comp,i_opt,j_opt,k_opt) * h_ij(col)
 !                 end do
 !                 do uu_comp = 1,n_uu ! 1 to 6
 !                    col = col+1
-!                    TijOpt(1,i_proj,j_proj,k_proj) = TijOpt(1,i_proj,j_proj,k_proj)&
+!                    T_ijOpt(1,i_proj,j_proj,k_proj) = T_ijOpt(1,i_proj,j_proj,k_proj)&
 !                         + uu_t(uu_comp,i_opt,j_opt,k_opt) * h_ij(col)
 !                 end do
        
@@ -511,15 +508,16 @@ contains
           else 
              print*,'T vector check ... Passed'
           end if
-          
+ 
+
           !
           ! CALL SOLVER
           if (linSolver.eq.'LU') then
              !Damped least squares
-             call LU(V, T, h_ij, lambda)           
+             call LU(V, T, h_ij)           
           elseif(linSolver.eq.'SVD') then
              ! TSVD
-             call SVD(V, T, h_ij, lambda, printval) 
+             call SVD(V, T, h_ij,printval) 
           else
              print*, 'Choose correct solver: LU, SVD'
              stop
@@ -553,10 +551,10 @@ contains
   !      
   
   !      
-  ! FORM: subroutine optimizedTij (u_f, u_t, h_ij, TijOpt, tau_ijOpt)
+  ! FORM: subroutine computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
   !       
   !      
-  ! BEHAVIOR: TijOpt and tau_ijOpt should be allocated before. 
+  ! BEHAVIOR: T_ijOpt and tau_ijOpt should be allocated before. 
   !           ZERO ORDER terms are always 1.
   !           Indices are in C-order for direct comparison with MATLAB.
   !
@@ -575,14 +573,14 @@ contains
   !----------------------------------------------------------------
   
   
-  subroutine optimizedTij(u_f, u_t, h_ij, TijOpt, tau_ijOpt)
+  subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: u_f
     real(8), dimension(:,:,:,:), intent(in) :: u_t
     real(8), dimension(:,:),     intent(in) :: h_ij
-    real(8), dimension(:,:,:,:), intent(out):: TijOpt
+    real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
     real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt 
     !
     !    ..LOCAL VARS..
@@ -606,12 +604,12 @@ contains
     do k_test = 129, 129
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-!       do i_opt = i_test-127, i_test+126
-!       do j_opt = j_test-127, j_test+126
+       do i_opt = i_test-127, i_test+126
+       do j_opt = j_test-127, j_test+126
 !       do k_opt = k_test-127, k_test+126
-       do i_opt = 15,15
-       do j_opt = 24,24
-       do k_opt = 10,10
+!       do i_opt = 15,15
+!       do j_opt = 24,24
+       do k_opt = 129, 129 !10,10
 
           col_index = 0 
          
@@ -627,14 +625,14 @@ contains
           ! ZERO ORDER TERMS: WILL BE 1
           col_index = col_index + 1
 
-          TijOpt   (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
+          T_ijOpt   (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
           tau_ijOpt(:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
 
           ! FIRST ORDER TERMS:             
           do non_col_1 = 1, stencil_size 
              col_index = col_index + 1
 
-             TijOpt(:,i_opt,j_opt,k_opt) = TijOpt (:,i_opt,j_opt,k_opt)             &
+             T_ijOpt(:,i_opt,j_opt,k_opt) = T_ijOpt (:,i_opt,j_opt,k_opt)             &
                                          +                                          &
                                          (u_t_stencil(non_col_1) * h_ij(col_index,:))
 
@@ -648,7 +646,7 @@ contains
           do non_col_2 = non_col_1, stencil_size
              col_index = col_index+1
 
-             TijOpt(:,i_opt,j_opt,k_opt) = TijOpt(:,i_opt,j_opt,k_opt) &
+             T_ijOpt(:,i_opt,j_opt,k_opt) = T_ijOpt(:,i_opt,j_opt,k_opt) &
                                          +                             &
                                          (u_t_stencil(non_col_1) * u_t_stencil(non_col_2) * h_ij(col_index,:))
 
@@ -666,7 +664,7 @@ contains
     end do
     end do ! TEST
 
-  end subroutine optimizedTij
+  end subroutine computedStress
 
 
   
@@ -683,7 +681,7 @@ contains
   !            DSYSV - LAPACK DRIVER ROUTINE
   !
   !      
-  ! FORM: subroutine LU (V, T_ij, h_ij, lambda)
+  ! FORM: subroutine LU (V, T_ij, h_ij)
   !       
   !      
   ! BEHAVIOR: 1) Input matrices are destroyed by the SV driver.
@@ -703,7 +701,7 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine LU (V,  T_ij, h_ij, lambda)
+  subroutine LU (V,  T_ij, h_ij)
     implicit none
 
     !
@@ -711,9 +709,6 @@ contains
     real(8), dimension(:,:), intent(in)  :: V 
     real(8), dimension(:,:), intent(in)  :: T_ij
     real(8), dimension(:,:), intent(out) :: h_ij
-    !
-    !    ..SCALAR ARGUMENTS..
-    real(8), intent(in) :: lambda
     !
     !    ..LOCAL ARRAYS.. 
     real(8), dimension(:,:), allocatable  :: A
@@ -726,10 +721,12 @@ contains
     !    ..DSYSV ARGUMENTS..
     real(8), dimension(:), allocatable :: WORK
     integer :: LWORK 
-    integer :: LWMAX = M * N
-    integer :: NRHS = P
+    integer :: LWMAX
+    integer :: NRHS 
     integer :: INFO
 
+    LWMAX = M * N
+    NRHS = P
     !
     ! Allocate work arrays
     allocate (A(N,N), b(N,P), IPIV(N))
@@ -740,6 +737,7 @@ contains
     call DGEMM('T', 'N', N, N, M, alpha, V, M, V, M, beta, A, N)
 
     ! Apply damping: A = A + lambda*I
+    lambda = 1.d-1
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 
@@ -782,7 +780,7 @@ contains
   !      Can optionally view intermediate matrices for debugging.
   !      
   !
-  ! FORM: subroutine SVD (A, T, h_ij, lambda, [printval])
+  ! FORM: subroutine SVD (A, T, h_ij, [printval])
   !
   !
   !       
@@ -814,7 +812,7 @@ contains
   !     call DGEMM('N','T',N,M,N, alpha, temp,N, U(1:N,1:M),N, beta, Vinv, N)
   !----------------------------------------------------------------
   
-  subroutine SVD (A, T, h_ij, lambda, printval)
+  subroutine SVD (A, T, h_ij, printval)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
@@ -823,7 +821,6 @@ contains
     real(8), dimension(:,:), intent(out) :: h_ij
     !
     !    ..SCALAR ARGUMENTS..
-    real(8), intent(in) :: lambda
     logical, intent(in), optional :: printval
     !
     !    ..LOCAL ARRAYS..
@@ -835,7 +832,7 @@ contains
     !    .. DGESVD..
     real(8), dimension(:),allocatable :: WORK
     integer, dimension(:),allocatable :: IWORK
-    integer :: LWMAX = M * N
+    integer :: LWMAX 
     integer :: info, LWORK
     !
     !    ..DGEMM..
@@ -848,6 +845,7 @@ contains
     logical :: GESVD = 0
 
  
+    LWMAX = M * N
     ! 
     ! SVD DECOMPOSITION: A(M,N) = U(M,M) S([M],N) V'(N,N)
     ! DGESVD returns N diagonal entries to S(N)
@@ -862,7 +860,7 @@ contains
        allocate(IWORK(40000))
        call DGESDD('S', M, N, A, M, S, U, M, VT, N, WORK, LWORK, IWORK, info)
        LWORK = min( LWMAX, int(WORK(1)) ) 
-       call DGESDD('S', M, N, A, M, S, U, M, VT, N, WORK, LWORK, IWORK, info) !BOTTLENECK = 850 SECS
+       call DGESDD('S', M, N, A, M, S, U, M, VT, N, WORK, LWORK, IWORK, info) ! TAKES ABOUT 45 SECS
     end if
 
     ! Convergence check:
@@ -889,6 +887,7 @@ contains
     ! Create D(N,M) with S(i) as damped diagonal entries.
     allocate(D(N,M))
     D = 0.d0
+    lambda = 1.d-1
     forall(i=1:N) D(i,i) = S(i) / (S(i)**2 + lambda**2) 
     ! **  DEVELOPMENTAL NOTE IN THE HEADER
     !

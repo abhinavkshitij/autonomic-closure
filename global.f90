@@ -55,18 +55,9 @@ module global
 
 
   character(8) :: d_set     = trim (dataset(2) % name)
-  character(8) :: linSolver = trim (solv(2) % name)
+  character(8) :: linSolver = trim (solv(1) % name) ! LU, SVD
   character(2) :: hst_set = 'S6' ! HST datasets - S1, S3, S6
- 
-
-  integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
-  integer, parameter :: N = 3403
-  integer, parameter :: P = 6
-  integer, parameter :: stencil_size = 3*(3*3*3) !3 * 27 = 81  
-  integer, parameter :: LES_scale  = 40
-  integer, parameter :: test_scale = 20
-
-  character(3) :: stress = 'dev'
+  character(3) :: stress = 'dev' ! dev,abs
 
 
   
@@ -85,7 +76,7 @@ module global
   !    ..STRESSES..
   real(8), dimension(:,:,:,:), allocatable :: tau_ij
   real(8), dimension(:,:,:,:), allocatable :: T_ij
-  real(8), dimension(:,:,:,:), allocatable :: TijOpt
+  real(8), dimension(:,:,:,:), allocatable :: T_ijOpt
   real(8), dimension(:,:,:,:), allocatable :: tau_ijOpt
   !
   !    ..FILTERS..
@@ -112,12 +103,20 @@ module global
   real(8) :: dx ! To calculate gradient
 
 
+  integer :: M               ! Number of training points 3x3x3x9
+  integer :: N 
+  integer :: P                  ! Number of components (1 to 6)
+  integer :: stencil_size 
+  integer :: LES_scale 
+  integer :: test_scale 
+
+
   ! Stencil parameters:
   integer :: stride ! Is the ratio between LES(taken as 1) and test scale
   integer :: skip 
   integer :: X ! Number of realizations
   integer :: n_DAMP  ! Number of lambdas
-  
+  real(8) :: lambda
  
   ! Bounding Box parameters:  
   integer :: box 
@@ -141,7 +140,6 @@ module global
   integer :: uBound 
 
 
-
   !
   !    ..FILEIO..
   !
@@ -163,10 +161,12 @@ module global
 
   !
   !    ..INDICES..
-  integer  :: i, j, k
   integer  :: fileID = 6
-  integer  :: n_u = 3 , n_uu = 6
+  integer  :: n_u = 3 
+  integer  :: n_uu = 6
+  integer  :: i, j, k  
   real(8)  :: tic, toc
+  
 
   !----------------------------------------------------------------
   !
@@ -195,34 +195,43 @@ contains
     center = (0.5d0 * f_GRID) + 1.d0
     dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
 
-
-  ! Stencil parameters:
-  stride = 1 
-  skip = 10
-  X = 1     
-  n_DAMP = 1 
-  
- 
-  ! Bounding Box parameters:  
-  box       = 252
-  boxSize   = box**3
-  maskSize = boxSize - M ! 512-Training points(243) = 269
-  bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
-  smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
-  boxCenter = smallHalf * box*(box + 1) + bigHalf
-  boxLower  = stride * (bigHalf - 1)
-  boxUpper  = stride * (box - bigHalf)
-
-  ! Test field parameters: 
-  testSize = 1
-  testcutSize = stride * (testSize + box) + 1
-  testLower = stride * bigHalf + 1
-  testUpper = stride * (bigHalf - 1 + testSize) + 1
+    
+    M = 17576 
+    N = 3403
+    P = 6
+    stencil_size = 3*(3*3*3) !3 * 27 = 81  
+    LES_scale  = 40
+    test_scale = 20
 
 
-  ! Cutout parameters:
-  lBound = 0.5*(f_GRID - testcutSize)
-  uBound = 0.5*(f_GRID + testcutSize) - 1
+    ! Stencil parameters:
+    stride = 1 
+    skip = 10
+    X = 1     
+    n_DAMP = 1 
+
+
+    ! Bounding Box parameters:  
+    box       = 252
+    boxSize   = box**3
+    maskSize = boxSize - M ! 512-Training points(243) = 269
+    bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
+    smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
+    boxCenter = smallHalf * box*(box + 1) + bigHalf
+    boxLower  = stride * (bigHalf - 1)
+    boxUpper  = stride * (box - bigHalf)
+
+    ! Test field parameters: 
+    testSize = 1
+    testcutSize = stride * (testSize + box) + 1
+    testLower = stride * bigHalf + 1
+    testUpper = stride * (bigHalf - 1 + testSize) + 1
+
+
+    ! Cutout parameters:
+    lBound = 0.5*(f_GRID - testcutSize)
+    uBound = 0.5*(f_GRID + testcutSize) - 1
+
 
 
   end subroutine setEnv

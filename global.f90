@@ -39,28 +39,36 @@ module global
   type(str16), parameter :: var(2) = [str16 ('Velocity'),    &
                                       str16 ('Pressure')]
 
-  type(str16), parameter :: dataset(5) = [str16 ('nrl'),     & 
-                                          str16 ('jhu256'),  &
-                                          str16 ('hst'),     &
-                                          str16 ('sin3D'),   &
-                                          str16 ('jhu1024')]
+  type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),     & 
+                                            str16 ('jhu256'),  &
+                                            str16 ('hst'),     &
+                                            str16 ('sin3D'),   &
+                                            str16 ('jhu1024')]
 
   type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),     &
                                           str16 ('u_t'),     &
                                           str16 ('tau_ij'),  &
                                           str16 ('T_ij')]  
 
-  type(str16), parameter :: solv(2) = [str16 ('LU'),         &
-                                       str16 ('SVD')]
+  type(str16), parameter :: l_solutionMethod(2) = [str16 ('LU'),         &
+                                                   str16 ('SVD')]
 
+  type(str16), parameter :: l_trainingPoints(2) = [str16 ('ordered'),    &
+                                                   str16 ('random')] 
 
-  character(8) :: d_set     = trim (dataset(2) % name)
-  character(8) :: linSolver = trim (solv(1) % name) ! LU, SVD
+  type(str16), parameter :: l_formulation(2) = [str16 ('colocated'),     &
+                                                str16 ('noncolocated')]
+
+              
+
+  character(8) :: dataset        = trim (l_dataset(2) % name)
+  character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! LU, SVD
   character(2) :: hst_set = 'S6' ! HST datasets - S1, S3, S6
   character(3) :: stress = 'dev' ! dev,abs
+  character(16):: formulation    = trim (l_formulation(2) % name)
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
 
 
-  
   !----------------------------------------------------------------
   !
   !****************************************************************
@@ -119,7 +127,7 @@ module global
   real(8) :: lambda
  
   ! Bounding Box parameters:  
-  integer :: box 
+  integer :: box(3) 
   integer :: boxSize  
   integer :: maskSize  
   integer :: bigHalf   
@@ -139,6 +147,8 @@ module global
   integer :: lBound 
   integer :: uBound 
 
+  ! Statistics parameters:
+  integer :: samples 
 
   !
   !    ..FILEIO..
@@ -158,12 +168,12 @@ module global
   !    ..FORMATS..
   character(*), parameter :: long = 'es23.17'
   character(*), parameter :: short = 'f10.4'
-
+  character(*), parameter :: csv_Table = "( 2(f10.4, ',') , / )"
   !
   !    ..INDICES..
   integer  :: fileID = 6
-  integer  :: n_u = 3 
-  integer  :: n_uu = 6
+  integer  :: n_u 
+  integer  :: n_uu 
   integer  :: i, j, k  
   real(8)  :: tic, toc
   
@@ -183,47 +193,71 @@ contains
   
   subroutine setEnv()
     
+    RES_PATH = RES_DIR
+
     i_GRID = 256
     j_GRID = 256
     k_GRID = 256
-    if (d_set.eq.'hst') then
+    if (dataset.eq.'hst') then
        j_GRID = 129
     end if
+
+    n_u = 3
+    n_uu = 6
+    P = 6
+
+    LES_scale  = 40
+    test_scale = 20
+
 
     ! FFT 
     f_GRID = 256 !For FFT ops, the grid must be cubic.
     center = (0.5d0 * f_GRID) + 1.d0
     dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
 
-    
-    M = 17576 
-    N = 3403
-    P = 6
-    stencil_size = 3*(3*3*3) !3 * 27 = 81  
-    LES_scale  = 40
-    test_scale = 20
-
 
     ! Stencil parameters:
-    stride = 1 
-    skip = 10
+    stride = 1              ! No subsampling on the original DNS GRID 
+    skip = 10               ! For training points
     X = 1     
     n_DAMP = 1 
-
-
+    stencil_size = 3*(3*3*3) !3 * 27 = 81  
+ 
     ! Bounding Box parameters:  
-    box       = 252
-    boxSize   = box**3
+    if (formulation.eq.'noncolocated') then
+       ! Set number of features
+       N = 3403                 ! 5995 for velocity and pressure
+!       N = 5995
+
+       if (trainingPoints.eq.'ordered') then
+          ! Set bounding box size
+          box = [i_GRID, j_GRID, k_GRID]
+          ! Set number of training points
+          M =  (floor((real(box(1) - 1)) / skip) + 1)    &
+               * (floor((real(box(2) - 1)) / skip) + 1)  &
+               * (floor((real(box(3) - 1)) / skip) + 1)  !17576 
+
+       else if (formulation.eq.'colocated') then
+          box  = [8,8,8]
+          if (trainingPoints.eq.'random') then
+          end if
+       end if
+    end if
+    
+
+    boxSize = product(box)
+
+
     maskSize = boxSize - M ! 512-Training points(243) = 269
-    bigHalf   = ceiling(0.5*real(box) + eps) ! for 8->5
-    smallHalf = floor(0.5*real(box) + eps)   ! for 8->4
-    boxCenter = smallHalf * box*(box + 1) + bigHalf
+    bigHalf   = ceiling(0.5*real(box(1)) + eps) ! for 8->5
+    smallHalf = floor(0.5*real(box(1)) + eps)   ! for 8->4
+    boxCenter = smallHalf * box(1)*(box(1) + 1) + bigHalf
     boxLower  = stride * (bigHalf - 1)
-    boxUpper  = stride * (box - bigHalf)
+    boxUpper  = stride * (box(1) - bigHalf)
 
     ! Test field parameters: 
     testSize = 1
-    testcutSize = stride * (testSize + box) + 1
+    testcutSize = stride * (testSize + box(1)) + 1
     testLower = stride * bigHalf + 1
     testUpper = stride * (bigHalf - 1 + testSize) + 1
 
@@ -232,7 +266,8 @@ contains
     lBound = 0.5*(f_GRID - testcutSize)
     uBound = 0.5*(f_GRID + testcutSize) - 1
 
-
+    ! Statistics parameters:
+    samples = 250
 
   end subroutine setEnv
 
@@ -266,13 +301,13 @@ contains
     write(23,*) i_GRID
     write(23,*) j_GRID
     write(23,*) k_GRID
-    write(23,*) d_set
+    write(23,*) dataset
     write(23,*) hst_set
     close(23)
 
     
      write(fileID, * ), ''
-     write(fileID, * ), 'Dataset:            ', d_set
+     write(fileID, * ), 'Dataset:            ', dataset
      write(fileID, * ), ''
 !     write(fileID, * ), 'Stencil parameters:'
 !     write(fileID, * ), ''
@@ -296,7 +331,7 @@ contains
 !     write(fileID, * ), 'lower bound:         ',lBound
 !     write(fileID, * ), 'upper bound:         ',uBound
 !     write(fileID, * ), ''
-
+!     write(fileID, * ),  'Number of samples'    ,samples
   end subroutine printParams
 
 
@@ -440,5 +475,119 @@ contains
     
   end subroutine plane2
 
+
+
+  !----------------------------------------------------------------
+  !                          COMBINATION
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes nCk
+  !       
+  ! FORM:
+  !      function combination (int n, int k)
+  !         
+  ! BEHAVIOR:
+  ! 
+  !  
+  !----------------------------------------------------------------
   
+  recursive function combination(num,k) result (res)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer ::  num
+    integer ::  k
+    integer :: res
+    !
+    !    ..LOCAL VARIABLES..
+    integer :: calls = 0
+
+    calls  = calls + 1
+    
+    res = num
+    
+    if (num.eq.0.or.k.eq.0) then
+       res = 1
+    else if (calls.lt.k) then
+       res = num * combination(num-1,k)
+    end if
+
+  end function combination
+  
+
+
+  !----------------------------------------------------------------
+  !                          FACTORIAL
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes the factorial of a positive integer
+  !       
+  ! FORM:
+  !      function recursive factorial(int n)
+  !         
+  ! BEHAVIOR:
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  recursive function factorial(num) result (res)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer :: num
+    integer :: res
+    
+    if (num.eq.1.or.num.eq.0) then
+       res = 1
+    else
+       res = num * factorial(num-1)
+    end if  
+  end function factorial
+
+
+
+  !----------------------------------------------------------------
+  !                          MEAN
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes the mean value of an array
+  !     
+  ! FORM:
+  !      function mean(double array)
+  !         
+  ! BEHAVIOR:
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function mean(array) 
+    real(8),dimension(:,:,:),intent(in):: array  
+    real(8) :: mean
+    mean = sum(array) / size(array)
+  end function mean
+
+  
+  !----------------------------------------------------------------
+  !                          STANDARD DEVIATION
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes the standard deviation of an array based on
+  !     estimated average [not true average]
+  !     
+  !     
+  ! FORM:
+  !      function stdev(double array)
+  !         
+  ! BEHAVIOR:
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function stdev(array)
+    real(8), dimension(:,:,:),intent(in):: array
+    real(8) :: stdev
+    stdev = sqrt ( sum((array - mean(array))**2) / (size(array)-1) )
+  end function stdev
+
+
 end module global

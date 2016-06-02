@@ -14,6 +14,7 @@
 !       subroutine gradient            [FILTER]    
 !       subroutine productionTerm      [FILTER]
 !       subroutine velocityProducts    [FILTER]
+!       subroutine createPDF           [FILTER]
 ! BEHAVIOR: 
 !           
 !           
@@ -295,4 +296,81 @@ contains
        end do
     end do
   end subroutine velocityProducts
+
+  
+  !****************************************************************
+  !                        CREATE PDF                             !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Samples a field and computes the probability density function PDF
+  !       
+  !       
+  !
+  ! FORM: subroutine createPDF(field, [plot], [fieldname])
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS :  
+  !
+  ! CHECK GAUSSIAN BY MEASURING THE THIRD ORDER MOMENT:
+  !            print*, sum((field-avg)**3)/size(field)
+  !
+  !          
+  !----------------------------------------------------------------
+
+  subroutine createPDF(field, plot, fieldname)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENT..
+    real(8), dimension(:,:,:), intent(in) :: field
+    !
+    !    ..PLOT ARGUMENT..
+    logical, optional,intent(in) :: plot
+    character(*), optional, intent(in) :: fieldname
+    !
+    !    ..LOCAL ARRAYS..
+    real(8), dimension(:), allocatable :: x
+    real(8), dimension(:), allocatable :: pdf
+    !
+    !    ..LOCAL VARS..
+    real(8) :: delta, avg, SD
+
+
+    allocate (x(samples))
+    allocate (pdf(samples))
+    
+    !
+    ! LINSPACE-LIKE FUNCTION - IND. DOMAIN
+    delta = (maxval(field) - minval(field)) / (samples-1)
+    forall(i=1:samples)  x(i) = minval(field) + (delta * (i-1))
+
+    !
+    ! CALCULATE FIELD MEAN AND STD DEV
+    avg = mean(field)
+    SD = stdev(field)
+
+    !
+    ! PDF
+    pdf = exp(-((x-avg)**2 / (2*SD**2))) / (sqrt (2*pi)*SD) 
+
+    !
+    ! PLOT:
+    if(present(plot).and.present(fieldname)) then
+       call plotPDF(x,pdf,fieldname,avg,SD)
+    else
+       print*, 'Need fieldname argument to name the file'
+    end if
+  end subroutine createPDF
+  
+  
+
+
 end module actools

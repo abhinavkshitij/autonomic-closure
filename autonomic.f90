@@ -42,22 +42,31 @@ program autonomic
   character(10) :: scale
   !
   !    ..CONTROL SWITCHES..
-  logical :: useTestData          =  0
-  logical :: readFile             =  0
+  logical :: useTestData          =  1
+  logical :: readFile             =  1
   logical :: filterVelocities     =  0
   logical :: plot_Velocities      =  0
   logical :: computeOrigStress    =  0
   logical :: save_FFT_data        =  0
-  logical :: plot_Stresses        =  1
+  logical :: plot_Stresses        =  0
   logical :: computeStrain        =  0
   logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
   logical :: computeVolterra      =  1
 
+
+  real(8) ::testarray(11) = [-5,-4,-3,-2,-1,0,1,2,3,4,5]
+
+
+
   call setEnv()
   !
   !    ..INIT POSTPROCESSING..
   open(22, file = trim(RES_DIR)//'path.txt')
+
+
+ ! print*, mean(testarray), stdev(testarray)
+!  call createPDF(testarray(1,1,:),plot=.true.,fieldname='testArray')
 
 
   ! FORMAT:
@@ -79,12 +88,16 @@ program autonomic
   ! 1] LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
   if(readFile) call readData(DIM = n_u)
 
+  ! GET STATISTICS OF INITIAL 
+  call createPDF(u(1,:,:,:),plot=.true.,fieldname='tst1')
+
+stop
 
   ! INITIALIZE PATH: LEVEL 1 (DATASET)
   write(22,*) trim(DATA_PATH)
-  TEMP_PATH = trim(TEMP_DIR)//trim(d_set)//'/'
-  RES_PATH =  trim(RES_DIR)//trim(d_set)//'/'
-  if (d_set.eq.'hst') then
+  TEMP_PATH = trim(TEMP_DIR)//trim(dataset)//'/'
+  RES_PATH =  trim(RES_DIR)//trim(dataset)//'/'
+  if (dataset.eq.'hst') then
      TEMP_PATH = trim(TEMP_PATH)//trim(hst_set)//'/'
      RES_PATH = trim(RES_PATH)//trim(hst_set)//'/'
   end if
@@ -184,7 +197,9 @@ program autonomic
      call plotOriginalStress()
   end if
 
-!stop
+
+
+  stop
 
   ! 4] COMPUTE STRAIN RATE:
   if(computeStrain)then
@@ -217,8 +232,8 @@ program autonomic
 
 
   ! ADD PATH DEPTH : LEVEL 3 - (METHOD) - LU or SVD
-  TEMP_PATH = trim(TEMP_PATH)//trim(linSolver)//'/'
-  RES_PATH =  trim(RES_PATH)//trim(linSolver)//'/'
+  TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/'
+  RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'
   call system ('mkdir -p '//trim(TEMP_PATH))
   call system ('mkdir -p '//trim(RES_PATH))
   write(22,*) RES_PATH
@@ -252,6 +267,8 @@ program autonomic
      call plotComputedStress()
   end if
 
+  ! GET STATISTICS:
+  call createPDF(tau_ijOpt(1,:,:,:)-tau_ij(1,:,:,:),plot=.true.,fieldname='errorSGS')
 
 end program autonomic
 

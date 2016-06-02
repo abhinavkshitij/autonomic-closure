@@ -76,7 +76,7 @@ contains
     character(16)                              :: endian
 
     !    ..DEFAULT VALUES..
-    DATA_PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+    DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/'
     variableName = trim(var(1)%name)! var(1) --> 'Velocity'; Expand for Pressure dataset.
     time = '256'
     endian = 'little_endian'
@@ -84,7 +84,7 @@ contains
 10  format("Reading... u",i1,"_DNS")
 
      !  READ SINGLE PRECISION DATA - NRL
-     if (d_set.eq.'nrl') then
+     if (dataset.eq.'nrl') then
         time = '0460'
         endian = 'big_endian'
 
@@ -104,8 +104,8 @@ contains
 
 
      !  READ SINGLE PRECISION DATA - HST
-     elseif (d_set.eq.'hst') then
-        DATA_PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
+     elseif (dataset.eq.'hst') then
+        DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
         time = '070'
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
@@ -120,7 +120,7 @@ contains
         deallocate(u_s)
         
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
-     elseif (d_set.eq.'jhu256'.or.d_set.eq.'sin3D') then
+     elseif (dataset.eq.'jhu256'.or.dataset.eq.'sin3D') then
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         do fID = 1,DIM
@@ -131,12 +131,12 @@ contains
         end do
 
         ! READ DOUBLE PRECISION DATA - JHU1024 - HDF5
-      elseif (d_set.eq.'jhu1024'.and.ext.eq.'h5') then
+      elseif (dataset.eq.'jhu1024'.and.ext.eq.'h5') then
          call readHDF5(n_files=1)
       
         ! DEFAULT:
      else
-        print*,"No dataset found by the name", d_set
+        print*,"No dataset found by the name", dataset
         stop
      end if
         
@@ -295,7 +295,7 @@ contains
      character(4)::   L_Index,    U_Index
      !
      !SET PATH:
-     DATA_PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+     DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/'
      !
      ! Initialize file indices:
      !
@@ -379,7 +379,7 @@ contains
     real(8), intent(in) :: value
     
     ! NRL
-    if (d_set.eq.'nrl') then
+    if (dataset.eq.'nrl') then
        if (value.ne.-11.070811767578125d0) then
           print*, 'Error reading data!'
           print*, value
@@ -387,7 +387,7 @@ contains
        end if
 
     ! JHU256
-    elseif (d_set.eq.'jhu256') then
+    elseif (dataset.eq.'jhu256') then
        if (value.ne.-0.99597495794296265d0) then
           print*, 'Error reading data!'
           print*, value
@@ -395,7 +395,7 @@ contains
        end if
 
     ! SIN 3D
-    elseif (d_set.eq.'sin3D') then 
+    elseif (dataset.eq.'sin3D') then 
 !       if (value.ne.2.2787249947361117d0) then
        if (value.ne.5.9589822233083432d0) then
           print*, 'Error reading data!'
@@ -404,7 +404,7 @@ contains
        end if
 
        !
-    elseif (d_set.eq.'jhu1024') then 
+    elseif (dataset.eq.'jhu1024') then 
        if (value.ne.0.41232076287269592d0) then
           print*, 'Error reading data!'
           print*, value
@@ -638,7 +638,6 @@ contains
    subroutine plotProductionTerm()
      implicit none
      
-     
      ! SAVE PRODUCTION TERM
      print*
      print*,'Saving Production terms in', RES_PATH
@@ -650,11 +649,56 @@ contains
      write(2,*) P_t(:,:,129)
      close(1)
      close(2)
-     
-     
-     
+              
    end subroutine plotProductionTerm
+
+
+   !****************************************************************
+   !                            PLOT PDF
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Write a csv file to generate pdf plot
+   !      
+   !
+   ! FORM:    subroutine plotPDF(fieldname)
+   !
+   ! BEHAVIOR: 
+   !
+   ! STATUS :
+   !      
+   !   
+   !----------------------------------------------------------------
    
+   subroutine plotPDF(x,pdf,fieldname,avg,SD)
+     implicit none
+     !
+     !    ..ARRAY ARGUMENTS..
+     real(8), dimension(:), intent(in) :: x
+     real(8), dimension(:), intent(in) :: pdf
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), intent(in) :: fieldname
+     real(8), optional, intent(in) :: avg, SD
+
+     print*
+     print*,'Saving PDF'//trim(fieldname)//' in ', RES_PATH
+
+     !
+     ! PLOT PDF
+     open(10, file = trim(RES_PATH)//trim('PDF')//trim(fieldname)//'.csv')
+     write(10,"( 2(F10.4,',') )"), (x(i), pdf(i), i=1,samples)
+     close(10)
+
+     ! SAVE STAT DATA
+     if (present(avg)) then
+        open(11, file = trim(RES_PATH)//trim('statistics')//trim(fieldname)//'.dat')
+        write(11, *) avg
+        if (present(SD))  write(11, *) SD
+        close(11)
+     end if
+
+   end subroutine plotPDF
 
   !****************************************************************
   !                           CONTOUR

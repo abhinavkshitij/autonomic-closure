@@ -175,13 +175,13 @@ contains
     
     ! DEBUG:
     if (debugRandom) then
-       allocate (randomMatrix(box,box,box))
+       allocate (randomMatrix(box(1),box(2),box(3)))
        call bubblesort(randMask)
        count=0;randomMatrix=0
 
-       do k=1,box
-       do j=1,box
-       do i=1,box
+       do k=1,box(3)
+       do j=1,box(2)
+       do i=1,box(1)
           count = count+1
           if(any(randMask.eq.count)) cycle
           randomMatrix(i,j,k) = count
@@ -190,8 +190,8 @@ contains
        enddo
 
        print*,'randomMatrix'        ! Print random training points indices:
-       do k=1,box
-       do i=1,box
+       do k=1,box(3)
+       do i=1,box(1)
           print*,randomMatrix(i,:,k)
        end do
        print*,''
@@ -273,7 +273,6 @@ contains
     integer :: u_comp, uu_comp 
     !
     !    ..DEBUG..
-    logical :: coloc = 0    
     logical :: printval
     logical :: debug(4) = [1,0,0,0]
     ! 1 - Takes just one (tau_ij_11) for testing purpose. 
@@ -314,7 +313,7 @@ contains
 
 
     ! COLOCATED FORMULATION:
-    if (coloc) then
+    if (formulation.eq.'colocated') then
        
 !        ! Compute velocity products:(Lower triangle order for ij): Send to actools.f90
 !        call velocityProducts(uu_f, u_f)
@@ -444,16 +443,16 @@ contains
        allocate (u_n(stencil_size))
 
        ! WHOLE DOMAIN COMPUTATION: 
-       do i_test = 129, 129, 2 
-       do j_test = 129, 129, 2
-       do k_test = 129, 129, 2 ! i_test = 11,43,2
+       do i_test = 129, 129, 1 
+       do j_test = 129, 129, 1
+       do k_test = 129, 129, 1 ! i_test = 11,43,2
 
           row_index  = 0 
 
           ! ENTER STENCIL-CENTER POINTS: C-ORDER
-          do i_box = i_test-126, i_test+125, 10
-          do j_box = j_test-126, j_test+125, 10
-          do k_box = k_test-126, k_test+125, 10 ! i_box = 3,49,2
+          do i_box = i_test-126, i_test+125, skip
+          do j_box = j_test-126, j_test+125, skip
+          do k_box = k_test-126, k_test+125, skip ! i_box = 3,49,2
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
@@ -464,18 +463,18 @@ contains
                                    j_box-2 : j_box+2 : 2, &
                                    k_box-2 : k_box+2 : 2), [stencil_size])
 
-             ! ZERO ORDER TERMS:
+             ! ZERO ORDER TERMS: 80 C 0
              col_index = col_index + 1
              V(row_index, col_index) = 1.d0
 
 
-             ! FIRST ORDER TERMS:          
+             ! FIRST ORDER TERMS: 81 C 1      
              do non_col_1 = 1,stencil_size 
                 col_index = col_index + 1
                 V(row_index,col_index) = u_n(non_col_1)
              end do
 
-             ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
+             ! SECOND ORDER TERMS: 82 C 2
              do non_col_1 = 1, stencil_size
              do non_col_2 = non_col_1, stencil_size
                 col_index = col_index + 1
@@ -512,10 +511,10 @@ contains
 
           !
           ! CALL SOLVER
-          if (linSolver.eq.'LU') then
+          if (solutionMethod.eq.'LU') then
              !Damped least squares
              call LU(V, T, h_ij)           
-          elseif(linSolver.eq.'SVD') then
+          elseif(solutionMethod.eq.'SVD') then
              ! TSVD
              call SVD(V, T, h_ij,printval) 
           else

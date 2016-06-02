@@ -311,7 +311,7 @@ contains
   subroutine check_FFT(value)
     implicit none
     real(8) :: value
-    if (d_set.eq.'jhu256') then
+    if (dataset.eq.'jhu256') then
        if (abs(value - (-0.48241021987284982d0)).gt.tiny(0.d0)) then
           print*, 'Precision test for FFT: Failed'
           print*, 'Check precision or data for testing is not JHU 256'
@@ -409,7 +409,7 @@ contains
     subroutine check_Stress(value)
       implicit none
       real(8) :: value
-      if (d_set.eq.'jhu256') then
+      if (dataset.eq.'jhu256') then
          if( ( (stress.eq.'dev') .and. (abs(value - (-5.2544371578038401d-3)).gt.tiny(0.d0)) )         &
               .or.( (stress.eq.'abs') .and. (abs(value - (-4.0152351790891661d-3)).gt.tiny(0.d0)) ) )  then
             print*, 'Precision test for stress: Failed.'

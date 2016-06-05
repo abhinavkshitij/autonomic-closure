@@ -266,8 +266,8 @@ contains
     allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
 
-    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
-!    in_cmplx = dcmplx (array_work) / (dble(f_GRID*j_GRID*f_GRID)) 
+!    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
+    in_cmplx = dcmplx (array_work) / (dble(f_GRID*j_GRID*f_GRID)) 
 
 !    in_cmplx(1:i_GRID,1:f_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:f_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
 !    in_cmplx(:,:,:) = dcmplx (array_work(:,:,:)) / (dble(f_GRID**3)) 
@@ -282,7 +282,7 @@ contains
     call dfftw_execute(plan)    
     call dfftw_destroy_plan(plan)
 
-!     ! ****
+!      ! ****
 !     print*,'Write FFT files from sharpFilter()'
 !     open(1, file= trim(RES_PATH)//'out_cmplx1.dat')
 !     open(11,file= trim(RES_PATH)//'out_cmplx2.dat')
@@ -293,17 +293,19 @@ contains
 !     close(1)
 !     close(11)
 !     close(2)
-    ! ****
+!     ! ****
 
-!    out_cmplx(1:i_GRID,1:f_GRID,1:k_GRID) = out_cmplx(1:i_GRID,1:f_GRID,1:k_GRID) * filter(1:i_GRID,1:f_GRID,1:k_GRID) 
     out_cmplx = out_cmplx * filter
 
 
     ! IFFT:
-    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
+    call dfftw_plan_dft_3d(plan,f_GRID,j_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)
     call dfftw_destroy_plan(plan)
 
+    ! ****
+!    print*, in_cmplx(256,20,213)
+    ! ****
     sharpFilter = real(in_cmplx) 
     
   end function sharpFilter
@@ -357,7 +359,7 @@ contains
        k = 1
        do j=1,n_u
           do i=1,n_u
-             if (i.ge.j) then
+             if (i.le.3.and.j.le.3.and.i.ge.j) then
                 print *, 'tau(', i, ',', j, ')' !<-- CHECK ORDER OF i,j,k...affects performance!!!
                 tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:), LES)       &
                                           - u_f(i,:,:,:) * u_f(j,:,:,:)
@@ -374,7 +376,7 @@ contains
        k = 1
        do j=1,n_u
           do i=1,n_u
-             if (i.ge.j) then
+             if (i.le.3.and.j.le.3.and.i.ge.j) then
                 print *, 'tau(', i, ',', j, ')'
                 tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:),LES)     &
                                           - u_f(i,:,:,:) * u_f(j,:,:,:)

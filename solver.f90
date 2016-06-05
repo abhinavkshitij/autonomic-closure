@@ -490,6 +490,7 @@ contains
           
           
           ! CHECK V:
+          if (withPressure.eqv..false.) then
           if (V(1500,2000).ne.2.0009431419772586d-2) then
              print*, "Error! Check sorting order in  V matrix!"
              print*, 'V(1500,2000)', V(1500,2000)
@@ -497,17 +498,18 @@ contains
           else 
              print*,'V matrix check ... Passed'
           end if
-          
+          end if
 
           !CHECK T:
+          if (withPressure.eqv..false.) then
           if (T(3,1).ne.8.7759832493259110d-2)then
              print*, "Error! Check sorting order in  T vector!"
              print*, T(3,1)
-             stop
+!             stop
           else 
              print*,'T vector check ... Passed'
           end if
- 
+          end if
 
           !
           ! CALL SOLVER
@@ -523,12 +525,14 @@ contains
           end if
           
           ! CHECK h_ij:
+          if (solutionMethod.eq.'SVD') then
           if (h_ij(350,1).ne.-4.5121154730201521d-2)then
              print*, "Error! Check lambda, method or sorting order for h_ij computation:"
              print*,h_ij(350,1)
-             !     stop
+             stop
           else 
              print*,'SVD check ... Passed'
+          end if
           end if
 
        end do
@@ -541,7 +545,7 @@ contains
   
   
   !****************************************************************
-  !                        OPTIMIZE TIJ                           !
+  !                        COMPUTED STRESS                        !
   !****************************************************************
   
   !----------------------------------------------------------------
@@ -603,9 +607,9 @@ contains
     do k_test = 129, 129
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-       do i_opt = i_test-127, i_test+126
-       do j_opt = j_test-127, j_test+126
-!       do k_opt = k_test-127, k_test+126
+       do i_opt = i_test-126, i_test+125
+       do j_opt = j_test-126, j_test+125
+!       do k_opt = k_test-126, k_test+125
 !       do i_opt = 15,15
 !       do j_opt = 24,24
        do k_opt = 129, 129 !10,10
@@ -625,7 +629,7 @@ contains
           col_index = col_index + 1
 
           T_ijOpt   (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
-          tau_ijOpt(:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
+          tau_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
 
           ! FIRST ORDER TERMS:             
           do non_col_1 = 1, stencil_size 
@@ -709,6 +713,9 @@ contains
     real(8), dimension(:,:), intent(in)  :: T_ij
     real(8), dimension(:,:), intent(out) :: h_ij
     !
+    !    ..SCALAR ARGUMENTS..
+!    real(8),optional :: lambda
+    !
     !    ..LOCAL ARRAYS.. 
     real(8), dimension(:,:), allocatable  :: A
     real(8), dimension(:,:), allocatable  :: b
@@ -736,7 +743,8 @@ contains
     call DGEMM('T', 'N', N, N, M, alpha, V, M, V, M, beta, A, N)
 
     ! Apply damping: A = A + lambda*I
-    lambda = 1.d-1
+!    lambda = 1.d-1
+    print*, lambda
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 

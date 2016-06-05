@@ -19,6 +19,7 @@
 !       subroutine saveFFT_data        [BUFFER]
 !       subroutine plotOriginalStress  [SINK]
 !       subroutine plotProductionTerm  [SINK]
+!       subroutine plotPDF             [SINK]
 !       subroutine contour             [SINK]
 !       subroutine xyplot              [SINK]
 !
@@ -82,6 +83,7 @@ contains
     endian = 'little_endian'
 
 10  format("Reading... u",i1,"_DNS")
+11  format("Reading... p_DNS")
 
      !  READ SINGLE PRECISION DATA - NRL
      if (dataset.eq.'nrl') then
@@ -124,8 +126,13 @@ contains
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         do fID = 1,DIM
-           write(fileID, 10) fID
            write(fIndex,'(i1)') fID
+           if (fID.eq.4) then
+              write(fileID, 11) 
+              variableName = trim(var(2)%name) ! Pressure term
+           else
+              write(fileID, 10) fID
+           end if
            filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
            call readBin(fID,filename,endian)
         end do
@@ -449,6 +456,21 @@ contains
      close(21)
      close(22)
 
+     !
+     ! SAVE PRESSURE:
+     print*
+     print*,'Saving filtered pressure in', RES_PATH
+          
+     open(30,file=trim(RES_PATH)//'p.dat')
+     open(31,file=trim(RES_PATH)//'p_f.dat')
+     open(32,file=trim(RES_PATH)//'p_t.dat')
+     write(30,*) u (4,:,:,129)
+     write(31,*) u_f(4,:,:,129)
+     write(32,*) u_t(4,:,:,129)
+     close(30)
+     close(31)
+     close(32)
+
    end subroutine plotVelocities
 
 
@@ -661,7 +683,7 @@ contains
    ! USE : Write a csv file to generate pdf plot
    !      
    !
-   ! FORM:    subroutine plotPDF(fieldname)
+   ! FORM: subroutine plotPDF(x, pdf, [fieldname], [avg], [SD])
    !
    ! BEHAVIOR: 
    !
@@ -670,7 +692,7 @@ contains
    !   
    !----------------------------------------------------------------
    
-   subroutine plotPDF(x,pdf,fieldname,avg,SD)
+   subroutine plotPDF(x, pdf, fieldname, avg, SD)
      implicit none
      !
      !    ..ARRAY ARGUMENTS..
@@ -687,7 +709,7 @@ contains
      !
      ! PLOT PDF
      open(10, file = trim(RES_PATH)//trim('PDF')//trim(fieldname)//'.csv')
-     write(10,"( 2(F10.4,',') )"), (x(i), pdf(i), i=1,samples)
+     write(10,"( F10.4,',',F10.4 )"), (x(i), pdf(i), i=1,samples)
      close(10)
 
      ! SAVE STAT DATA

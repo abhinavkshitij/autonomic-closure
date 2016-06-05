@@ -48,7 +48,8 @@ module global
   type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),     &
                                           str16 ('u_t'),     &
                                           str16 ('tau_ij'),  &
-                                          str16 ('T_ij')]  
+                                          str16 ('T_ij')]
+
 
   type(str16), parameter :: l_solutionMethod(2) = [str16 ('LU'),         &
                                                    str16 ('SVD')]
@@ -62,6 +63,7 @@ module global
               
 
   character(8) :: dataset        = trim (l_dataset(2) % name)
+  logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! LU, SVD
   character(2) :: hst_set = 'S6' ! HST datasets - S1, S3, S6
   character(3) :: stress = 'dev' ! dev,abs
@@ -147,7 +149,7 @@ module global
   integer :: lBound 
   integer :: uBound 
 
-  ! Statistics parameters:
+  ! Statisetics parameters:
   integer :: samples 
 
   !
@@ -203,6 +205,12 @@ contains
     end if
 
     n_u = 3
+    if (withPressure) n_u = 4
+    ! CHECK PRESSURE DATA AVAILABLIITY:
+    if(dataset.ne.'jhu256'.and.n_u.eq.4.and.useTestData.eq.1) then
+       print*, 'Dataset ',dataset,' has no pressure data files'
+       stop
+    end if
     n_uu = 6
     P = 6
 
@@ -221,13 +229,14 @@ contains
     skip = 10               ! For training points
     X = 1     
     n_DAMP = 1 
-    stencil_size = 3*(3*3*3) !3 * 27 = 81  
+    stencil_size = n_u * (3*3*3) !3 * 27 = 81  
  
     ! Bounding Box parameters:  
     if (formulation.eq.'noncolocated') then
        ! Set number of features
-       N = 3403                 ! 5995 for velocity and pressure
-!       N = 5995
+!       N = 3403                 
+       N = nCk(stencil_size + 1, 2) + nCk(stencil_size, 1) + 1
+!       if (withPressure) N = 5995 ! for velocity and pressure
 
        if (trainingPoints.eq.'ordered') then
           ! Set bounding box size
@@ -258,7 +267,8 @@ contains
     ! Test field parameters: 
     testSize = 1
     testcutSize = stride * (testSize + box(1)) + 1
-    testLower = stride * bigHalf + 1
+    testLower = stride * biQ#$Wes5rd6tfyui
+    gHalf + 1
     testUpper = stride * (bigHalf - 1 + testSize) + 1
 
 
@@ -296,7 +306,9 @@ contains
   
   subroutine printParams()
 
-    
+    !
+    ! Write parameters in params.txt for MATLAB to read in data for
+    ! post-processing the results.
     open(23, file = trim(RES_DIR)//'params.txt')
     write(23,*) i_GRID
     write(23,*) j_GRID
@@ -478,7 +490,7 @@ contains
 
 
   !----------------------------------------------------------------
-  !                          COMBINATION
+  !                          COMBINATION - nCk
   !----------------------------------------------------------------
   ! USE:  
   !     Computes nCk
@@ -487,34 +499,31 @@ contains
   !      function combination (int n, int k)
   !         
   ! BEHAVIOR:
-  ! 
-  !  
+  !
   !----------------------------------------------------------------
   
-  recursive function combination(num,k) result (res)
+  function nCk(n,k) result(res)
     implicit none
     !
     !    ..SCALAR ARGUMENTS..
-    integer ::  num
-    integer ::  k
+    integer, value:: n, k
     integer :: res
     !
-    !    ..LOCAL VARIABLES..
-    integer :: calls = 0
+    !    ..LOCAL VARS..
+    integer :: Nr, Dr, count
 
-    calls  = calls + 1
+    res = 1; Nr = 1; Dr = 1
+
+    do while (k.ne.0)
+       Nr = Nr * n
+       n = n - 1
+       Dr = Dr * k
+       k = k - 1
+    end do
+
+    res = Nr / Dr 
     
-    res = num
-    
-    if (num.eq.0.or.k.eq.0) then
-       res = 1
-    else if (calls.lt.k) then
-       res = num * combination(num-1,k)
-    end if
-
-  end function combination
-  
-
+  end function nCk
 
   !----------------------------------------------------------------
   !                          FACTORIAL
@@ -589,5 +598,43 @@ contains
     stdev = sqrt ( sum((array - mean(array))**2) / (size(array)-1) )
   end function stdev
 
+
+
+  !----------------------------------------------------------------
+  !                          NORM
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes norm-1, norm-2 or norm-Inf of an array     
+  !     
+  ! FORM:
+  !      function norm(double array,['1', or '2', or 'Inf'])
+  !         
+  ! BEHAVIOR: default is norm-2
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function norm(array,normType)
+    real(8), dimension(:,:,:),intent(in):: array
+    character(*), optional, intent(in) :: normType 
+    real(8) :: norm
+
+    if (present(normType)) then
+       if (normType.eq.'1') then 
+          norm = sum(abs(array))
+       elseif (normType.eq.'2') then
+          norm = sqrt(sum(array**2))
+       elseif (normType.eq.'Inf') then
+          norm = maxval(array)
+       else
+          print*, 'Norms computed are 1-norm, 2-norm or Inf-norm'
+       end if
+    else
+       ! Default: norm-2 
+       norm = sqrt(sum(array**2)) 
+    end if   
+  end function norm
+
+  
 
 end module global

@@ -510,6 +510,7 @@ contains
         if (i.eq.4) read(i) T_ij
         close(i)
      end do
+
    end subroutine loadFFT_data
 
    !****************************************************************
@@ -539,7 +540,7 @@ contains
      print*
      print*,'Write filtered variables ... '
  
-     do i = 1,size(var_FFT)
+     do i = 1, size(var_FFT)
         filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
         print*, filename
         open(i, file = filename,form='unformatted')
@@ -552,6 +553,28 @@ contains
 
    end subroutine saveFFT_data
   
+
+   !****************************************************************
+   !                          CHECK FFT_DATA
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Check FFT dataset
+   !      
+   !
+   ! FORM:    subroutine saveFFT_data()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+   subroutine checkFFT_data()
+     implicit none
+
+   end subroutine checkFFT_data
+
   
    !****************************************************************
    !                        PLOT ORIGINAL STRESS
@@ -593,8 +616,8 @@ contains
          
      open(10,file=trim(RES_PATH)//'T_ij.dat')
      open(11,file=trim(RES_PATH)//'tau_ij.dat')
-     write(10,*) T_ij(1,:,:,129)
-     write(11,*) tau_ij(1,:,:,129)
+     write(10,*) T_ij(5,:,:,129)
+     write(11,*) tau_ij(5,:,:,129)
      close(10)
      close(11)
 
@@ -618,23 +641,40 @@ contains
    !   
    !----------------------------------------------------------------
    
-   subroutine plotComputedStress()
+   subroutine plotComputedStress(lambda, plotOption)
      implicit none
      !
+     !    ..SCALAR ARGUMENTS..
+     real(8), intent(in) :: lambda
+     character(*), optional, intent(in) :: plotOption
+     !
      !    ..LOCAL VARIABLES..
-     character(64) :: filename
-     integer :: i
+
+     integer :: i, lim
+     character(64) :: lambda_char
+     character(1) :: i_char
+
+     lim = 1
+     if (plotOption.eq.'All') lim = 6
+
+     write(lambda_char,'(ES6.0E2)') lambda
 
      ! SAVE COMPUTED STRESS
-     print*
-     print*,'Saving computed stresss in', RES_PATH
-         
-     open(10,file=trim(RES_PATH)//'T_ijOpt.dat')
-     open(11,file=trim(RES_PATH)//'tau_ijOpt.dat')
-     write(10,*) T_ijOpt(1,:,:,129)
-     write(11,*) tau_ijOpt(1,:,:,129)
-     close(10)
-     close(11)
+!     print*
+!     print*,'Saving computed stresss in', RES_PATH, '\n'
+ 
+     do i = 1,lim
+        write(i_char, '(i0)') i
+        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(i_char)//trim(lambda_char(4:6)) // '.dat')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(i_char)//trim(lambda_char(4:6)) // '.dat')
+
+        write(10,*) T_ijOpt  (i,:,:,129)
+        write(11,*) tau_ijOpt(i,:,:,129)
+
+        close(10)
+        close(11)
+     end do
+
 
    end subroutine plotComputedStress
 
@@ -657,21 +697,45 @@ contains
   ! 
   !----------------------------------------------------------------
 
-   subroutine plotProductionTerm()
+   subroutine plotProductionTerm(lambda)
      implicit none
+     !
+     ! 
+     real(8), intent(in), optional :: lambda
+     integer :: i
+     character(64) :: lambda_char
+
+     write(lambda_char,'(ES6.0E2)') lambda
      
-     ! SAVE PRODUCTION TERM
-     print*
-     print*,'Saving Production terms in', RES_PATH
-     call system ('mkdir -p '//trim(RES_PATH))
-     
-     open(1,file = trim(RES_PATH)//'P_f.dat')
-     open(2,file = trim(RES_PATH)//'P_t.dat')
-     write(1,*) P_f(:,:,129)
-     write(2,*) P_t(:,:,129)
-     close(1)
-     close(2)
-              
+     if (present(lambda)) then
+        ! SAVE COMPUTED PRODUCTION TERM
+        print*
+        print*,'Saving computed production field in', RES_PATH
+        call system ('mkdir -p '//trim(RES_PATH))
+
+        open(1,file=trim(RES_PATH)//'Pij_fOpt'  //trim(lambda_char(4:6)) // '.dat')
+        open(2,file=trim(RES_PATH)//'Pij_tOpt'  //trim(lambda_char(4:6)) // '.dat')
+
+        write(1,*) Pij_f(:,:,129)
+        write(2,*) Pij_t(:,:,129)
+        close(1)
+        close(2)
+
+     else 
+        ! SAVE ORIGINAL PRODUCTION TERM
+        print*
+        print*,'Saving original production field in', RES_PATH
+        call system ('mkdir -p '//trim(RES_PATH))
+
+        open(1,file = trim(RES_PATH)//'Pij_f.dat')
+        open(2,file = trim(RES_PATH)//'Pij_t.dat')
+        write(1,*) Pij_f(:,:,129)
+        write(2,*) Pij_t(:,:,129)
+        close(1)
+        close(2)
+     end if
+
+
    end subroutine plotProductionTerm
 
 

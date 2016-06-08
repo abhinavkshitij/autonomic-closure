@@ -240,7 +240,9 @@ contains
     real(8), dimension(:,:,:), intent(out) :: P
     !
     !   .. LOCAL VARS..
-    integer :: count = 0
+    integer :: count 
+    
+    count = 0
     P = 0
     do j = 1,3
        do i = 1,3
@@ -326,15 +328,16 @@ contains
   !          
   !----------------------------------------------------------------
 
-  subroutine createPDF(field, plot, fieldname)
+  subroutine createPDF(field, plotOption, fieldname)
     implicit none
     !
     !    ..ARRAY ARGUMENT..
     real(8), dimension(:,:,:), intent(in) :: field
     !
     !    ..PLOT ARGUMENT..
-    logical, optional,intent(in) :: plot
+    character(*), optional, intent(in) :: plotOption
     character(*), optional, intent(in) :: fieldname
+
     !
     !    ..LOCAL ARRAYS..
     real(8), dimension(:), allocatable :: x
@@ -363,14 +366,76 @@ contains
 
     !
     ! PLOT:
-    if(present(plot).and.present(fieldname)) then
+    if(plotOption.eq.'plot'.and.present(fieldname)) then
        call plotPDF(x,pdf,fieldname,avg,SD)
     else
        print*, 'Need fieldname argument to name the file'
     end if
   end subroutine createPDF
   
-  
 
+  !****************************************************************
+  !                        CROSS VALIDATION                       !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Compute cross validation error at test scale
+  !       
+  !       
+  !
+  ! FORM: subroutine createPDF(field, [plot], [fieldname])
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS :  
+  !
+  ! CHECK GAUSSIAN BY MEASURING THE THIRD ORDER MOMENT:
+  !            print*, sum((field-avg)**3)/size(field)
+  !
+  !          
+  !----------------------------------------------------------------
+  
+  subroutine trainingError(T_ijOpt, T_ij, error, plotOption,fID)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(in) :: T_ijOpt
+    real(8), dimension(:,:,:,:), intent(in) :: T_ij
+    real(8), intent(out) :: error
+    character(*), optional, intent(in) :: plotOption
+   
+    !
+    !
+    integer,optional, intent(in) :: fID
+    !
+    !   ..LOCAL VARS..
+    integer :: i
+    real(8) :: error_i(6)
+
+
+    do i = 1,6
+       error_i(i) =  norm  (T_ijOpt(i, 129-3:129+3:3, 129-3:129+3:3, 129-3:129+3:3) &
+                          - T_ij   (i, 129-3:129+3:3, 129-3:129+3:3, 129-3:129+3:3) )  
+    end do
+
+    error_i = error_i / 27
+    error = maxval(error_i)
+
+    !
+    !    PLOT RESULTS:
+    if (present(plotOption).and.plotOption.eq.'plot') then
+!       open(10, file=trim(RES_PATH)//'crossValidationError.csv')
+       write(fID,"( 8(ES16.7,',') )"), lambda, error_i, error    
+!       close(10)
+    end if
+
+  end subroutine trainingError
 
 end module actools

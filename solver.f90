@@ -281,7 +281,7 @@ contains
     ! 4 - To check if values from the stencil and bounding box are working well.
 
 
-    print*, 'Computing SGS stress...'
+ !   print*, 'Computing SGS stress...'
     ! To determine stresses at coarse and fine stencil,
     ! velocities and their products must be known at LES
     ! scale. Though on the test scale it will skip every other point (coarse stencil)
@@ -496,7 +496,7 @@ contains
              print*, 'V(1500,2000)', V(1500,2000)
              stop
           else 
-             print*,'V matrix check ... Passed'
+             !print*,'V matrix check ... Passed'
           end if
           end if
 
@@ -507,7 +507,7 @@ contains
              print*, T(3,1)
 !             stop
           else 
-             print*,'T vector check ... Passed'
+             !print*,'T vector check ... Passed'
           end if
           end if
 
@@ -612,7 +612,7 @@ contains
 !       do k_opt = k_test-126, k_test+125
 !       do i_opt = 15,15
 !       do j_opt = 24,24
-       do k_opt = 129, 129 !10,10
+       do k_opt = 129-3, 129+3,3 !10,10
 
           col_index = 0 
          
@@ -744,7 +744,7 @@ contains
 
     ! Apply damping: A = A + lambda*I
 !    lambda = 1.d-1
-    print*, lambda
+!    print*, lambda
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 

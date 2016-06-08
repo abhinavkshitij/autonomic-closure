@@ -48,8 +48,9 @@ module global
   type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),     &
                                           str16 ('u_t'),     &
                                           str16 ('tau_ij'),  &
-                                          str16 ('T_ij')]
-
+                                          str16 ('T_ij')]  
+                                      
+  
 
   type(str16), parameter :: l_solutionMethod(2) = [str16 ('LU'),         &
                                                    str16 ('SVD')]
@@ -101,8 +102,8 @@ module global
   real(8), dimension(:,:), allocatable :: h_ij
   !
   !    ..PRODUCTION TERM..
-  real(8), dimension(:,:,:), allocatable :: P_f
-  real(8), dimension(:,:,:), allocatable :: P_t
+  real(8), dimension(:,:,:), allocatable :: Pij_f
+  real(8), dimension(:,:,:), allocatable :: Pij_t
  
   integer :: i_GRID 
   integer :: j_GRID 
@@ -149,7 +150,7 @@ module global
   integer :: lBound 
   integer :: uBound 
 
-  ! Statisetics parameters:
+  ! Statistics parameters:
   integer :: samples 
 
   !
@@ -177,6 +178,7 @@ module global
   integer  :: n_u 
   integer  :: n_uu 
   integer  :: i, j, k  
+  integer  :: iter
   real(8)  :: tic, toc
   
 
@@ -189,7 +191,6 @@ module global
   interface printplane
      module procedure plane2, plane3
   end interface
-
 
 contains
   
@@ -228,15 +229,13 @@ contains
     stride = 1              ! No subsampling on the original DNS GRID 
     skip = 10               ! For training points
     X = 1     
-    n_DAMP = 1 
+    n_DAMP = 1
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
  
     ! Bounding Box parameters:  
     if (formulation.eq.'noncolocated') then
        ! Set number of features
-!       N = 3403                 
        N = nCk(stencil_size + 1, 2) + nCk(stencil_size, 1) + 1
-!       if (withPressure) N = 5995 ! for velocity and pressure
 
        if (trainingPoints.eq.'ordered') then
           ! Set bounding box size
@@ -252,8 +251,8 @@ contains
           end if
        end if
     end if
-    
 
+    
     boxSize = product(box)
 
 
@@ -267,8 +266,7 @@ contains
     ! Test field parameters: 
     testSize = 1
     testcutSize = stride * (testSize + box(1)) + 1
-    testLower = stride * biQ#$Wes5rd6tfyui
-    gHalf + 1
+    testLower = stride * bigHalf + 1
     testUpper = stride * (bigHalf - 1 + testSize) + 1
 
 
@@ -604,7 +602,7 @@ contains
   !                          NORM
   !----------------------------------------------------------------
   ! USE:  
-  !     Computes norm-1, norm-2 or norm-Inf of an array     
+  !     Computes norm-1, norm-2 or norm-Inf of a 3D array     
   !     
   ! FORM:
   !      function norm(double array,['1', or '2', or 'Inf'])
@@ -620,10 +618,16 @@ contains
     real(8) :: norm
 
     if (present(normType)) then
+       ! 
+       ! L1 norm
        if (normType.eq.'1') then 
           norm = sum(abs(array))
+       !
+       ! L2 norm   
        elseif (normType.eq.'2') then
           norm = sqrt(sum(array**2))
+       !
+       ! L-Inf norm    
        elseif (normType.eq.'Inf') then
           norm = maxval(array)
        else
@@ -634,6 +638,7 @@ contains
        norm = sqrt(sum(array**2)) 
     end if   
   end function norm
+
 
   
 

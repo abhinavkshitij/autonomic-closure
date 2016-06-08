@@ -46,16 +46,23 @@ program autonomic
   logical :: readFile             =  0
   logical :: filterVelocities     =  0
   logical :: plot_Velocities      =  0
-  logical :: computeOrigStress    =  0
-  logical :: save_FFT_data        =  0
-  logical :: plot_Stresses        =  0
-  logical :: computeStrain        =  0
-  logical :: production_Term      =  0
+  logical :: computeFFT_data      =  0
+  logical :: save_FFT_data        =  1
+  logical :: plot_Stresses        =  1
+  logical :: production_Term      =  1
   logical :: save_ProductionTerm  =  0
   logical :: computeVolterra      =  1
 
+  !
+  !    ..TEST VARAIBLES FOR DEBUGGING..
+  real(8) :: error
+  real(8) :: test_lam = 1d-11
+  character(64) :: test_ch
 
-!  real(8) ::testarray(11) = [-5,-4,-3,-2,-1,0,1,2,3,4,5]
+  
+  write(test_ch, '(ES6.0E2)') test_lam
+  write(*, '(ES6.0E2)') test_lam
+  print*, trim(test_ch(4:6))
 
 
   call setEnv()
@@ -63,10 +70,8 @@ program autonomic
   !    ..INIT POSTPROCESSING..
   open(22, file = trim(RES_DIR)//'path.txt')
 
- ! print*, mean(testarray), stdev(testarray)
-!  call createPDF(testarray(1,1,:),plot=.true.,fieldname='testArray')
-  
 
+ 
   ! FORMAT:
 3015 format(a30,f22.15)
 307 format(a30,f22.7)
@@ -87,8 +92,8 @@ program autonomic
   if(readFile) call readData(DIM = n_u)
   if(allocated(u).eqv..false.) allocate(u(n_u,i_GRID,j_GRID,k_GRID))
 
-  ! GET STATISTICS OF INITIAL 
-!  call createPDF(u(1,:,:,:),plot=.true.,fieldname='Velocities')
+  ! GET STATISTICS OF INITIAL VELOCITY
+  !  call createPDF(u(1,:,:,:),plot=.true.,fieldname='Velocities')
 
 
   ! INITIALIZE PATH: LEVEL 1 (DATASET)
@@ -107,7 +112,9 @@ program autonomic
   call energySpectra(u(1:3,:,:,:))
 
 
-  ! ADD PATH DEPTH : LEVEL 2 - (SCALE)
+  ! ************** LEVEL 2 ****************!
+  !
+  ! ADD PATH DEPTH : (SCALE)
   write(scale,'(2(i0))') LES_scale, test_scale 
   TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
   RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
@@ -120,69 +127,61 @@ program autonomic
   ! 2] FILTER VELOCITIES [AND PRESSURE]:
   allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
   allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
+
+
   if (filterVelocities) then
      print*
      write(*, '(a32)', ADVANCE='NO'), 'Filter velocities ... '
 
      !! Create filters:
-     allocate(LES(f_GRID,f_GRID,f_GRID))
+     allocate(LES (f_GRID,f_GRID,f_GRID))
      allocate(test(f_GRID,f_GRID,f_GRID))
      call createFilter(LES,LES_scale)
      call createFilter(test,test_scale)
      call fftshift(LES)
      call fftshift(test)
 
-
-     filter:do i=1,n_u
+     do i=1,n_u
         u_f(i,:,:,:) = sharpFilter(u(i,:,:,:),LES) ! Speed up this part -- Bottleneck
         u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) ! Speed up this part -- Bottleneck
-     end do filter
-     call check_FFT(u_t(1,15,24,10))
-  end if
-  print*, 'Success'
-  print*, u_f(1,15,24,10)
-  print*, u_t(1,15,24,10)
-  if (withPressure)  print*, u_f(4,15,24,10)
-
-
-  if (plot_Velocities) then
-     call plotVelocities()
+     end do 
+     call check_FFT(u_t(1,15,24,10))  
+     print*, 'OK'
+     if (plot_Velocities) call plotVelocities()
   end if
 
-
-  ! ASSERT 6 COMPONENTS FOR ij TO COMPUTE STRESS:
+  ! CHECK ALL 6ij:
   if (n_uu.ne.6) then
-     print*,"Need all 6 ij components to compute stress... Aborting \n"
+     print*, 'Cannot proceed further without 6 ij'
      stop
   end if
 
-  allocate(tau_ij (n_uu,i_GRID,j_GRID,k_GRID))
-  allocate(T_ij   (n_uu,i_GRID,j_GRID,k_GRID))
 
-  print*, 'tau_ij',shape(tau_ij),'\n','T_ij',shape(T_ij),'\n'
+  ! 3] GET FFT_DATA:
+  allocate (tau_ij (n_uu,i_GRID,j_GRID,k_GRID))
+  allocate (T_ij   (n_uu,i_GRID,j_GRID,k_GRID))
+  allocate (Sij_f  (3,3, i_GRID,j_GRID,k_GRID))
+  allocate (Sij_t  (3,3, i_GRID,j_GRID,k_GRID))
 
 
-  ! 3] COMPUTE ORIGINAL STRESS:
-  if(computeOrigStress)then
+  if(computeFFT_data)then
 
-     call cpu_time(tic)
-     print*
+     ! STRESS:
      print*,'Compute stress:',stress
      call computeStress(u, u_f, u_t, tau_ij, T_ij, LES, test)
-     call cpu_time(toc)
-     write(*,307),'computeStress - time elapsed:',toc-tic
      deallocate(LES,test)
-     if (save_FFT_DATA) then 
-        call saveFFT_data()
-     end if
+
+     if (save_FFT_DATA) call saveFFT_data()
 
   else
 
-     ! LOAD SAVED FFT_DATA: Filtered velocities and stress files: 
+     ! LOAD SAVED FFT_DATA: Filtered velocities, stress and strain rates 
      call loadFFT_data()
+!     call checkFFT_data()
 
      ! CHECK INPUT DATA:
      ! ++
+     print*, 'check input'
      if (withPressure) then
      if (u_f(4,15,24,10).ne.0.12164158031779296d0) then
         print*, 'ERROR READING DATA'
@@ -206,98 +205,80 @@ program autonomic
   end if
 
   ! PLOT STRESSES - ORIGINAL ON LEVEL 2
-  if (plot_Stresses) then
-     call plotOriginalStress()
-  end if
+  if (plot_Stresses) call plotOriginalStress()
 
-
-
-  ! 4] COMPUTE STRAIN RATE:
-  if(computeStrain)then
-     allocate (Sij_f(3,3,i_GRID,j_GRID,k_GRID))
-     allocate (Sij_t(3,3,i_GRID,j_GRID,k_GRID))
   
-     print*, 'Compute strain rate'
-     call computeSij(u_f, Sij_f)
-     call computeSij(u_t, Sij_t)
+  ! STRAIN:
+  print*, 'Compute strain rate \n'
+  call computeSij(u_f, Sij_f)
+  call computeSij(u_t, Sij_t)
 
-     print*,'Sij_fl(1,2,15,24,10)',Sij_f(1,2,15,24,10)
-     print*,'Sij_ft(1,2,15,24,10)',Sij_t(1,2,15,24,10),'\n'
-  end if
+  print*,'Sij_f(1,2,15,24,10)',Sij_f(1,2,15,24,10)
+  print*,'Sij_f(1,2,15,24,10)',Sij_t(1,2,15,24,10),'\n'     
 
 
-  ! 5] PRODUCTION FIELD - ORIGINAL 
+
+!  5] PRODUCTION FIELD - ORIGINAL 
   if(production_Term) then
-     allocate (P_f (i_GRID, j_GRID, k_GRID))
-     allocate (P_t (i_GRID, j_GRID, k_GRID))
-     call productionTerm(P_f, tau_ij, Sij_f)
-     call productionTerm(P_t, T_ij,   Sij_t)
-     print*,'P_f(15,24,10)',P_f(15,24,10)
-     print*,'P_t(15,24,10)',P_t(15,24,10),'\n'
+     allocate (Pij_f (i_GRID, j_GRID, k_GRID))
+     allocate (Pij_t (i_GRID, j_GRID, k_GRID))
+     call productionTerm(Pij_f, tau_ij, Sij_f)
+     call productionTerm(Pij_t, T_ij,   Sij_t)
+     print*,'Pij_f(15,24,10)',Pij_f(15,24,10)
+     print*,'Pij_t(15,24,10)',Pij_t(15,24,10),'\n'
      if (save_ProductionTerm) then
         call plotProductionTerm()
      end if
-     deallocate (Sij_f, Sij_t)
   end if
 
+stop
 
-  ! ADD PATH DEPTH : LEVEL 3 - (METHOD) - LU or SVD
+  ! ************** LEVEL 3 ****************!
+  !
+  ! ADD PATH DEPTH : (METHOD) - LU or SVD
   TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/'
   RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'
   call system ('mkdir -p '//trim(TEMP_PATH))
   call system ('mkdir -p '//trim(RES_PATH))
   write(22,*) RES_PATH
 
-  ! COMPUTE h_ij using autonomic closure:
+
+  ! 6] AUTONOMICALLY TUNED LAMBDA
   allocate(h_ij(N,P))
+  if (allocated(Pij_f).eqv..false.)  allocate (Pij_f (i_GRID, j_GRID, k_GRID))
+  if (allocated(Pij_t).eqv..false.)  allocate (Pij_t (i_GRID, j_GRID, k_GRID))
+
+  fileID = 81
+  open(fileID,file=trim(RES_PATH)//'crossValidationError.csv')
+  do iter = 1, n_DAMP
+     lambda = 1.d-10 * 10**(iter-1)
+
+     call autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
+     ! OPTIMIZED STRESS:
+     if (allocated(T_ijOpt).eqv..false.)    allocate(T_ijOpt   (n_uu,i_GRID,j_GRID,k_GRID))
+     if (allocated(tau_ijOpt).eqv..false.)  allocate(tau_ijOpt (n_uu,i_GRID,j_GRID,k_GRID))
+     call computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+     ! PLOT COMPUTED STRESSES 
+     if (plot_Stresses) call plotComputedStress(lambda)
+     call trainingerror(T_ijOpt, T_ij, error,'plot',fileID)
 
 
-
-  lambda = 1.d-1
-  do i = 1,2
-     lambda = lambda * 10**(i-1)
-  call autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
-  
-  ! PRINT h_ij:
-  !print*, 'h_ij(1,1):',   h_ij(1,1)
-  !print*, 'h_ij(20,1):',  h_ij(20,1)
-  print*, 'h_ij(350,1):', h_ij(350,1)
-
-
-  ! SAVE/READ h_ij: in '../run/apples/h_ij.dat'
-
-
-  ! OPTIMIZED STRESS:
-  if (allocated(T_ijOpt).eqv..false.)    allocate(T_ijOpt   (n_uu,i_GRID,j_GRID,k_GRID))
-  if (allocated(tau_ijOpt).eqv..false.)  allocate(tau_ijOpt (n_uu,i_GRID,j_GRID,k_GRID))
-  call cpu_time(tic)
-  call computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-  print*, 'tau_ijOpt(1,15,24,10)', tau_ijOpt (1,15,24,129)
-  print*, 'T_ijOpt(1,15,24,10)',   T_ijOpt   (1,15,24,129)
-  call cpu_time(toc)
-  print*,'Elapsed time', toc-tic
-
-  ! PLOT STRESSES - COMPUTED ON LEVEL 3
-  if (plot_Stresses) then
-     call plotComputedStress()
+ ! 7] PRODUCTION FIELD FROM COMPUTED STRESSES:
+  if(production_Term) then
+     call productionTerm(Pij_f, tau_ijOpt, Sij_f)
+     call productionTerm(Pij_t, T_ijOpt,   Sij_t)
+     if (save_ProductionTerm) call plotProductionTerm(lambda)
   end if
 
-  ! GET STATISTICS:
-  print*, 'testError'
+
+     ! GET STATISTICS:
+     !  print*, 'testError'
+     !  call createPDF(,plot=.true.,fieldname='errorTest')
+     !  call createPDF(,plot=.true.,fieldname='errorSGS')
+  end do
+  close(fileID)
+
+  if (allocated(Sij_f) ) deallocate (Sij_f, Sij_t)
 
 
-!  testError= T_ijOpt (1, 2:i_GRID-1:(i_GRID-2)/2-1, 2:j_GRID-1:(j_GRID-2)/2-1, 2:k_GRID-1:(k_GRID-2)/2-1) &
-!           - T_ij    (1, 2:i_GRID-1:(i_GRID-2)/2-1, 2:j_GRID-1:(j_GRID-2)/2-1, 2:k_GRID-1:(k_GRID-2)/2-1) 
-
-!  print*, norm( T_ijOpt (1, ::i_GRID/2-1, ::j_GRID/2-1, ::k_GRID-1) &
-!              - T_ij    (1, ::i_GRID/2-1, ::j_GRID/2-1, ::k_GRID-1)) /27
-  print*, norm( T_ijOpt (1, 129-3:129+3:3, 129-3:129+3:3, 129-3:129+3:3) &
-              - T_ij    (1, 129-3:129+3:3, 129-3:129+3:3, 129-3:129+3:3)) /27
-
-
-
-!  call createPDF(,plot=.true.,fieldname='errorTest')
-!  call createPDF(,plot=.true.,fieldname='errorSGS')
-
-end do
 end program autonomic

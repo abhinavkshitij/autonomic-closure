@@ -23,6 +23,7 @@ include $(WORK)/../config/macros.mk
 OBJECTS_AUTONOMIC = global.o fileio.o fourier.o actools.o solver.o autonomic.o
 autonomic : $(OBJECTS_AUTONOMIC)
 	 $(build-exe)
+#	 $(plot-exe)
 
 
 #
@@ -30,6 +31,7 @@ autonomic : $(OBJECTS_AUTONOMIC)
 OBJECTS_MAIN = global.o fileio.o fourier.o actools.o solver.o main.o
 main :  $(OBJECTS_MAIN) 
 	$(build-exe)
+
 
 
 #
@@ -68,9 +70,11 @@ vpath %.png run/plots
 
 #
 # BUILD PLOTS:
-plots : %.png : %.dat
-	$(PLOT_EXE) $< $*.dat
+#plots : %.png : %.dat
+#	$(PLOT_EXE) $< $*.dat
 
+plots :
+	$(plot-exe)
 
 
 #

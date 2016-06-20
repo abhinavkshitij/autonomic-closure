@@ -12,6 +12,7 @@
 !          interface printplane
 !              subroutine plane3
 !              subroutine plane2
+!        subroutine printParams       [SINK]
 !
 ! BEHAVIOR:
 !      * Check array rank while passing into printplane.
@@ -26,7 +27,7 @@ module global
 
   integer, parameter :: dp = selected_real_kind(15,307)
 
-  real,    parameter :: eps = 1e-3 
+  real,    parameter :: eps = 1e-5
   real(8), parameter :: pi = 4.d0 * atan(1.d0)
 
   ! DEFINE STRING ARRAY:
@@ -38,48 +39,39 @@ module global
   type(str16), parameter :: var(2) = [str16 ('Velocity'),    &
                                       str16 ('Pressure')]
 
-  type(str16), parameter :: dataset(5) = [str16 ('nrl'),     & 
-                                          str16 ('jhu256'),  &
-                                          str16 ('hst'),     &
-                                          str16 ('sin3D'),   &
-                                          str16 ('jhu1024')]
+  type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),     & 
+                                            str16 ('jhu256'),  &
+                                            str16 ('hst'),     &
+                                            str16 ('sin3D'),   &
+                                            str16 ('jhu1024')]
 
   type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),     &
                                           str16 ('u_t'),     &
                                           str16 ('tau_ij'),  &
                                           str16 ('T_ij')]  
-
-  type(str16), parameter :: solv(2) = [str16 ('LU'),         &
-                                       str16 ('SVD')]
-
-
-  character(8) :: d_set     = trim (dataset(3) % name)
-  character(8) :: linSolver = trim (solv(1) % name)
-  character(2) :: hst_set = 'S6' ! HST datasets - S1, S3, S6
+                                      
   
-  integer, parameter  :: i_GRID = 256
-  integer, parameter  :: j_GRID = 129
-  integer, parameter  :: k_GRID = 256
-  integer, parameter  :: f_GRID = 256  !For FFT ops, the grid must be cubic.
-!   integer :: i_GRID 
-!   integer :: j_GRID 
-!   integer :: k_GRID 
-!   integer :: f_GRID 
-!   integer :: center
 
-!   real(8) :: dx
+  type(str16), parameter :: l_solutionMethod(2) = [str16 ('LU'),         &
+                                                   str16 ('SVD')]
 
-  integer, parameter :: M = 17576              ! Number of training points 3x3x3x9
-  integer, parameter :: N = 3403
-  integer, parameter :: P = 6
-  integer, parameter :: stencil_size = 3*(3*3*3) !3 * 27 = 81  
-  integer, parameter :: LES_scale  = 40
-  integer, parameter :: test_scale = 20
+  type(str16), parameter :: l_trainingPoints(2) = [str16 ('ordered'),    &
+                                                   str16 ('random')] 
 
-  character(3) :: stress = 'dev'
+  type(str16), parameter :: l_formulation(2) = [str16 ('colocated'),     &
+                                                str16 ('noncolocated')]
+
+              
+
+  character(8) :: dataset        = trim (l_dataset(3) % name)
+  logical      :: withPressure   = 0
+  character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! LU, SVD
+  character(2) :: hst_set = 'S3' ! HST datasets - S1, S3, S6
+  character(3) :: stress = 'dev' ! dev,abs
+  character(16):: formulation    = trim (l_formulation(2) % name)
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
 
 
-  
   !----------------------------------------------------------------
   !
   !****************************************************************
@@ -95,7 +87,7 @@ module global
   !    ..STRESSES..
   real(8), dimension(:,:,:,:), allocatable :: tau_ij
   real(8), dimension(:,:,:,:), allocatable :: T_ij
-  real(8), dimension(:,:,:,:), allocatable :: TijOpt
+  real(8), dimension(:,:,:,:), allocatable :: T_ijOpt
   real(8), dimension(:,:,:,:), allocatable :: tau_ijOpt
   !
   !    ..FILTERS..
@@ -110,17 +102,70 @@ module global
   real(8), dimension(:,:), allocatable :: h_ij
   !
   !    ..PRODUCTION TERM..
-  real(8), dimension(:,:,:), allocatable :: P_f
-  real(8), dimension(:,:,:), allocatable :: P_t
+  real(8), dimension(:,:,:), allocatable :: Pij_f
+  real(8), dimension(:,:,:), allocatable :: Pij_t
+  real(8), dimension(:,:,:), allocatable :: Pij_fOpt
+  real(8), dimension(:,:,:), allocatable :: Pij_tOpt
+ 
+
+  integer :: i_GRID 
+  integer :: j_GRID 
+  integer :: k_GRID 
+  integer :: f_GRID 
+  integer :: center
+
+  real(8) :: dx ! To calculate gradient
+
+
+  integer :: M               ! Number of training points 3x3x3x9
+  integer :: N 
+  integer :: P                  ! Number of components (1 to 6)
+  integer :: stencil_size 
+  integer :: LES_scale 
+  integer :: test_scale 
+
+
+  ! Stencil parameters:
+  integer :: stride ! Is the ratio between LES(taken as 1) and test scale
+  integer :: skip 
+  integer :: X ! Number of realizations
+  integer :: n_lambda  ! Number of lambdas
+  real(8) :: lambda, lambda_0
+ 
+  ! Bounding Box parameters:  
+  integer :: box(3) 
+  integer :: boxSize  
+  integer :: maskSize  
+  integer :: boxCenter
+  integer :: boxLower 
+  integer :: boxUpper 
+
+  ! Test field parameters: 
+  integer :: testSize 
+  integer :: testcutSize 
+  integer :: testLower
+  integer :: testUpper
+  
+
+  ! Cutout parameters:
+  integer :: lBound 
+  integer :: uBound 
+
+  ! Statistics parameters:
+  integer :: samples 
+
   !
   !    ..FILEIO..
+  integer :: z_print
   !
   !    .. DIRS..
   character(*), parameter :: DATA_DIR = '../data/'
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RES_DIR  = '../results/'
   
-
+  character(64) :: DATA_PATH
+  character(64) :: TEMP_PATH
+  character(64) :: RES_PATH
 
   character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
@@ -128,13 +173,16 @@ module global
   !    ..FORMATS..
   character(*), parameter :: long = 'es23.17'
   character(*), parameter :: short = 'f10.4'
-
+  character(*), parameter :: csv_Table = "( 2(f10.4, ',') , / )"
   !
   !    ..INDICES..
-  integer  :: i, j, k
   integer  :: fileID = 6
-  integer  :: n_u = 3 , n_uu = 6
+  integer  :: n_u 
+  integer  :: n_uu 
+  integer  :: i, j, k  
+  integer  :: iter
   real(8)  :: tic, toc
+  
 
   !----------------------------------------------------------------
   !
@@ -146,25 +194,156 @@ module global
      module procedure plane2, plane3
   end interface
 
-
 contains
   
   subroutine setEnv()
     
-!     print*, 'd_set:', d_set
-!     i_GRID = 256
-!     j_GRID = 256
-!     k_GRID = 256
-!     if (d_set.eq.'hst') then
-!        j_GRID = 129
-!     end if
+    RES_PATH = RES_DIR
 
-!     ! FFT 
-!     f_GRID = 256 !For FFT ops, the grid must be cubic.
-!     center = (0.5d0 * f_GRID) + 1.d0
-!     dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
+    i_GRID = 256
+    j_GRID = 256
+    k_GRID = 256
+    if (dataset.eq.'hst') then
+       j_GRID = 256 !129
+    end if
+
+    n_u = 3
+    if (withPressure) n_u = 4
+    ! CHECK PRESSURE DATA AVAILABLIITY:
+    if(dataset.ne.'jhu256'.and.n_u.eq.4) then
+       print*, 'Dataset ',dataset,' has no pressure data files'
+       stop
+    end if
+    n_uu = 6
+    P = 6
+
+    LES_scale  = 40
+    test_scale = 20
+
+
+    ! FFT 
+    f_GRID = 256 !For FFT ops, the grid must be cubic.
+    center = (0.5d0 * f_GRID) + 1.d0
+    dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
+
+
+    ! Stencil parameters:
+    stride = 1              ! No subsampling on the original DNS GRID 
+    skip = 10               ! For training points
+    X = 1     
+    stencil_size = n_u * (3*3*3) !3 * 27 = 81  
+
+    lambda_0 = 1.d-11
+    n_lambda = 10
+
+ 
+    ! Bounding Box parameters:  
+    if (formulation.eq.'noncolocated') then
+       ! Set number of features
+       N = nCk(stencil_size + 1, 2) + nCk(stencil_size, 1) + 1
+
+       if (trainingPoints.eq.'ordered') then
+          ! Set bounding box size
+          box = [i_GRID-2, j_GRID-2, k_GRID-2]
+          ! Set number of training points
+          M =    (floor((real(box(1) - 1)) / skip) + 1)    &
+               * (floor((real(box(2) - 1)) / skip) + 1)    &
+               * (floor((real(box(3) - 1)) / skip) + 1)  !17576 
+
+       else if (formulation.eq.'colocated') then
+          box  = [8,8,8]
+          if (trainingPoints.eq.'random') then
+          end if
+       end if
+    end if
+
+    
+
+    boxSize   = product(box)
+    maskSize  = boxSize - M ! 512-Training points(243) = 269
+    boxCenter = smallHalf(box(1)) * box(1)*(box(1) + 1) + bigHalf(box(1))
+
+    boxLower  = stride * (bigHalf(box(1)) - 1)
+    boxUpper  = stride * (box(1) - bigHalf(box(1)))
+
+
+    ! Test field parameters: 
+    testSize    = 1
+    testLower   = stride *  bigHalf(box(1)) + 1
+    testUpper   = stride * (bigHalf(box(1)) - 1 + testSize) + 1
+    testcutSize = stride * (testSize + box(1)) + 1
+
+    ! Cutout parameters:
+    lBound = 0.5*(f_GRID - testcutSize)
+    uBound = 0.5*(f_GRID + testcutSize) - 1
+
+    ! Statistics parameters:
+    samples = 250
 
   end subroutine setEnv
+
+
+  !****************************************************************
+  !                         PRINT PARAMETERS                      !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Display main parameters either onto the screen or writes
+  !      to a file. Writes PATHS and parameters for postprocessing
+  !      in MATLAB
+  !      
+  !      
+  ! FORM:   subroutine printParams()
+  ! 
+  !      
+  ! BEHAVIOR: 
+  !           
+  !
+  ! STATUS : 
+  !          
+  !
+  !----------------------------------------------------------------
+
+  
+  subroutine printParams()
+
+    !
+    ! Write parameters in params.txt for MATLAB to read in data for
+    ! post-processing the results.
+    open(23, file = trim(RES_DIR)//'params.txt')
+    write(23,*) i_GRID
+    write(23,*) j_GRID
+    write(23,*) k_GRID
+    write(23,*) dataset
+    write(23,*) hst_set
+    close(23)
+
+    
+     write(fileID, * ), 'Dataset:            ', dataset, '\n'
+
+     write(fileID, * ), 'Stencil parameters: \n'
+
+     write(fileID, * ), 'Training points :    ',M
+     write(fileID, * ), 'Features :           ',N, '\n'
+
+     write(fileID, * ), 'Box parameters:      '
+     write(fileID, * ), 'Bounding box:        ',box
+     write(fileID, * ), 'boxCenter:           ',boxCenter
+     write(fileID, * ), 'boxLower:            ',boxLower
+     write(fileID, * ), 'boxUpper:            ',boxUpper, '\n'
+
+     write(fileID, * ), 'Test field parameters:'
+     write(fileID, * ), 'testcutSize:         ',testcutSize
+     write(fileID, * ), 'testLower:           ',testLower
+     write(fileID, * ), 'testUpper:           ',testUpper, '\n'
+
+     write(fileID, * ), 'Cutout parameters:'
+     write(fileID, * ), 'lower bound:         ',lBound
+     write(fileID, * ), 'upper bound:         ',uBound, '\n'
+
+     write(fileID, * ),  'Number of samples'    ,samples
+
+  end subroutine printParams
 
 
   !****************************************************************
@@ -307,5 +486,218 @@ contains
     
   end subroutine plane2
 
+
+
+  !----------------------------------------------------------------
+  !                          COMBINATION - nCk
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes nCk
+  !       
+  ! FORM:
+  !      function combination (int n, int k)
+  !         
+  ! BEHAVIOR:
+  !
+  !----------------------------------------------------------------
   
+  function nCk(n,k) result(res)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer, value:: n, k
+    integer :: res
+    !
+    !    ..LOCAL VARS..
+    integer :: Nr, Dr, count
+
+    res = 1; Nr = 1; Dr = 1
+
+    do while (k.ne.0)
+       Nr = Nr * n
+       n = n - 1
+       Dr = Dr * k
+       k = k - 1
+    end do
+
+    res = Nr / Dr 
+    
+  end function nCk
+
+  !----------------------------------------------------------------
+  !                          FACTORIAL
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes the factorial of a positive integer
+  !       
+  ! FORM:
+  !      function recursive factorial(int n)
+  !         
+  ! BEHAVIOR:
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  recursive function factorial(num) result (res)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer :: num
+    integer :: res
+    
+    if (num.eq.1.or.num.eq.0) then
+       res = 1
+    else
+       res = num * factorial(num-1)
+    end if  
+  end function factorial
+
+
+
+  !----------------------------------------------------------------
+  !                          MEAN
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes the mean value of an array
+  !     
+  ! FORM:
+  !      function mean(double array)
+  !         
+  ! BEHAVIOR:
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function mean(array) 
+    real(8),dimension(:,:,:),intent(in):: array  
+    real(8) :: mean
+    mean = sum(array) / size(array)
+  end function mean
+
+  
+  !----------------------------------------------------------------
+  !                          STANDARD DEVIATION
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes the standard deviation of an array based on
+  !     estimated average [not true average]
+  !     
+  !     
+  ! FORM:
+  !      function stdev(double array)
+  !         
+  ! BEHAVIOR:
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function stdev(array)
+    real(8), dimension(:,:,:),intent(in):: array
+    real(8) :: stdev
+    stdev = sqrt ( sum((array - mean(array))**2) / (size(array)-1) )
+  end function stdev
+
+
+
+  !----------------------------------------------------------------
+  !                          NORM
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes norm-1, norm-2 or norm-Inf of a 3D array     
+  !     
+  ! FORM:
+  !      function norm(double array,['1', or '2', or 'Inf'])
+  !         
+  ! BEHAVIOR: default is norm-2
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function norm(array, normType)
+    real(8), dimension(:,:,:),intent(in):: array
+    character(*), optional, intent(in) :: normType 
+    real(8) :: norm
+
+    if (present(normType)) then
+       ! 
+       ! L1 norm
+       if (normType.eq.'1') then 
+          norm = sum(abs(array))
+       !
+       ! L2 norm   
+       elseif (normType.eq.'2') then
+          norm = sqrt(sum(array**2))
+       !
+       ! L-Inf norm    
+       elseif (normType.eq.'Inf') then
+          norm = maxval(array)
+       else
+          print*, 'Norms computed are 1-norm, 2-norm or Inf-norm'
+       end if
+    else
+       ! Default: norm-2 
+       norm = sqrt(sum(array**2)) 
+    end if   
+  end function norm
+
+
+  !----------------------------------------------------------------
+  !                          BIGHALF
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes bigHalf 
+  !     
+  ! FORM:
+  ! 
+  !         
+  ! BEHAVIOR: 
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function bigHalf(num)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer, intent(in) :: num
+    integer :: bighalf
+    !
+    !    ..LOCAL SCALARS..
+    real :: eps = 1e-5
+
+    bigHalf   = ceiling(0.5*real(num) + eps) 
+
+  end function bigHalf
+
+
+  !----------------------------------------------------------------
+  !                          SMALLHALF
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes smallHalf 
+  !     
+  ! FORM:
+  ! 
+  !         
+  ! BEHAVIOR: 
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function smallHalf(num)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer, intent(in) :: num
+    integer :: smallhalf
+    !
+    !    ..LOCAL SCALARS..
+    real :: eps = 1e-5
+
+    smallHalf   = floor(0.5*real(num) + eps) 
+
+  end function smallHalf
+
+  
+
 end module global

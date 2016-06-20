@@ -9,10 +9,12 @@
 !
 ! FORM: module actools
 !          contains
+!       subroutine energySpectra       [FILTER]
 !       subroutine computeS_ij         [FILTER]
 !       subroutine gradient            [FILTER]    
 !       subroutine productionTerm      [FILTER]
 !       subroutine velocityProducts    [FILTER]
+!       subroutine createPDF           [FILTER]
 ! BEHAVIOR: 
 !           
 !           
@@ -63,7 +65,7 @@ contains
     !    ..LOCAL VARS..
     real(8), dimension(:), allocatable :: Ek
 
-    print*, center
+    !print*, center
     
   end subroutine energySpectra
 
@@ -110,19 +112,19 @@ contains
 
     !
     ! COMPUTE VELOCITY GRADIENTS:
-    write(*,'(a32)',ADVANCE='NO'), 'Compute velocity gradients:'
+    write(*,'(a32)',ADVANCE='NO'), adjustl('        Compute velocity gradients:')
     call cpu_time(tic)
     do i=1,3
        call gradient(u(i,:,:,:),grad_u)
        A(i,:,:,:,:) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
     end do
     call cpu_time(toc)
-    print*, toc-tic
+    write(*,*), toc-tic
     deallocate(grad_u)
 
     !
     ! COMPUTE S_ij:
-    write(*,'(a16)',ADVANCE='NO'), "Compute Sij:"
+    write(*,'(a16)',ADVANCE='NO'), adjustl('      Compute Sij:')
     call cpu_time(tic)
     do j=1,3
        do i=1,3
@@ -130,7 +132,7 @@ contains
        end do
     end do
     call cpu_time(toc)
-    print*, toc-tic
+    write(*,*), toc-tic
 
     deallocate (A)
 
@@ -173,7 +175,6 @@ contains
     real(8), allocatable,dimension (:,:,:) :: u
     !
     !    ..LOCAL SCALARS..
-    real(8) :: dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.
     real(8) :: dx_inv
 
     !
@@ -239,7 +240,9 @@ contains
     real(8), dimension(:,:,:), intent(out) :: P
     !
     !   .. LOCAL VARS..
-    integer :: count = 0
+    integer :: count 
+    
+    count = 0
     P = 0
     do j = 1,3
        do i = 1,3
@@ -295,4 +298,147 @@ contains
        end do
     end do
   end subroutine velocityProducts
+
+  
+  !****************************************************************
+  !                        CREATE PDF                             !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Samples a field and computes the probability density function PDF
+  !       
+  !       
+  !
+  ! FORM: subroutine createPDF(field, [plot], [fieldname])
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS :  
+  !
+  ! CHECK GAUSSIAN BY MEASURING THE THIRD ORDER MOMENT:
+  !            print*, sum((field-avg)**3)/size(field)
+  !
+  !          
+  !----------------------------------------------------------------
+
+  subroutine createPDF(field, plotOption, fieldname)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENT..
+    real(8), dimension(:,:,:), intent(in) :: field
+    !
+    !    ..PLOT ARGUMENT..
+    character(*), optional, intent(in) :: plotOption
+    character(*), optional, intent(in) :: fieldname
+
+    !
+    !    ..LOCAL ARRAYS..
+    real(8), dimension(:), allocatable :: x
+    real(8), dimension(:), allocatable :: pdf
+    !
+    !    ..LOCAL VARS..
+    real(8) :: delta, avg, SD
+
+
+    allocate (x(samples))
+    allocate (pdf(samples))
+    
+    !
+    ! LINSPACE-LIKE FUNCTION - IND. DOMAIN
+    delta = (maxval(field) - minval(field)) / (samples-1)
+    forall(i=1:samples)  x(i) = minval(field) + (delta * (i-1))
+
+    !
+    ! CALCULATE FIELD MEAN AND STD DEV
+    avg = mean(field)
+    SD = stdev(field)
+
+    !
+    ! PDF
+    pdf = exp(-((x-avg)**2 / (2*SD**2))) / (sqrt (2*pi)*SD) 
+
+    !
+    ! PLOT:
+    if(plotOption.eq.'plot'.and.present(fieldname)) then
+       call plotPDF(x,pdf,fieldname,avg,SD)
+    else
+       print*, 'Need fieldname argument to name the file'
+    end if
+  end subroutine createPDF
+  
+
+  !****************************************************************
+  !                        CROSS VALIDATION                       !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Compute cross validation error at test scale
+  !       
+  !       
+  !
+  ! FORM: subroutine createPDF(field, [plot], [fieldname])
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS :  
+  !
+  ! CHECK GAUSSIAN BY MEASURING THE THIRD ORDER MOMENT:
+  !            print*, sum((field-avg)**3)/size(field)
+  !
+  !          
+  !----------------------------------------------------------------
+  
+  subroutine trainingError(T_ijOpt, T_ij, error, plotOption,fID)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(in) :: T_ijOpt
+    real(8), dimension(:,:,:,:), intent(in) :: T_ij
+    real(8), intent(out) :: error
+    character(*), optional, intent(in) :: plotOption
+   
+    !
+    !
+    integer,optional, intent(in) :: fID
+    !
+    !   ..LOCAL VARS..
+    integer :: i
+    real(8) :: error_i(6)
+
+
+    do i = 1,6
+       error_i(i) =  norm  (T_ijOpt(i, bigHalf(i_GRID)-3:bigHalf(i_GRID)+3:3, &
+                                       bigHalf(j_GRID)-3:bigHalf(j_GRID)+3:3, &
+                                       bigHalf(k_GRID)-3:bigHalf(k_GRID)+3:3) &
+
+                          - T_ij   (i, bigHalf(i_GRID)-3:bigHalf(i_GRID)+3:3, &
+                                       bigHalf(j_GRID)-3:bigHalf(j_GRID)+3:3, &
+                                       bigHalf(k_GRID)-3:bigHalf(k_GRID)+3:3) )  
+    end do
+
+    error_i = error_i / 27
+    error = maxval(error_i)
+
+    !
+    !    PLOT RESULTS:
+    if (present(plotOption).and.plotOption.eq.'plot') then
+       write(fID,"( 8(ES16.7,',') )"), lambda, error_i, error    
+    end if
+
+  end subroutine trainingError
+
 end module actools

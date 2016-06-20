@@ -20,7 +20,7 @@
 ! BEHAVIOR: Needs C-binding for FFTW libraries. 
 !           
 !
-! STATUS : Refactoring this unit.
+! STATUS : Check for non-uniform domains
 ! 
 !----------------------------------------------------------------
 
@@ -30,8 +30,6 @@ module fourier
   use, intrinsic :: iso_c_binding
   include 'fftw3.f03' 
  
-  integer :: center = (0.5d0 * f_GRID) + 1.d0
-
 contains
 
   !****************************************************************
@@ -265,28 +263,40 @@ contains
     !    ..LOCAL VARS..
     type(C_PTR) :: plan
    
-    allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
+    allocate(in_cmplx (f_GRID,f_GRID,f_GRID))
     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
 
-    in_cmplx(:,:,:) = dcmplx (array_work(:,:,:)) / (dble(f_GRID**3)) 
-!    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
 
-    ! ****
-    !print*, in_cmplx(256,256,256), array_work(256,256,256) !<- array_work(256,256,256) takes some garbage value 
-    ! ****
+    in_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:j_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
+
 
     ! FFT:
     call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)    
     call dfftw_destroy_plan(plan)
 
-    out_cmplx = out_cmplx * filter 
+!      ! ****
+!     print*,'Write FFT files from sharpFilter()'
+!     open(1, file= trim(RES_PATH)//'out_cmplx1.dat')
+!     open(11,file= trim(RES_PATH)//'out_cmplx2.dat')
+!     open(2, file= trim(RES_PATH)//'in_cmplx.dat')
+!     write(1,*) abs(out_cmplx(:,1,:))
+!     write(11,*) abs(out_cmplx(:,:,1))
+!     write(2,*) real(in_cmplx(:,:,129))
+!     close(1)
+!     close(11)
+!     close(2)
+!     ! ****
+
+    out_cmplx = out_cmplx * filter
+
 
     ! IFFT:
     call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)
     call dfftw_destroy_plan(plan)
 
+ 
     sharpFilter = real(in_cmplx) 
     
   end function sharpFilter
@@ -294,7 +304,7 @@ contains
   subroutine check_FFT(value)
     implicit none
     real(8) :: value
-    if (d_set.eq.'jhu256') then
+    if (dataset.eq.'jhu256') then
        if (abs(value - (-0.48241021987284982d0)).gt.tiny(0.d0)) then
           print*, 'Precision test for FFT: Failed'
           print*, 'Check precision or data for testing is not JHU 256'
@@ -340,7 +350,7 @@ contains
        k = 1
        do j=1,n_u
           do i=1,n_u
-             if (i.ge.j) then
+             if (i.le.3.and.j.le.3.and.i.ge.j) then
                 print *, 'tau(', i, ',', j, ')' !<-- CHECK ORDER OF i,j,k...affects performance!!!
                 tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:), LES)       &
                                           - u_f(i,:,:,:) * u_f(j,:,:,:)
@@ -357,7 +367,7 @@ contains
        k = 1
        do j=1,n_u
           do i=1,n_u
-             if (i.ge.j) then
+             if (i.le.3.and.j.le.3.and.i.ge.j) then
                 print *, 'tau(', i, ',', j, ')'
                 tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:),LES)     &
                                           - u_f(i,:,:,:) * u_f(j,:,:,:)
@@ -392,7 +402,7 @@ contains
     subroutine check_Stress(value)
       implicit none
       real(8) :: value
-      if (d_set.eq.'jhu256') then
+      if (dataset.eq.'jhu256') then
          if( ( (stress.eq.'dev') .and. (abs(value - (-5.2544371578038401d-3)).gt.tiny(0.d0)) )         &
               .or.( (stress.eq.'abs') .and. (abs(value - (-4.0152351790891661d-3)).gt.tiny(0.d0)) ) )  then
             print*, 'Precision test for stress: Failed.'

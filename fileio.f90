@@ -13,9 +13,15 @@
 !           subroutine readBinSingle   [SOURCE]
 !           subroutine readBinDouble   [SOURCE]
 !       subroutine readHDF5            [SOURCE]
-!       subroutine writeBin            [BUFFER]
-!       subroutine check_dataRead      [TEST] 
+!       subroutine check_dataRead      [TEST]
+!       subroutine plotVelocities      [SINK]
+!       subroutine loadFFT_data        [BUFFER]
+!       subroutine saveFFT_data        [BUFFER]
+!       subroutine plotOriginalStress  [SINK]
+!       subroutine plotProductionTerm  [SINK]
+!       subroutine plotPDF             [SINK]
 !       subroutine contour             [SINK]
+!       subroutine xyplot              [SINK]
 !
 !
 ! BEHAVIOR: readData can read binary format dataset in single or
@@ -31,9 +37,6 @@
 module fileio  
   use HDF5  
   use global
-
-  character(64) :: TEMP_PATH 
-  character(64) :: RES_PATH
 
   interface readBin
      module procedure readBinSingle, readBinDouble
@@ -54,7 +57,7 @@ contains
   ! BEHAVIOR: u_s: for binary read for single precision files.
   !
   ! STATUS : Refactoring this unit.
-  ! 
+  !       ** TEMPORARY CHANGE BASED ON PROF HAMLINGTON'S MAIL
   !----------------------------------------------------------------
 
 
@@ -74,15 +77,16 @@ contains
     character(16)                              :: endian
 
     !    ..DEFAULT VALUES..
-    PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+    DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/'
     variableName = trim(var(1)%name)! var(1) --> 'Velocity'; Expand for Pressure dataset.
     time = '256'
     endian = 'little_endian'
 
 10  format("Reading... u",i1,"_DNS")
+11  format("Reading... p_DNS")
 
      !  READ SINGLE PRECISION DATA - NRL
-     if (d_set.eq.'nrl') then
+     if (dataset.eq.'nrl') then
         time = '0460'
         endian = 'big_endian'
 
@@ -92,7 +96,7 @@ contains
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
-           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
@@ -102,39 +106,53 @@ contains
 
 
      !  READ SINGLE PRECISION DATA - HST
-     elseif (d_set.eq.'hst') then
-        PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
-        time = '070'
+     elseif (dataset.eq.'hst') then
+        DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
+
+        if (hst_set.eq.'S1') time = '016'
+        if (hst_set.eq.'S3') time = '015'
+        if (hst_set.eq.'S6') time = '070'
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
-        allocate(u_s(i_GRID,j_GRID,k_GRID))
-        
+
+
+      ! ** CHANGE FOR HST DATASET: READ HEADER
+      ! allocate(u_s(i_GRID, j_GRID, k_GRID))
+        allocate(u_s(i_GRID, 129,    k_GRID))
+
+
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
-           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
+
         
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
-     elseif (d_set.eq.'jhu256'.or.d_set.eq.'sin3D') then
+     elseif (dataset.eq.'jhu256'.or.dataset.eq.'sin3D') then
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         do fID = 1,DIM
-           write(fileID, 10) fID
            write(fIndex,'(i1)') fID
-           filename = trim(PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           if (fID.eq.4) then
+              write(fileID, 11) 
+              variableName = trim(var(2)%name) ! Pressure term
+           else
+              write(fileID, 10) fID
+           end if
+           filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
            call readBin(fID,filename,endian)
         end do
 
         ! READ DOUBLE PRECISION DATA - JHU1024 - HDF5
-      elseif (d_set.eq.'jhu1024'.and.ext.eq.'h5') then
+      elseif (dataset.eq.'jhu1024'.and.ext.eq.'h5') then
          call readHDF5(n_files=1)
       
         ! DEFAULT:
      else
-        print*,"No dataset found by the name", d_set
+        print*,"No dataset found by the name", dataset
         stop
      end if
         
@@ -156,7 +174,8 @@ contains
    ! BEHAVIOR: Convert to big endian while reading in data.
    !
    ! STATUS : Interfaced with readBin()
-   ! 
+   !          ## Commented out j_GRID; replaced with 129 for HST.
+   !         ### Move back to (:,:,:)
    !----------------------------------------------------------------
 
    subroutine readBinSingle(u_s,fID,filename,endian)
@@ -167,7 +186,7 @@ contains
      !
      !    ..SCALAR ARGUMENTS..
      character(*), intent(in) :: filename
-     character(*), intent(in),optional :: endian
+     character(*), intent(in), optional :: endian
      !
      !    ..LOCAL VARIABLES..
      integer :: fID
@@ -183,14 +202,14 @@ contains
 
      position = 0
      do k=1,k_GRID
-        do j=1,j_GRID
+        do j=1,129! ##  j_GRID
            do i=1,i_GRID
               position = position + 1
               read (fID,rec=position) u_s(i,j,k)
            end do
         end do
      end do
-     u(fID,:,:,:) = u_s
+     u(fID,:,1:129,:) = u_s(:,1:129,:) ! ### move back to (:,:,:)
      close(fID)
 
    end subroutine readBinSingle
@@ -219,7 +238,7 @@ contains
      character(*), intent(in),optional :: endian
      !
      !    ..LOCAL VARIABLES..
-     integer :: position
+     integer :: position        
 
 
      open(unit = fID, file = filename, &
@@ -276,7 +295,7 @@ contains
      !
      !    ..LOCAL VARS..
      character(30) :: fName = "isotropic1024coarse"
-     character(32) :: PATH 
+     !character(32) :: PATH 
      character(100) :: filename
      !#
      !    ..HDF5 VARS..
@@ -293,7 +312,7 @@ contains
      character(4)::   L_Index,    U_Index
      !
      !SET PATH:
-     PATH = trim(DATA_DIR) // trim(d_set) // '/' // trim(ext) // '/'
+     DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/'
      !
      ! Initialize file indices:
      !
@@ -329,7 +348,7 @@ contains
               write(U_Index,'(i4)') upperIndex
            end if
 
-           filename = trim(PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240'//'.'//trim(ext)
+           filename = trim(DATA_PATH)//trim(fName)//trim(L_Index)//'_'//trim(U_Index)//'_10240'//'.'//trim(ext)
            print*, filename
 
            ! ACCESS [F]ILE
@@ -377,7 +396,7 @@ contains
     real(8), intent(in) :: value
     
     ! NRL
-    if (d_set.eq.'nrl') then
+    if (dataset.eq.'nrl') then
        if (value.ne.-11.070811767578125d0) then
           print*, 'Error reading data!'
           print*, value
@@ -385,7 +404,7 @@ contains
        end if
 
     ! JHU256
-    elseif (d_set.eq.'jhu256') then
+    elseif (dataset.eq.'jhu256') then
        if (value.ne.-0.99597495794296265d0) then
           print*, 'Error reading data!'
           print*, value
@@ -393,15 +412,16 @@ contains
        end if
 
     ! SIN 3D
-    elseif (d_set.eq.'sin3D') then 
-       if (value.ne.2.2787249947361117d0) then
+    elseif (dataset.eq.'sin3D') then 
+!       if (value.ne.2.2787249947361117d0) then
+       if (value.ne.5.9589822233083432d0) then
           print*, 'Error reading data!'
           print*, value
-          stop
+!          stop
        end if
 
        !
-    elseif (d_set.eq.'jhu1024') then 
+    elseif (dataset.eq.'jhu1024') then 
        if (value.ne.0.41232076287269592d0) then
           print*, 'Error reading data!'
           print*, value
@@ -420,7 +440,7 @@ contains
    ! USE : Saves [z-midplane] in RESULTS directory
    !      
    !
-   ! FORM: 
+   ! FORM:    subroutine plotVelocities()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -435,17 +455,31 @@ contains
      ! SAVE VELOCITIES:
      print*
      print*,'Saving filtered velocities in', RES_PATH
-     call system ('mkdir -p '//trim(RES_PATH))
           
      open(20,file=trim(RES_PATH)//'u_i.dat')
      open(21,file=trim(RES_PATH)//'u_f.dat')
      open(22,file=trim(RES_PATH)//'u_t.dat')
-     write(20,*) u (1,:,65,:)
-     write(21,*) u_f(1,:,65,:)
-     write(22,*) u_t(1,:,65,:)
+     write(20,*) u (1,:,:,bigHalf(k_GRID))
+     write(21,*) u_f(1,:,:,bigHalf(k_GRID))
+     write(22,*) u_t(1,:,:,bigHalf(k_GRID))
      close(20)
      close(21)
      close(22)
+
+     !
+     ! SAVE PRESSURE:
+     print*
+     print*,'Saving filtered pressure in', RES_PATH
+          
+     open(30,file=trim(RES_PATH)//'p.dat')
+     open(31,file=trim(RES_PATH)//'p_f.dat')
+     open(32,file=trim(RES_PATH)//'p_t.dat')
+     write(30,*) u (4,:,:,bigHalf(k_GRID))
+     write(31,*) u_f(4,:,:,bigHalf(k_GRID))
+     write(32,*) u_t(4,:,:,bigHalf(k_GRID))
+     close(30)
+     close(31)
+     close(32)
 
    end subroutine plotVelocities
 
@@ -459,7 +493,7 @@ contains
    ! USE : Loads a 3D array into binary files in [TEMP] dir
    !      
    !
-   ! FORM: 
+   ! FORM:   subroutine loadFFT_data()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -486,6 +520,7 @@ contains
         if (i.eq.4) read(i) T_ij
         close(i)
      end do
+
    end subroutine loadFFT_data
 
    !****************************************************************
@@ -496,7 +531,7 @@ contains
    ! USE : Writes a 3D array into binary files in [TEMP] dir
    !      
    !
-   ! FORM: 
+   ! FORM:    subroutine saveFFT_data()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -514,8 +549,8 @@ contains
      ! save FFT_DATA : Filtered velocities and stress files: 
      print*
      print*,'Write filtered variables ... '
-     call system ('mkdir -p '//trim(TEMP_PATH))
-     do i = 1,size(var_FFT)
+ 
+     do i = 1, size(var_FFT)
         filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
         print*, filename
         open(i, file = filename,form='unformatted')
@@ -528,16 +563,61 @@ contains
 
    end subroutine saveFFT_data
   
-   
+
    !****************************************************************
-   !                            PLOT FFT_DATA
+   !                          CHECK FFT_DATA
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Check FFT dataset
+   !      
+   !
+   ! FORM:    subroutine saveFFT_data()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+   subroutine checkFFT_data()
+     implicit none
+     
+     print*, 'check FFT_data'
+     if (withPressure) then
+        if (u_f(4,15,24,10).ne.0.12164158031779296d0) then
+           print*, 'ERROR READING DATA'
+           print*, u_f(4,15,24,10)
+           stop
+        end if
+     end if
+
+     if (dataset.eq.'jhu256') then
+        if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
+           print*, 'ERROR READING DATA'
+           print*, u_t(1,15,24,10)
+           stop
+        elseif(T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
+           print*, 'ERROR COMPUTING T_ij'
+           print*,'T_ij(1,15,24,10)',T_ij(1,15,24,10)
+           stop
+        else
+           print*, 'Read data saved from main.f90: Passed \n'
+        end if
+     end if
+
+   end subroutine checkFFT_data
+
+  
+   !****************************************************************
+   !                        PLOT ORIGINAL STRESS
    !****************************************************************
 
    !----------------------------------------------------------------
    ! USE : Saves [z-midplane] in RESULTS directory
    !      
    !
-   ! FORM: 
+   ! FORM:    subroutine plotOriginalStress()
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
@@ -556,27 +636,91 @@ contains
    !   
    !----------------------------------------------------------------
    
-   subroutine plotFFT_data()
+   subroutine plotOriginalStress(plotOption)
      implicit none
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), optional, intent(in) :: plotOption
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename
-     integer :: i
+     integer :: i, n_ij
+     character(1) :: ij
 
-     ! SAVE FFT_DATA : Filtered velocities and stress files: 
-     print*
-     print*,'Saving filtered variables in', RES_PATH
-     call system ('mkdir -p '//trim(RES_PATH))
-     
-     
-     open(10,file=trim(RES_PATH)//'T_ij.dat')
-     open(12,file=trim(RES_PATH)//'tau_ij.dat')
-     write(10,*) T_ij(1,:,:,129)
-     write(12,*) tau_ij(1,:,:,129)
-     close(10)
-     close(12)
 
-   end subroutine plotFFT_data
+     n_ij = 1
+     if (plotOption.eq.'All') n_ij = 6
+     
+     ! SAVE ORIGINAL STRESS
+     print*,'Saving original stress in', RES_PATH
+         
+     do i=1,n_ij
+        write(ij, '(i0)') i
+        open(10,file=trim(RES_PATH)//'T_ij'//trim(ij)//'.dat')
+        open(11,file=trim(RES_PATH)//'tau_ij'//trim(ij)//'.dat')
+
+        write(10,*) T_ij  (i,:,:,bigHalf(k_GRID))
+        write(11,*) tau_ij(i,:,:,bigHalf(k_GRID))
+
+        close(10)
+        close(11)
+     end do
+
+   end subroutine plotOriginalStress
+
+  
+   !****************************************************************
+   !                        PLOT COMPUTED STRESS
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM:    subroutine plotComputedStress()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !   
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine plotComputedStress(lambda, plotOption)
+     implicit none
+     !
+     !    ..SCALAR ARGUMENTS..
+     real(8), intent(in) :: lambda
+     character(*), optional, intent(in) :: plotOption
+     !
+     !    ..LOCAL VARIABLES..
+     integer :: i, n_ij
+     character(64) :: lambda_char
+     character(1) :: ij
+
+     n_ij = 1
+     if (plotOption.eq.'All') n_ij = 6
+
+     write(lambda_char,'(ES6.0E2)') lambda
+
+     ! SAVE COMPUTED STRESS
+     print*,'Saving computed stresss in', RES_PATH, '\n'
+ 
+     do i = 1,n_ij
+        write(ij, '(i0)') i
+        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
+
+        write(10,*) T_ijOpt  (i,:,:,bigHalf(k_GRID))
+        write(11,*) tau_ijOpt(i,:,:,bigHalf(k_GRID))
+
+        close(10)
+        close(11)
+     end do
+
+   end subroutine plotComputedStress
+
+
 
   !****************************************************************
   !                       PLOT PRODUCTION TERM
@@ -586,35 +730,102 @@ contains
   ! USE : Writes .dat file at z-midplane
   !      
   !
-  ! FORM: 
+  ! FORM:    subroutine plotProductionTerm()
   !
-  ! BEHAVIOR: Calls printplane() with fID to save in [RESULT] dir.
+  ! BEHAVIOR: 
   !
   !
   ! STATUS : 
   ! 
   !----------------------------------------------------------------
 
-   subroutine plotProductionTerm()
+   subroutine plotProductionTerm(lambda)
      implicit none
+     !
+     ! 
+     real(8), intent(in), optional :: lambda
+     integer :: i
+     character(64) :: lambda_char
+
+     write(lambda_char,'(ES6.0E2)') lambda
      
-     
-     ! SAVE PRODUCTION TERM
-     print*
-     print*,'Saving Production terms in', RES_PATH
-     call system ('mkdir -p '//trim(RES_PATH))
-     
-     open(1,file = trim(RES_PATH)//'P_f.dat')
-     open(2,file = trim(RES_PATH)//'P_t.dat')
-     write(1,*) P_f(:,:,129)
-     write(2,*) P_t(:,:,129)
-     close(1)
-     close(2)
-     
-     
-     
+     if (present(lambda)) then
+        ! SAVE COMPUTED PRODUCTION TERM
+        print*
+        print*,'Saving computed production field in', RES_PATH
+        call system ('mkdir -p '//trim(RES_PATH))
+
+        open(1,file=trim(RES_PATH)//'Pij_fOpt'  //trim(lambda_char(4:6)) // '.dat')
+        open(2,file=trim(RES_PATH)//'Pij_tOpt'  //trim(lambda_char(4:6)) // '.dat')
+
+        write(1,*) Pij_fOpt(:,:,bigHalf(k_GRID))
+        write(2,*) Pij_tOpt(:,:,bigHalf(k_GRID))
+        close(1)
+        close(2)
+
+     else 
+        ! SAVE ORIGINAL PRODUCTION TERM
+        print*
+        print*,'Saving original production field in', RES_PATH
+        call system ('mkdir -p '//trim(RES_PATH))
+
+        open(1,file = trim(RES_PATH)//'Pij_f.dat')
+        open(2,file = trim(RES_PATH)//'Pij_t.dat')
+        write(1,*) Pij_f(:,:,bigHalf(k_GRID))
+        write(2,*) Pij_t(:,:,bigHalf(k_GRID))
+        close(1)
+        close(2)
+     end if
+
    end subroutine plotProductionTerm
+
+
+   !****************************************************************
+   !                            PLOT PDF
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Write a csv file to generate pdf plot
+   !      
+   !
+   ! FORM: subroutine plotPDF(x, pdf, [fieldname], [avg], [SD])
+   !
+   ! BEHAVIOR: 
+   !
+   ! STATUS :
+   !      
+   !   
+   !----------------------------------------------------------------
    
+   subroutine plotPDF(x, pdf, fieldname, avg, SD)
+     implicit none
+     !
+     !    ..ARRAY ARGUMENTS..
+     real(8), dimension(:), intent(in) :: x
+     real(8), dimension(:), intent(in) :: pdf
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), intent(in) :: fieldname
+     real(8), optional, intent(in) :: avg, SD
+
+     print*
+     print*,'Saving PDF'//trim(fieldname)//' in ', RES_PATH
+
+     !
+     ! PLOT PDF
+     open(10, file = trim(RES_PATH)//trim('PDF')//trim(fieldname)//'.csv')
+     write(10,"( F10.4,',',F10.4 )"), (x(i), pdf(i), i=1,samples)
+     close(10)
+
+     ! SAVE STAT DATA
+     if (present(avg)) then
+        open(11, file = trim(RES_PATH)//trim('statistics')//trim(fieldname)//'.dat')
+        write(11, *) avg
+        if (present(SD))  write(11, *) SD
+        close(11)
+     end if
+
+   end subroutine plotPDF
 
   !****************************************************************
   !                           CONTOUR
@@ -654,7 +865,7 @@ contains
   !       for line plot, scatter plots and bar plots.
   !      
   !
-  ! FORM: 
+  ! FORM:   subroutine xyplot(var,var_name)
   !
   ! BEHAVIOR: Needs allocated, defined arrays.
   !

@@ -82,6 +82,10 @@ plots :
 .PHONY :  clean rmpic
 clean  :
 	rm -f *.o  *.mod *[#~] 
+
+veryclean  :
+	rm -f *.o  *.mod *[#~] *.err *.out
+
 rmpic  :
 	rm *.png
 

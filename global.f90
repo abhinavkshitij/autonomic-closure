@@ -63,11 +63,11 @@ module global
                                                 str16 ('noncolocated')]
 
               
-  character(8) :: machine        = trim (l_machine(1) % name)
+  character(8) :: machine        = trim (l_machine(2) % name)
   character(8) :: dataset        = trim (l_dataset(3) % name)
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set = 'S6' ! [S1, S3, S6]
+  character(2) :: hst_set = 'S1' ! [S1, S3, S6]
   character(3) :: stress = 'dev' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)

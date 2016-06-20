@@ -53,9 +53,9 @@ program autonomic
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  1
+  logical :: plot_Velocities      =  0
   logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
-  logical :: save_FFT_data        =  1
+  logical :: save_FFT_data        =  0
 
   logical :: plot_Stresses        =  0
   logical :: production_Term      =  0

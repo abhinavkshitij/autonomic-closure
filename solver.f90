@@ -264,10 +264,12 @@ contains
     integer :: randMask(boxSize - M) !512-243=269
     !
     !    ..INDICES..
-    integer :: i_test,    j_test,    k_test 
+    integer :: i_test,    j_test,    k_test
+    integer :: j_testRange(2)
     integer :: i_box,     j_box,     k_box  
     integer :: i_stencil, j_stencil, k_stencil 
     integer :: i_opt,     j_opt,     k_opt     
+    integer :: j_optRange(2)
     integer :: i_proj,    j_proj,    k_proj    
     integer :: row_index, col_index, row, col 
     integer :: u_comp, uu_comp 
@@ -441,17 +443,26 @@ contains
     else
 
        allocate (u_n(stencil_size))
+       
+       j_testRange = [129, 129]  
+       j_optRange  = [126, 125]
+       if (dataset.eq.'hst') then
+          j_testRange = [65,65]
+          j_optRange  = [62,62]
+       end if
+
 
        ! WHOLE DOMAIN COMPUTATION: 
        do i_test = 129, 129, 1 
-       do j_test = 129, 129, 1
+       do j_test = j_testRange(1), j_testRange(2), 1
        do k_test = 129, 129, 1 ! i_test = 11,43,2
 
           row_index  = 0 
 
           ! ENTER STENCIL-CENTER POINTS: C-ORDER
+!          do i_box = i_test-126, i_test+125, skip
           do i_box = i_test-126, i_test+125, skip
-          do j_box = j_test-126, j_test+125, skip
+          do j_box = j_test-j_optRange(1),  j_test+j_optRange(2), skip
           do k_box = k_test-126, k_test+125, skip ! i_box = 3,49,2
              ! Replace this loop with subroutine build_V()
              col_index = 0 
@@ -491,7 +502,7 @@ contains
           
           ! CHECK V:
           if (withPressure.eqv..false.) then
-          if (V(1500,2000).ne.2.0009431419772586d-2) then
+          if (dataset.eq.'jhu256'.and.V(1500,2000).ne.2.0009431419772586d-2) then
              print*, "Error! Check sorting order in  V matrix!"
              print*, 'V(1500,2000)', V(1500,2000)
              stop
@@ -502,7 +513,7 @@ contains
 
           !CHECK T:
           if (withPressure.eqv..false.) then
-          if (T(3,1).ne.8.7759832493259110d-2)then
+          if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
              print*, "Error! Check sorting order in  T vector!"
              print*, T(3,1)
 !             stop
@@ -525,7 +536,7 @@ contains
           end if
           
           ! CHECK h_ij:
-          if (solutionMethod.eq.'SVD') then
+          if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD') then
           if (h_ij(350,1).ne.-4.5121154730201521d-2)then
              print*, "Error! Check lambda, method or sorting order for h_ij computation:"
              print*,h_ij(350,1)
@@ -596,19 +607,27 @@ contains
     !
     !    ..LOCAL INDICES.. 
     integer :: i_test,    j_test,    k_test 
+    integer :: j_testRange (2)
     integer :: i_opt,     j_opt,     k_opt  
+    integer :: j_optRange (2)
     integer :: i_stencil, j_stencil, k_stencil
     integer :: non_col_1, non_col_2  
 
+    j_testRange = [129, 129]  
+    j_optRange  = [126, 125]
+    if (dataset.eq.'hst') then
+       j_testRange = [65,65]
+       j_optRange  = [62,62]
+    end if
   
     ! WHOLE DOMAIN COMPUTATION: 
     do i_test = 129, 129
-    do j_test = 129, 129
+    do j_test = j_testRange(1), j_testRange(2)
     do k_test = 129, 129
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
        do i_opt = i_test-126, i_test+125
-       do j_opt = j_test-126, j_test+125
+       do j_opt = j_test-j_optRange(1), j_test+j_optRange(2)
 !       do k_opt = k_test-126, k_test+125
 !       do i_opt = 15,15
 !       do j_opt = 24,24

@@ -57,7 +57,7 @@ contains
   ! BEHAVIOR: u_s: for binary read for single precision files.
   !
   ! STATUS : Refactoring this unit.
-  ! 
+  !       ** TEMPORARY CHANGE BASED ON PROF HAMLINGTON'S MAIL
   !----------------------------------------------------------------
 
 
@@ -108,11 +108,19 @@ contains
      !  READ SINGLE PRECISION DATA - HST
      elseif (dataset.eq.'hst') then
         DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
-        time = '070'
+
+        if (hst_set.eq.'S1') time = '016'
+        if (hst_set.eq.'S3') time = '015'
+        if (hst_set.eq.'S6') time = '070'
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
-        allocate(u_s(i_GRID,j_GRID,k_GRID))
-        
+
+
+      ! ** CHANGE FOR HST DATASET: READ HEADER
+      ! allocate(u_s(i_GRID, j_GRID, k_GRID))
+        allocate(u_s(i_GRID, 129,    k_GRID))
+
+
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
@@ -120,6 +128,7 @@ contains
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
+
         
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
      elseif (dataset.eq.'jhu256'.or.dataset.eq.'sin3D') then
@@ -165,7 +174,8 @@ contains
    ! BEHAVIOR: Convert to big endian while reading in data.
    !
    ! STATUS : Interfaced with readBin()
-   ! 
+   !          ## Commented out j_GRID; replaced with 129 for HST.
+   !         ### Move back to (:,:,:)
    !----------------------------------------------------------------
 
    subroutine readBinSingle(u_s,fID,filename,endian)
@@ -176,7 +186,7 @@ contains
      !
      !    ..SCALAR ARGUMENTS..
      character(*), intent(in) :: filename
-     character(*), intent(in),optional :: endian
+     character(*), intent(in), optional :: endian
      !
      !    ..LOCAL VARIABLES..
      integer :: fID
@@ -192,14 +202,14 @@ contains
 
      position = 0
      do k=1,k_GRID
-        do j=1,j_GRID
+        do j=1,129! ##  j_GRID
            do i=1,i_GRID
               position = position + 1
               read (fID,rec=position) u_s(i,j,k)
            end do
         end do
      end do
-     u(fID,:,:,:) = u_s
+     u(fID,:,1:129,:) = u_s(:,1:129,:) ! ### move back to (:,:,:)
      close(fID)
 
    end subroutine readBinSingle
@@ -449,9 +459,9 @@ contains
      open(20,file=trim(RES_PATH)//'u_i.dat')
      open(21,file=trim(RES_PATH)//'u_f.dat')
      open(22,file=trim(RES_PATH)//'u_t.dat')
-     write(20,*) u (1,:,:,129)
-     write(21,*) u_f(1,:,:,129)
-     write(22,*) u_t(1,:,:,129)
+     write(20,*) u (1,:,:,bigHalf(k_GRID))
+     write(21,*) u_f(1,:,:,bigHalf(k_GRID))
+     write(22,*) u_t(1,:,:,bigHalf(k_GRID))
      close(20)
      close(21)
      close(22)
@@ -464,9 +474,9 @@ contains
      open(30,file=trim(RES_PATH)//'p.dat')
      open(31,file=trim(RES_PATH)//'p_f.dat')
      open(32,file=trim(RES_PATH)//'p_t.dat')
-     write(30,*) u (4,:,:,129)
-     write(31,*) u_f(4,:,:,129)
-     write(32,*) u_t(4,:,:,129)
+     write(30,*) u (4,:,:,bigHalf(k_GRID))
+     write(31,*) u_f(4,:,:,bigHalf(k_GRID))
+     write(32,*) u_t(4,:,:,bigHalf(k_GRID))
      close(30)
      close(31)
      close(32)
@@ -572,6 +582,29 @@ contains
 
    subroutine checkFFT_data()
      implicit none
+     
+     print*, 'check FFT_data'
+     if (withPressure) then
+        if (u_f(4,15,24,10).ne.0.12164158031779296d0) then
+           print*, 'ERROR READING DATA'
+           print*, u_f(4,15,24,10)
+           stop
+        end if
+     end if
+
+     if (dataset.eq.'jhu256') then
+        if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
+           print*, 'ERROR READING DATA'
+           print*, u_t(1,15,24,10)
+           stop
+        elseif(T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
+           print*, 'ERROR COMPUTING T_ij'
+           print*,'T_ij(1,15,24,10)',T_ij(1,15,24,10)
+           stop
+        else
+           print*, 'Read data saved from main.f90: Passed \n'
+        end if
+     end if
 
    end subroutine checkFFT_data
 
@@ -603,23 +636,35 @@ contains
    !   
    !----------------------------------------------------------------
    
-   subroutine plotOriginalStress()
+   subroutine plotOriginalStress(plotOption)
      implicit none
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), optional, intent(in) :: plotOption
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename
-     integer :: i
+     integer :: i, n_ij
+     character(1) :: ij
 
+
+     n_ij = 1
+     if (plotOption.eq.'All') n_ij = 6
+     
      ! SAVE ORIGINAL STRESS
-     print*
      print*,'Saving original stress in', RES_PATH
          
-     open(10,file=trim(RES_PATH)//'T_ij.dat')
-     open(11,file=trim(RES_PATH)//'tau_ij.dat')
-     write(10,*) T_ij(5,:,:,129)
-     write(11,*) tau_ij(5,:,:,129)
-     close(10)
-     close(11)
+     do i=1,n_ij
+        write(ij, '(i0)') i
+        open(10,file=trim(RES_PATH)//'T_ij'//trim(ij)//'.dat')
+        open(11,file=trim(RES_PATH)//'tau_ij'//trim(ij)//'.dat')
+
+        write(10,*) T_ij  (i,:,:,bigHalf(k_GRID))
+        write(11,*) tau_ij(i,:,:,bigHalf(k_GRID))
+
+        close(10)
+        close(11)
+     end do
 
    end subroutine plotOriginalStress
 
@@ -649,32 +694,29 @@ contains
      character(*), optional, intent(in) :: plotOption
      !
      !    ..LOCAL VARIABLES..
-
-     integer :: i, lim
+     integer :: i, n_ij
      character(64) :: lambda_char
-     character(1) :: i_char
+     character(1) :: ij
 
-     lim = 1
-     if (plotOption.eq.'All') lim = 6
+     n_ij = 1
+     if (plotOption.eq.'All') n_ij = 6
 
      write(lambda_char,'(ES6.0E2)') lambda
 
      ! SAVE COMPUTED STRESS
-!     print*
-!     print*,'Saving computed stresss in', RES_PATH, '\n'
+     print*,'Saving computed stresss in', RES_PATH, '\n'
  
-     do i = 1,lim
-        write(i_char, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(i_char)//trim(lambda_char(4:6)) // '.dat')
-        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(i_char)//trim(lambda_char(4:6)) // '.dat')
+     do i = 1,n_ij
+        write(ij, '(i0)') i
+        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
 
-        write(10,*) T_ijOpt  (i,:,:,129)
-        write(11,*) tau_ijOpt(i,:,:,129)
+        write(10,*) T_ijOpt  (i,:,:,bigHalf(k_GRID))
+        write(11,*) tau_ijOpt(i,:,:,bigHalf(k_GRID))
 
         close(10)
         close(11)
      end do
-
 
    end subroutine plotComputedStress
 
@@ -690,7 +732,7 @@ contains
   !
   ! FORM:    subroutine plotProductionTerm()
   !
-  ! BEHAVIOR: Calls printplane() with fID to save in [RESULT] dir.
+  ! BEHAVIOR: 
   !
   !
   ! STATUS : 
@@ -716,8 +758,8 @@ contains
         open(1,file=trim(RES_PATH)//'Pij_fOpt'  //trim(lambda_char(4:6)) // '.dat')
         open(2,file=trim(RES_PATH)//'Pij_tOpt'  //trim(lambda_char(4:6)) // '.dat')
 
-        write(1,*) Pij_f(:,:,129)
-        write(2,*) Pij_t(:,:,129)
+        write(1,*) Pij_fOpt(:,:,bigHalf(k_GRID))
+        write(2,*) Pij_tOpt(:,:,bigHalf(k_GRID))
         close(1)
         close(2)
 
@@ -729,12 +771,11 @@ contains
 
         open(1,file = trim(RES_PATH)//'Pij_f.dat')
         open(2,file = trim(RES_PATH)//'Pij_t.dat')
-        write(1,*) Pij_f(:,:,129)
-        write(2,*) Pij_t(:,:,129)
+        write(1,*) Pij_f(:,:,bigHalf(k_GRID))
+        write(2,*) Pij_t(:,:,bigHalf(k_GRID))
         close(1)
         close(2)
      end if
-
 
    end subroutine plotProductionTerm
 

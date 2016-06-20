@@ -112,19 +112,19 @@ contains
 
     !
     ! COMPUTE VELOCITY GRADIENTS:
-    write(*,'(a32)',ADVANCE='NO'), 'Compute velocity gradients:'
+    write(*,'(a32)',ADVANCE='NO'), adjustl('        Compute velocity gradients:')
     call cpu_time(tic)
     do i=1,3
        call gradient(u(i,:,:,:),grad_u)
        A(i,:,:,:,:) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
     end do
     call cpu_time(toc)
-    print*, toc-tic
+    write(*,*), toc-tic
     deallocate(grad_u)
 
     !
     ! COMPUTE S_ij:
-    write(*,'(a16)',ADVANCE='NO'), "Compute Sij:"
+    write(*,'(a16)',ADVANCE='NO'), adjustl('      Compute Sij:')
     call cpu_time(tic)
     do j=1,3
        do i=1,3
@@ -132,7 +132,7 @@ contains
        end do
     end do
     call cpu_time(toc)
-    print*, toc-tic
+    write(*,*), toc-tic
 
     deallocate (A)
 
@@ -421,8 +421,13 @@ contains
 
 
     do i = 1,6
-       error_i(i) =  norm  (T_ijOpt(i, 129-3:129+3:3, 129-3:129+3:3, 129-3:129+3:3) &
-                          - T_ij   (i, 129-3:129+3:3, 129-3:129+3:3, 129-3:129+3:3) )  
+       error_i(i) =  norm  (T_ijOpt(i, bigHalf(i_GRID)-3:bigHalf(i_GRID)+3:3, &
+                                       bigHalf(j_GRID)-3:bigHalf(j_GRID)+3:3, &
+                                       bigHalf(k_GRID)-3:bigHalf(k_GRID)+3:3) &
+
+                          - T_ij   (i, bigHalf(i_GRID)-3:bigHalf(i_GRID)+3:3, &
+                                       bigHalf(j_GRID)-3:bigHalf(j_GRID)+3:3, &
+                                       bigHalf(k_GRID)-3:bigHalf(k_GRID)+3:3) )  
     end do
 
     error_i = error_i / 27
@@ -431,9 +436,7 @@ contains
     !
     !    PLOT RESULTS:
     if (present(plotOption).and.plotOption.eq.'plot') then
-!       open(10, file=trim(RES_PATH)//'crossValidationError.csv')
        write(fID,"( 8(ES16.7,',') )"), lambda, error_i, error    
-!       close(10)
     end if
 
   end subroutine trainingError

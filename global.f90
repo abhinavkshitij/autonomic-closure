@@ -27,7 +27,7 @@ module global
 
   integer, parameter :: dp = selected_real_kind(15,307)
 
-  real,    parameter :: eps = 1e-3 
+  real,    parameter :: eps = 1e-5
   real(8), parameter :: pi = 4.d0 * atan(1.d0)
 
   ! DEFINE STRING ARRAY:
@@ -63,10 +63,10 @@ module global
 
               
 
-  character(8) :: dataset        = trim (l_dataset(2) % name)
+  character(8) :: dataset        = trim (l_dataset(3) % name)
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! LU, SVD
-  character(2) :: hst_set = 'S6' ! HST datasets - S1, S3, S6
+  character(2) :: hst_set = 'S3' ! HST datasets - S1, S3, S6
   character(3) :: stress = 'dev' ! dev,abs
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
@@ -104,7 +104,10 @@ module global
   !    ..PRODUCTION TERM..
   real(8), dimension(:,:,:), allocatable :: Pij_f
   real(8), dimension(:,:,:), allocatable :: Pij_t
+  real(8), dimension(:,:,:), allocatable :: Pij_fOpt
+  real(8), dimension(:,:,:), allocatable :: Pij_tOpt
  
+
   integer :: i_GRID 
   integer :: j_GRID 
   integer :: k_GRID 
@@ -126,15 +129,13 @@ module global
   integer :: stride ! Is the ratio between LES(taken as 1) and test scale
   integer :: skip 
   integer :: X ! Number of realizations
-  integer :: n_DAMP  ! Number of lambdas
-  real(8) :: lambda
+  integer :: n_lambda  ! Number of lambdas
+  real(8) :: lambda, lambda_0
  
   ! Bounding Box parameters:  
   integer :: box(3) 
   integer :: boxSize  
   integer :: maskSize  
-  integer :: bigHalf   
-  integer :: smallHalf  
   integer :: boxCenter
   integer :: boxLower 
   integer :: boxUpper 
@@ -142,9 +143,9 @@ module global
   ! Test field parameters: 
   integer :: testSize 
   integer :: testcutSize 
-  integer :: testLower 
-  integer :: testUpper 
-
+  integer :: testLower
+  integer :: testUpper
+  
 
   ! Cutout parameters:
   integer :: lBound 
@@ -155,6 +156,7 @@ module global
 
   !
   !    ..FILEIO..
+  integer :: z_print
   !
   !    .. DIRS..
   character(*), parameter :: DATA_DIR = '../data/'
@@ -202,13 +204,13 @@ contains
     j_GRID = 256
     k_GRID = 256
     if (dataset.eq.'hst') then
-       j_GRID = 129
+       j_GRID = 256 !129
     end if
 
     n_u = 3
     if (withPressure) n_u = 4
     ! CHECK PRESSURE DATA AVAILABLIITY:
-    if(dataset.ne.'jhu256'.and.n_u.eq.4.and.useTestData.eq.1) then
+    if(dataset.ne.'jhu256'.and.n_u.eq.4) then
        print*, 'Dataset ',dataset,' has no pressure data files'
        stop
     end if
@@ -229,8 +231,11 @@ contains
     stride = 1              ! No subsampling on the original DNS GRID 
     skip = 10               ! For training points
     X = 1     
-    n_DAMP = 1
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
+
+    lambda_0 = 1.d-11
+    n_lambda = 10
+
  
     ! Bounding Box parameters:  
     if (formulation.eq.'noncolocated') then
@@ -239,10 +244,10 @@ contains
 
        if (trainingPoints.eq.'ordered') then
           ! Set bounding box size
-          box = [i_GRID, j_GRID, k_GRID]
+          box = [i_GRID-2, j_GRID-2, k_GRID-2]
           ! Set number of training points
-          M =  (floor((real(box(1) - 1)) / skip) + 1)    &
-               * (floor((real(box(2) - 1)) / skip) + 1)  &
+          M =    (floor((real(box(1) - 1)) / skip) + 1)    &
+               * (floor((real(box(2) - 1)) / skip) + 1)    &
                * (floor((real(box(3) - 1)) / skip) + 1)  !17576 
 
        else if (formulation.eq.'colocated') then
@@ -253,22 +258,20 @@ contains
     end if
 
     
-    boxSize = product(box)
 
+    boxSize   = product(box)
+    maskSize  = boxSize - M ! 512-Training points(243) = 269
+    boxCenter = smallHalf(box(1)) * box(1)*(box(1) + 1) + bigHalf(box(1))
 
-    maskSize = boxSize - M ! 512-Training points(243) = 269
-    bigHalf   = ceiling(0.5*real(box(1)) + eps) ! for 8->5
-    smallHalf = floor(0.5*real(box(1)) + eps)   ! for 8->4
-    boxCenter = smallHalf * box(1)*(box(1) + 1) + bigHalf
-    boxLower  = stride * (bigHalf - 1)
-    boxUpper  = stride * (box(1) - bigHalf)
+    boxLower  = stride * (bigHalf(box(1)) - 1)
+    boxUpper  = stride * (box(1) - bigHalf(box(1)))
+
 
     ! Test field parameters: 
-    testSize = 1
+    testSize    = 1
+    testLower   = stride *  bigHalf(box(1)) + 1
+    testUpper   = stride * (bigHalf(box(1)) - 1 + testSize) + 1
     testcutSize = stride * (testSize + box(1)) + 1
-    testLower = stride * bigHalf + 1
-    testUpper = stride * (bigHalf - 1 + testSize) + 1
-
 
     ! Cutout parameters:
     lBound = 0.5*(f_GRID - testcutSize)
@@ -316,32 +319,30 @@ contains
     close(23)
 
     
-     write(fileID, * ), ''
-     write(fileID, * ), 'Dataset:            ', dataset
-     write(fileID, * ), ''
-!     write(fileID, * ), 'Stencil parameters:'
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Training points :    ',M
-!     write(fileID, * ), 'Features :           ',N
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Box parameters:      '
-!     write(fileID, * ), 'Bounding box:        ',box
-!     write(fileID, * ), 'bigHalf:             ',bigHalf
-!     write(fileID, * ), 'smallHalf:           ',smallHalf
-!     write(fileID, * ), 'boxCenter:           ',boxCenter
-!     write(fileID, * ), 'boxLower:            ',boxLower
-!     write(fileID, * ), 'boxUpper:            ',boxUpper
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Test field parameters:'
-!     write(fileID, * ), 'testcutSize:         ',testcutSize
-!     write(fileID, * ), 'testLower:           ',testLower
-!     write(fileID, * ), 'testUpper:           ',testUpper
-!     write(fileID, * ), ''
-!     write(fileID, * ), 'Cutout parameters:'
-!     write(fileID, * ), 'lower bound:         ',lBound
-!     write(fileID, * ), 'upper bound:         ',uBound
-!     write(fileID, * ), ''
-!     write(fileID, * ),  'Number of samples'    ,samples
+     write(fileID, * ), 'Dataset:            ', dataset, '\n'
+
+     write(fileID, * ), 'Stencil parameters: \n'
+
+     write(fileID, * ), 'Training points :    ',M
+     write(fileID, * ), 'Features :           ',N, '\n'
+
+     write(fileID, * ), 'Box parameters:      '
+     write(fileID, * ), 'Bounding box:        ',box
+     write(fileID, * ), 'boxCenter:           ',boxCenter
+     write(fileID, * ), 'boxLower:            ',boxLower
+     write(fileID, * ), 'boxUpper:            ',boxUpper, '\n'
+
+     write(fileID, * ), 'Test field parameters:'
+     write(fileID, * ), 'testcutSize:         ',testcutSize
+     write(fileID, * ), 'testLower:           ',testLower
+     write(fileID, * ), 'testUpper:           ',testUpper, '\n'
+
+     write(fileID, * ), 'Cutout parameters:'
+     write(fileID, * ), 'lower bound:         ',lBound
+     write(fileID, * ), 'upper bound:         ',uBound, '\n'
+
+     write(fileID, * ),  'Number of samples'    ,samples
+
   end subroutine printParams
 
 
@@ -612,7 +613,7 @@ contains
   !  
   !----------------------------------------------------------------
   
-  function norm(array,normType)
+  function norm(array, normType)
     real(8), dimension(:,:,:),intent(in):: array
     character(*), optional, intent(in) :: normType 
     real(8) :: norm
@@ -639,6 +640,63 @@ contains
     end if   
   end function norm
 
+
+  !----------------------------------------------------------------
+  !                          BIGHALF
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes bigHalf 
+  !     
+  ! FORM:
+  ! 
+  !         
+  ! BEHAVIOR: 
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function bigHalf(num)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer, intent(in) :: num
+    integer :: bighalf
+    !
+    !    ..LOCAL SCALARS..
+    real :: eps = 1e-5
+
+    bigHalf   = ceiling(0.5*real(num) + eps) 
+
+  end function bigHalf
+
+
+  !----------------------------------------------------------------
+  !                          SMALLHALF
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes smallHalf 
+  !     
+  ! FORM:
+  ! 
+  !         
+  ! BEHAVIOR: 
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function smallHalf(num)
+    implicit none
+    !
+    !    ..SCALAR ARGUMENTS..
+    integer, intent(in) :: num
+    integer :: smallhalf
+    !
+    !    ..LOCAL SCALARS..
+    real :: eps = 1e-5
+
+    smallHalf   = floor(0.5*real(num) + eps) 
+
+  end function smallHalf
 
   
 

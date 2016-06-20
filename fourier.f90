@@ -263,19 +263,13 @@ contains
     !    ..LOCAL VARS..
     type(C_PTR) :: plan
    
-    allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
+    allocate(in_cmplx (f_GRID,f_GRID,f_GRID))
     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
 
-!    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
-    in_cmplx = dcmplx (array_work) / (dble(f_GRID*j_GRID*f_GRID)) 
-
-!    in_cmplx(1:i_GRID,1:f_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:f_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
-!    in_cmplx(:,:,:) = dcmplx (array_work(:,:,:)) / (dble(f_GRID**3)) 
 
 
-    ! ****
-!    print*, real(in_cmplx(15,24,10))* (dble(f_GRID**3)) , array_work(15,24,10) !<- array_work(256,256,256) takes some garbage value 
-    ! ****
+    in_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:j_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
+
 
     ! FFT:
     call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
@@ -299,13 +293,11 @@ contains
 
 
     ! IFFT:
-    call dfftw_plan_dft_3d(plan,f_GRID,j_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
+    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)
     call dfftw_destroy_plan(plan)
 
-    ! ****
-!    print*, in_cmplx(256,20,213)
-    ! ****
+ 
     sharpFilter = real(in_cmplx) 
     
   end function sharpFilter

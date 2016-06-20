@@ -34,6 +34,7 @@
 !     print*,'Pij_t(15,24,10)',Pij_t(15,24,10),'\n'
 !     
 ! ### Speed up this part -- Bottleneck  
+! 
 !----------------------------------------------------------------
 
 program autonomic
@@ -53,13 +54,14 @@ program autonomic
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
+  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
   logical :: save_FFT_data        =  1
 
   logical :: plot_Stresses        =  0
   logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
 
+  integer :: time_index
   real(8) :: error_cross
 
 
@@ -87,15 +89,19 @@ program autonomic
   end if
 
 
-  ! 1] LOAD DATASET:
-  if(readFile) call readData(DIM = n_u)
-  if(allocated(u).eqv..false.) allocate(u(n_u,i_GRID,j_GRID,k_GRID))
+  do time_index = time_init, time_final, time_incr
 
-  if (dataset.eq.'hst') u(:,:,256:130:-1,:) = u(:,:,2:128,:)
+     ! SET TIME PARAMS:
+     write(time,'(i0)') time_index !num2str
+     if ((len(trim(time))-1).lt.2) time = trim('0')//trim(time)
+
+  ! 1] LOAD DATASET:
+     if(readFile) call readData(DIM = n_u)
+     if(allocated(u).eqv..false.) allocate(u(n_u,i_GRID,j_GRID,k_GRID))
+     if (dataset.eq.'hst') u(:,:,256:130:-1,:) = u(:,:,2:128,:)
 
 
   ! + GET STATISTICS OF INITIAL VELOCITY:
-
 
 
   ! ************** LEVEL 1 ****************!
@@ -157,7 +163,6 @@ program autonomic
 
   ! BREAKPOINT 1:
   if (useTestData) stop
-
 
 
   ! 3] GET FFT_DATA:
@@ -223,7 +228,8 @@ program autonomic
 
 
   fileID = 81
-  open(fileID,file=trim(RES_PATH)//'crossValidationError.csv')
+  open(fileID,file=trim(RES_PATH)//trim('crossValidationError')//trim(time)//trim('.csv'))
+
   do iter = 1, n_lambda
      lambda = lambda_0 * 10**(iter-1)
 
@@ -240,12 +246,12 @@ program autonomic
      end if
 
 
-     ! GET STATISTICS:
-     !  print*, 'testError'
-     !  call createPDF(,plot=.true.,fieldname='errorTest')
-     !  call createPDF(,plot=.true.,fieldname='errorSGS')
-  end do
+!     GET STATISTICS:
+!      print*, 'testError'
+!      call createPDF(,plot=.true.,fieldname='errorTest')
+!      call createPDF(,plot=.true.,fieldname='errorSGS')
+ end do
   close(fileID)
 
-
+end do
 end program autonomic

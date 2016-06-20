@@ -233,7 +233,8 @@ program autonomic
      print*, 'Autonomic closure ... '
      open(cross_csv, file=trim(RES_PATH)//trim('crossValidationError')//trim(time)//trim('.csv'))
      do iter = 1, n_lambda
-        lambda = lambda_0 * 10**(iter-1)
+        if (mod(n_lambda,2).eq.1)                   lambda = lambda_0(1) * 10**(iter-1)
+        if (mod(n_lambda,2).eq.0)                   lambda = lambda_0(2) * 10**(iter-1)
 
         call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
         call computedStress   (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)

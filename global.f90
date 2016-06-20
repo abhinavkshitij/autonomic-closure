@@ -131,7 +131,7 @@ module global
   integer :: skip 
   integer :: X ! Number of realizations
   integer :: n_lambda  ! Number of lambdas
-  real(8) :: lambda, lambda_0
+  real(8) :: lambda, lambda_0(2)
  
   ! Bounding Box parameters:  
   integer :: box(3) 
@@ -183,6 +183,8 @@ module global
 
   !
   !    ..MPI..
+  integer :: n_proc
+  integer :: rank
   integer :: ierr
 
   !
@@ -267,8 +269,8 @@ contains
     X = 1     
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
 
-    lambda_0 = 1.d-11
-    n_lambda = 1
+    lambda_0 = 1.d-11 * [1,3]
+    n_lambda = 10
 
  
     ! Bounding Box parameters:  

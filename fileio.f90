@@ -107,6 +107,7 @@ contains
      elseif (dataset.eq.'hst') then
         DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
 
+
         allocate(u_s(i_GRID, bigHalf(j_GRID),k_GRID))
         do fID = 1,DIM
            write(fileID, 10) fID

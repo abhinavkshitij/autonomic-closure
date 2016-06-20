@@ -162,6 +162,7 @@ program autonomic
      end if
 
 
+
      ! BREAKPOINT 1:
      if (useTestData) stop
 
@@ -183,6 +184,7 @@ program autonomic
         call checkFFT_data()
      end if
      if (plot_Stresses)                                            call plotOriginalStress()
+
 
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (3,3, i_GRID,j_GRID,k_GRID))

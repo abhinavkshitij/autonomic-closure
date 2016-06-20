@@ -267,7 +267,6 @@ contains
     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
 
 
-
     in_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:j_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
 
 

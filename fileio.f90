@@ -72,14 +72,13 @@ contains
     !
     !    ..INTERNAL VARIABLES..
     integer                                    :: fID
-    character(32)                              :: PATH, variableName, time, fIndex
+    character(32)                              :: PATH, variableName, fIndex
     character(64)                              :: filename
     character(16)                              :: endian
 
     !    ..DEFAULT VALUES..
     DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/'
     variableName = trim(var(1)%name)! var(1) --> 'Velocity'; Expand for Pressure dataset.
-    time = '256'
     endian = 'little_endian'
 
 10  format("Reading... u",i1,"_DNS")
@@ -87,7 +86,6 @@ contains
 
      !  READ SINGLE PRECISION DATA - NRL
      if (dataset.eq.'nrl') then
-        time = '0460'
         endian = 'big_endian'
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
@@ -109,16 +107,9 @@ contains
      elseif (dataset.eq.'hst') then
         DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
 
-        if (hst_set.eq.'S1') time = '016'
-        if (hst_set.eq.'S3') time = '015'
-        if (hst_set.eq.'S6') time = '070'
 
         allocate(u(n_u, i_GRID, j_GRID, k_GRID))
-
-
-      ! ** CHANGE FOR HST DATASET: READ HEADER
-      ! allocate(u_s(i_GRID, j_GRID, k_GRID))
-        allocate(u_s(i_GRID, 129,    k_GRID))
+        allocate(u_s(i_GRID, bigHalf(j_GRID),k_GRID))
 
 
         do fID = 1,DIM

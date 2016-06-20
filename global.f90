@@ -35,8 +35,10 @@ module global
      character (16) :: name
   end type str16
 
+  type(str16), parameter :: l_machine(2) = [str16 ('local'),     &
+                                            str16 ('remote')]
 
-  type(str16), parameter :: var(2) = [str16 ('Velocity'),    &
+  type(str16), parameter :: var(2) = [str16 ('Velocity'),      &
                                       str16 ('Pressure')]
 
   type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),     & 
@@ -50,7 +52,6 @@ module global
                                           str16 ('tau_ij'),  &
                                           str16 ('T_ij')]  
                                       
-  
 
   type(str16), parameter :: l_solutionMethod(2) = [str16 ('LU'),         &
                                                    str16 ('SVD')]
@@ -62,12 +63,12 @@ module global
                                                 str16 ('noncolocated')]
 
               
-
+  character(8) :: machine        = trim (l_machine(1) % name)
   character(8) :: dataset        = trim (l_dataset(3) % name)
   logical      :: withPressure   = 0
-  character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! LU, SVD
-  character(2) :: hst_set = 'S3' ! HST datasets - S1, S3, S6
-  character(3) :: stress = 'dev' ! dev,abs
+  character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
+  character(2) :: hst_set = 'S6' ! [S1, S3, S6]
+  character(3) :: stress = 'dev' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
 
@@ -157,6 +158,14 @@ module global
   !
   !    ..FILEIO..
   integer :: z_print
+
+  ! Time parameters:
+  character(32) :: time = '256' ! 256 is the initial value
+  integer :: time_init
+  integer :: time_incr 
+  integer :: time_final
+  integer :: n_time
+
   !
   !    .. DIRS..
   character(*), parameter :: DATA_DIR = '../data/'
@@ -200,13 +209,30 @@ contains
     
     RES_PATH = RES_DIR
 
+    ! GRID
     i_GRID = 256
     j_GRID = 256
     k_GRID = 256
-    if (dataset.eq.'hst') then
-       j_GRID = 256 !129
-    end if
+  
 
+    ! TIME
+    if (dataset.eq.'nrl') time = '0460'
+    if (dataset.eq.'hst') then
+       if (hst_set.eq.'S1') then
+          time = '016'; time_init = 16; time_incr = 1; time_final = 28
+       end if
+       if (hst_set.eq.'S3') then
+          time = '015'; time_init = 15; time_incr = 1; time_final = 24
+       end if
+       if (hst_set.eq.'S6') then
+          time = '070'; time_init = 70; time_incr = 5; time_final = 100
+       end if
+    end if
+    read(time,*) time_init
+    if (machine.eq.'local') time_final = time_init
+    
+
+    ! COMPONENT
     n_u = 3
     if (withPressure) n_u = 4
     ! CHECK PRESSURE DATA AVAILABLIITY:
@@ -217,6 +243,7 @@ contains
     n_uu = 6
     P = 6
 
+    ! SCALE
     LES_scale  = 40
     test_scale = 20
 
@@ -234,7 +261,7 @@ contains
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
 
     lambda_0 = 1.d-11
-    n_lambda = 10
+    n_lambda = 1
 
  
     ! Bounding Box parameters:  
@@ -305,8 +332,9 @@ contains
   !----------------------------------------------------------------
 
   
-  subroutine printParams()
+  subroutine printParams(displayOption)
 
+    character(*), optional :: displayOption
     !
     ! Write parameters in params.txt for MATLAB to read in data for
     ! post-processing the results.
@@ -318,7 +346,7 @@ contains
     write(23,*) hst_set
     close(23)
 
-    
+    if (displayOption.eq.'display') then
      write(fileID, * ), 'Dataset:            ', dataset, '\n'
 
      write(fileID, * ), 'Stencil parameters: \n'
@@ -342,7 +370,7 @@ contains
      write(fileID, * ), 'upper bound:         ',uBound, '\n'
 
      write(fileID, * ),  'Number of samples'    ,samples
-
+  end if
   end subroutine printParams
 
 

@@ -82,6 +82,7 @@ program autonomic
 
   ! 1] LOAD DATASET: ALTERNATE METHOD STASHED ABOVE. +
   if(readFile) call readData(DIM=n_u)
+  print*, d_set,u(1,15,24,10)
   call energySpectra(u)
 
 
@@ -109,6 +110,8 @@ program autonomic
   end if
   print*, 'Success'
 
+  print*, u_f(1,15,24,10)
+  print*, u_t(1,15,24,10)
   ! ADD PATH DEPTH : LEVEL 1 
   write(scale,'(2(i2))') LES_scale, test_scale 
   TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'

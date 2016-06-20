@@ -268,7 +268,8 @@ contains
     allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
 
-    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
+    in_cmplx(:,:,:) = dcmplx (array_work(:,:,:)) / (dble(f_GRID**3)) 
+!    in_cmplx = dcmplx (array_work) / (dble(f_GRID**3)) 
 
     ! ****
     !print*, in_cmplx(256,256,256), array_work(256,256,256) !<- array_work(256,256,256) takes some garbage value 

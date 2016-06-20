@@ -158,8 +158,11 @@ module global
   !
   !    ..FILEIO..
   integer :: z_print
+  integer :: path_txt   = 22
+  integer :: params_txt = 23
+  integer :: cross_csv  = 81
 
-  ! Time parameters:
+  !    ..TIME..
   character(32) :: time = '256' ! 256 is the initial value
   integer :: time_init
   integer :: time_incr 
@@ -177,6 +180,10 @@ module global
   character(64) :: RES_PATH
 
   character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
+
+  !
+  !    ..MPI..
+  integer :: ierr
 
   !
   !    ..FORMATS..
@@ -338,13 +345,13 @@ contains
     !
     ! Write parameters in params.txt for MATLAB to read in data for
     ! post-processing the results.
-    open(23, file = trim(RES_DIR)//'params.txt')
-    write(23,*) i_GRID
-    write(23,*) j_GRID
-    write(23,*) k_GRID
-    write(23,*) dataset
-    write(23,*) hst_set
-    close(23)
+    open(params_txt, file = trim(RES_DIR)//'params.txt')
+    write(params_txt,*) i_GRID
+    write(params_txt,*) j_GRID
+    write(params_txt,*) k_GRID
+    write(params_txt,*) dataset
+    write(params_txt,*) hst_set
+    close(params_txt)
 
     if (displayOption.eq.'display') then
      write(fileID, * ), 'Dataset:            ', dataset, '\n'

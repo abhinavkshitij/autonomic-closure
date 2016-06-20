@@ -408,12 +408,11 @@ contains
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: T_ijOpt
     real(8), dimension(:,:,:,:), intent(in) :: T_ij
+    !
+    !    ..SCALAR ARGUMENTS..
     real(8), intent(out) :: error
     character(*), optional, intent(in) :: plotOption
-   
-    !
-    !
-    integer,optional, intent(in) :: fID
+    integer,optional, intent(in) :: fID   
     !
     !   ..LOCAL VARS..
     integer :: i
@@ -421,13 +420,13 @@ contains
 
 
     do i = 1,6
-       error_i(i) =  norm  (T_ijOpt(i, bigHalf(i_GRID)-3:bigHalf(i_GRID)+3:3, &
-                                       bigHalf(j_GRID)-3:bigHalf(j_GRID)+3:3, &
-                                       bigHalf(k_GRID)-3:bigHalf(k_GRID)+3:3) &
+       error_i(i) =  norm  (T_ijOpt(i, bigHalf(i_GRID)-3 : bigHalf(i_GRID)+3 : 3, &
+                                       bigHalf(j_GRID)-3 : bigHalf(j_GRID)+3 : 3, &
+                                       bigHalf(k_GRID)-3 : bigHalf(k_GRID)+3 : 3) &
 
-                          - T_ij   (i, bigHalf(i_GRID)-3:bigHalf(i_GRID)+3:3, &
-                                       bigHalf(j_GRID)-3:bigHalf(j_GRID)+3:3, &
-                                       bigHalf(k_GRID)-3:bigHalf(k_GRID)+3:3) )  
+                          - T_ij   (i, bigHalf(i_GRID)-3 : bigHalf(i_GRID)+3 : 3, &
+                                       bigHalf(j_GRID)-3 : bigHalf(j_GRID)+3 : 3, &
+                                       bigHalf(k_GRID)-3 : bigHalf(k_GRID)+3 : 3) )  
     end do
 
     error_i = error_i / 27

@@ -88,7 +88,6 @@ contains
      if (dataset.eq.'nrl') then
         endian = 'big_endian'
 
-        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         allocate(u_s(i_GRID,j_GRID,k_GRID))
         
         do fID = 1,DIM

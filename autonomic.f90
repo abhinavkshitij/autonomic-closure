@@ -54,12 +54,12 @@ program autonomic
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  0
-  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
+  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
   logical :: save_FFT_data        =  0
 
-  logical :: plot_Stresses        =  0
-  logical :: production_Term      =  0
-  logical :: save_ProductionTerm  =  0
+  logical :: plot_Stresses        =  1
+  logical :: production_Term      =  1
+  logical :: save_ProductionTerm  =  1
 
   integer :: time_index
   real(8) :: error_cross
@@ -89,8 +89,8 @@ program autonomic
   end if
 
 
-  time_loop: do time_index = time_init, time_final, time_incr
-!  time_loop: do time_index=1,2
+!  time_loop: do time_index = time_init, time_final, time_incr
+  time_loop: do time_index=1,1,1
 
 
 
@@ -185,7 +185,7 @@ program autonomic
         call loadFFT_data()
         call checkFFT_data()
      end if
-     if (plot_Stresses)                                            call plotOriginalStress()
+     if (plot_Stresses)                                            call plotOriginalStress('All')
 
 
 
@@ -235,15 +235,18 @@ program autonomic
      print*, 'Autonomic closure ... '
      open(cross_csv, file=trim(RES_PATH)//trim('crossValidationError')//trim(time)//trim('.csv'))
      do iter = 1, n_lambda
-        if (mod(iter,2).eq.1) then
-           lambda = lambda_0(1) * 10**((iter-1)/2)
-        else
-           lambda = lambda_0(2) * 10**((iter-1)/2)
-        end if
-
+        lambda = lambda_0(1) * 10**(iter-1)
+        
+!         if (mod(iter,2).eq.1) then
+!            lambda = lambda_0(1) * 10**((iter-1)/2)
+!         else
+!            lambda = lambda_0(2) * 10**((iter-1)/2)
+!         end if
+        
+        print*, 'lambda ',lambda
         call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
         call computedStress   (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-        if (plot_Stresses)                                      call plotComputedStress(lambda)
+        if (plot_Stresses)                                      call plotComputedStress(lambda,'All')
         call trainingerror(T_ijOpt, T_ij, error_cross,'plot',cross_csv)
 
         ! 7] PRODUCTION FIELD - COMPUTED 

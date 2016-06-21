@@ -435,7 +435,7 @@ contains
     !
     !    PLOT RESULTS:
     if (present(plotOption).and.plotOption.eq.'plot') then
-       write(fID,"( 8(ES16.7,',') )"), lambda, error_i, error    
+       write(fID,"( 7(ES16.7,','),ES16.7 )"), lambda, error_i, error    
     end if
 
   end subroutine trainingError

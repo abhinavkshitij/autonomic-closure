@@ -63,11 +63,11 @@ module global
                                                 str16 ('noncolocated')]
 
               
-  character(8) :: machine        = trim (l_machine(2) % name)
-  character(8) :: dataset        = trim (l_dataset(3) % name)
+  character(8) :: machine        = trim (l_machine(1) % name)
+  character(8) :: dataset        = trim (l_dataset(2) % name)
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set = 'S1' ! [S1, S3, S6]
+  character(2) :: hst_set = 'S3' ! [S1, S3, S6]
   character(3) :: stress = 'dev' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
@@ -269,7 +269,7 @@ contains
     X = 1     
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
 
-    lambda_0 = 1.d-11 * [1,3]
+    lambda_0 = 1.d-08 * [1,3]
     n_lambda = 10
 
  

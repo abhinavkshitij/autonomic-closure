@@ -694,7 +694,7 @@ contains
      ! SAVE COMPUTED STRESS
      print*,'Saving computed stresss in', RES_PATH, '\n'
  
-     do i = 1,n_ij
+     do i = 1, n_ij
         write(ij, '(i0)') i
         open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
         open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')

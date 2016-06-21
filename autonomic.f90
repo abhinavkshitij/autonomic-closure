@@ -90,6 +90,8 @@ program autonomic
 
 
   time_loop: do time_index = time_init, time_final, time_incr
+!  time_loop: do time_index=1,2
+
 
 
      ! SET TIME PARAMS:
@@ -233,8 +235,11 @@ program autonomic
      print*, 'Autonomic closure ... '
      open(cross_csv, file=trim(RES_PATH)//trim('crossValidationError')//trim(time)//trim('.csv'))
      do iter = 1, n_lambda
-        if (mod(n_lambda,2).eq.1)                   lambda = lambda_0(1) * 10**(iter-1)
-        if (mod(n_lambda,2).eq.0)                   lambda = lambda_0(2) * 10**(iter-1)
+        if (mod(iter,2).eq.1) then
+           lambda = lambda_0(1) * 10**((iter-1)/2)
+        else
+           lambda = lambda_0(2) * 10**((iter-1)/2)
+        end if
 
         call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
         call computedStress   (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)

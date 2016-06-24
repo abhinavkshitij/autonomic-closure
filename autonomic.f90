@@ -57,12 +57,12 @@ program autonomic
   logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
   logical :: save_FFT_data        =  0
 
-  logical :: plot_Stresses        =  1
+  logical :: plot_Stresses        =  0
   logical :: production_Term      =  1
   logical :: save_ProductionTerm  =  1
 
   integer :: time_index
-  real(8) :: error_cross
+  real(8) :: error_cross_T_ij, error_cross_tau_ij
 
 
   if (computeFFT_data.eqv..false.) then
@@ -233,7 +233,9 @@ program autonomic
 
 
      print*, 'Autonomic closure ... '
-     open(cross_csv, file=trim(RES_PATH)//trim('crossValidationError')//trim(time)//trim('.csv'))
+     open(cross_csv_T_ij, file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
+     open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
+
      do iter = 1, n_lambda
         lambda = lambda_0(1) * 10**(iter-1)
         
@@ -247,8 +249,8 @@ program autonomic
         call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
         call computedStress   (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
         if (plot_Stresses)                                      call plotComputedStress(lambda,'All')
-        call trainingerror(T_ijOpt, T_ij, error_cross,'plot',cross_csv)
-
+        call trainingerror(T_ijOpt, T_ij, error_cross_T_ij,'plot',cross_csv_T_ij)
+        call trainingError(tau_ijOpt, tau_ij, error_cross_tau_ij, 'plot',cross_csv_tau_ij )
         ! 7] PRODUCTION FIELD - COMPUTED 
         if(production_Term) then
            call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
@@ -262,7 +264,8 @@ program autonomic
         !      call createPDF(,plot=.true.,fieldname='errorTest')
         !      call createPDF(,plot=.true.,fieldname='errorSGS')
      end do
-     close(cross_csv)
+     close(cross_csv_T_ij)
+     close(cross_csv_tau_ij)
 
   end do time_loop
 end program

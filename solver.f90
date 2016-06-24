@@ -628,10 +628,15 @@ contains
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
        do i_opt = i_test-126, i_test+125
        do j_opt = j_test-j_optRange(1), j_test+j_optRange(2)
-!       do k_opt = k_test-126, k_test+125
-!       do i_opt = 15,15
-!       do j_opt = 24,24
-       do k_opt = 129-3, 129+3,3 !10,10
+! Whole domain:
+          ! do k_opt = k_test-126, k_test+125 
+! Single point:
+          ! do i_opt = 15,15
+          ! do j_opt = 24,24
+          ! do k_opt = 10,10
+
+! Cross-validation points [Preferred]:
+       do k_opt = bigHalf(k_GRID)-3*smallHalf(N_cr), bigHalf(k_GRID)+3*smallHalf(N_cr), 3
 
           col_index = 0 
          

@@ -248,7 +248,11 @@ contains
        do i = 1,3
           if(i.ge.j) then
              count = count + 1
-             P(:,:,:) = P(:,:,:) + tau_ij(count,:,:,:) * S_ij (i,j,:,:,:) 
+             if (i.eq.j) then
+                P(:,:,:) = P(:,:,:) + tau_ij(count,:,:,:) * S_ij (i,j,:,:,:) 
+             else
+                P(:,:,:) = P(:,:,:) + 2.d0 * (tau_ij(count,:,:,:) * S_ij(i,j,:,:,:))
+             end if
           end if
        end do
     end do
@@ -415,27 +419,37 @@ contains
     integer,optional, intent(in) :: fID   
     !
     !   ..LOCAL VARS..
-    integer :: i
-    real(8) :: error_i(6)
+    integer :: ij
+    real(8) :: error_ij(6)
 
 
-    do i = 1,6
-       error_i(i) =  norm  (T_ijOpt(i, bigHalf(i_GRID)-3 : bigHalf(i_GRID)+3 : 3, &
-                                       bigHalf(j_GRID)-3 : bigHalf(j_GRID)+3 : 3, &
-                                       bigHalf(k_GRID)-3 : bigHalf(k_GRID)+3 : 3) &
+    ! L2 norm error [difference between the original and the computed fields] ||.||2
+    do ij = 1,6
+       error_ij(ij) =  norm  (T_ijOpt(ij, bigHalf(i_GRID)-3*smallHalf(N_cr) : bigHalf(i_GRID)+3*smallHalf(N_cr) : 3, &
+                                          bigHalf(j_GRID)-3*smallHalf(N_cr) : bigHalf(j_GRID)+3*smallHalf(N_cr) : 3, &
+                                          bigHalf(k_GRID)-3*smallHalf(N_cr) : bigHalf(k_GRID)+3*smallHalf(N_cr) : 3) &
 
-                          - T_ij   (i, bigHalf(i_GRID)-3 : bigHalf(i_GRID)+3 : 3, &
-                                       bigHalf(j_GRID)-3 : bigHalf(j_GRID)+3 : 3, &
-                                       bigHalf(k_GRID)-3 : bigHalf(k_GRID)+3 : 3) )  
+                          - T_ij   (ij, bigHalf(i_GRID)-3*smallHalf(N_cr) : bigHalf(i_GRID)+3*smallHalf(N_cr) : 3, &
+                                        bigHalf(j_GRID)-3*smallHalf(N_cr) : bigHalf(j_GRID)+3*smallHalf(N_cr) : 3, &
+                                        bigHalf(k_GRID)-3*smallHalf(N_cr) : bigHalf(k_GRID)+3*smallHalf(N_cr) : 3) )  
+
+       ! Non-dimensionalize error_ij by ||T_ij||_2/(nx*ny) -> Mean value at z-midplane [using numerical integration]
+       error_ij(ij) = error_ij(ij) * (i_GRID*j_GRID) / sum(T_ij(ij,:,:,k_GRID)**2)
     end do
 
-    error_i = error_i / 27
-    error = maxval(error_i)
+    ! Ensemble mean of L2 norm error < ||.||2 > N_cr
+    error_ij = error_ij / N_cr**3
 
+    ! ||error||_inf
+          !error = maxval(error_ij)
+
+    ! (error_ij)_rms
+         error = sqrt(sum(error_ij**2) / 6.d0)
+    
     !
     !    PLOT RESULTS:
     if (present(plotOption).and.plotOption.eq.'plot') then
-       write(fID,"( 7(ES16.7,','),ES16.7 )"), lambda, error_i, error    
+       write(fID,"( ES8.1,',',6(ES16.7,','),ES16.7 )"), lambda, error_ij, error    
     end if
 
   end subroutine trainingError

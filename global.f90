@@ -67,7 +67,7 @@ module global
   character(8) :: dataset        = trim (l_dataset(2) % name)
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set = 'S3' ! [S1, S3, S6]
+  character(2) :: hst_set = 'S6' ! [S1, S3, S6]
   character(3) :: stress = 'dev' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
@@ -154,13 +154,16 @@ module global
 
   ! Statistics parameters:
   integer :: samples 
+  integer :: N_cr
 
   !
   !    ..FILEIO..
   integer :: z_print
   integer :: path_txt   = 22
   integer :: params_txt = 23
-  integer :: cross_csv  = 81
+  integer :: cross_csv_T_ij  = 81
+  integer :: cross_csv_tau_ij  = 82
+
 
   !    ..TIME..
   character(32) :: time = '256' ! 256 is the initial value
@@ -210,6 +213,10 @@ module global
 
   interface printplane
      module procedure plane2, plane3
+  end interface
+
+  interface norm
+     module procedure norm3, norm2
   end interface
 
 contains
@@ -315,6 +322,7 @@ contains
 
     ! Statistics parameters:
     samples = 250
+    N_cr = 11    !(11x11x11)
 
   end subroutine setEnv
 
@@ -637,45 +645,86 @@ contains
 
 
   !----------------------------------------------------------------
-  !                          NORM
+  !                          NORM3
   !----------------------------------------------------------------
   ! USE:  
   !     Computes norm-1, norm-2 or norm-Inf of a 3D array     
   !     
   ! FORM:
-  !      function norm(double array,['1', or '2', or 'Inf'])
+  !      function norm3(double array,['1', or '2', or 'Inf'])
   !         
   ! BEHAVIOR: default is norm-2
   ! 
   !  
   !----------------------------------------------------------------
   
-  function norm(array, normType)
+  function norm3(array, normType)
     real(8), dimension(:,:,:),intent(in):: array
     character(*), optional, intent(in) :: normType 
-    real(8) :: norm
+    real(8) :: norm3
 
     if (present(normType)) then
        ! 
        ! L1 norm
        if (normType.eq.'1') then 
-          norm = sum(abs(array))
+          norm3 = sum(abs(array))
        !
        ! L2 norm   
        elseif (normType.eq.'2') then
-          norm = sqrt(sum(array**2))
+          norm3 = sqrt(sum(array**2))
        !
        ! L-Inf norm    
        elseif (normType.eq.'Inf') then
-          norm = maxval(array)
+          norm3 = maxval(array)
        else
           print*, 'Norms computed are 1-norm, 2-norm or Inf-norm'
        end if
     else
        ! Default: norm-2 
-       norm = sqrt(sum(array**2)) 
+       norm3 = sqrt(sum(array**2)) 
     end if   
-  end function norm
+  end function norm3
+
+  !----------------------------------------------------------------
+  !                          NORM2
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes norm-1, norm-2 or norm-Inf of a 3D array     
+  !     
+  ! FORM:
+  !      function norm2(double array,['1', or '2', or 'Inf'])
+  !         
+  ! BEHAVIOR: default is norm-2
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  function norm2(array, normType)
+    real(8), dimension(:,:),intent(in):: array
+    character(*), optional, intent(in) :: normType 
+    real(8) :: norm2
+
+    if (present(normType)) then
+       ! 
+       ! L1 norm
+       if (normType.eq.'1') then 
+          norm2 = sum(abs(array))
+       !
+       ! L2 norm   
+       elseif (normType.eq.'2') then
+          norm2 = sqrt(sum(array**2))
+       !
+       ! L-Inf norm    
+       elseif (normType.eq.'Inf') then
+          norm2 = maxval(array)
+       else
+          print*, 'Norms computed are 1-norm, 2-norm or Inf-norm'
+       end if
+    else
+       ! Default: norm-2 
+       norm2 = sqrt(sum(array**2)) 
+    end if   
+  end function norm2
 
 
   !----------------------------------------------------------------

@@ -106,12 +106,12 @@ contains
      elseif (dataset.eq.'hst') then
         DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
 
-
         allocate(u_s(i_GRID, bigHalf(j_GRID),k_GRID))
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
            filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+           print*, filename
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
@@ -196,7 +196,7 @@ contains
            end do
         end do
      end do
-     u(fID,:,1:129,:) = u_s(:,1:129,:) ! ### move back to (:,:,:)
+     u(fID,1:256,1:129,1:256) = u_s(1:256,1:129,1:256) ! ### move back to (:,:,:)
      close(fID)
 
    end subroutine readBinSingle
@@ -706,6 +706,57 @@ contains
      end do
 
    end subroutine plotComputedStress
+  
+   !****************************************************************
+   !                        LOAD COMPUTED STRESS
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Loads precomputed stresses for each lambda value
+   !      
+   !
+   ! FORM:    subroutine loadComputedStress()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !   
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine loadComputedStress(lambda, loadOption)
+     implicit none
+     !
+     !    ..SCALAR ARGUMENTS..
+     real(8), intent(in) :: lambda
+     character(*), optional, intent(in) :: loadOption
+     !
+     !    ..LOCAL VARIABLES..
+     integer :: i, n_ij
+     character(64) :: lambda_char
+     character(1) :: ij
+
+     n_ij = 1
+     if (loadOption.eq.'All') n_ij = 6
+
+     write(lambda_char,'(ES6.0E2)') lambda
+
+     ! SAVE COMPUTED STRESS
+     print*,'Saving computed stresss in', RES_PATH, '\n'
+ 
+     do i = 1, n_ij
+        write(ij, '(i0)') i
+        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+
+        read(10,*) T_ijOpt  (i,:,:,bigHalf(k_GRID))
+        read(11,*) tau_ijOpt(i,:,:,bigHalf(k_GRID))
+
+        close(10)
+        close(11)
+     end do
+
+   end subroutine loadComputedStress
 
 
 

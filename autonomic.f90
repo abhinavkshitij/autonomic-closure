@@ -35,6 +35,19 @@
 !     
 ! ### Speed up this part -- Bottleneck  
 ! 
+! $$$ lambda (coarse points vs fine points)
+!         if (mod(iter,2).eq.1) then
+!            lambda = lambda_0(1) * 10**((iter-1)/2)
+!         else
+!            lambda = lambda_0(2) * 10**((iter-1)/2)
+!         end if
+!
+! %%%
+!   GET STATISTICS:
+!       print*, 'testError'
+!       call createPDF(var,plot=.true.,fieldname='errorTest')
+!       call createPDF(var,plot=.true.,fieldname='errorSGS')
+!
 !----------------------------------------------------------------
 
 program autonomic
@@ -53,13 +66,14 @@ program autonomic
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  0
+  logical :: plot_Velocities      =  1
   logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
-  logical :: save_FFT_data        =  0
+  logical :: save_FFT_data        =  1
 
-  logical :: plot_Stresses        =  0
-  logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  1
+  logical :: plot_Stress          =  0
+  logical :: production_Term      =  0
+  logical :: save_ProductionTerm  =  0
+  logical :: compute_Stress       =  0
 
   integer :: time_index
   real(8) :: error_cross_T_ij, error_cross_tau_ij
@@ -89,9 +103,7 @@ program autonomic
   end if
 
 
-!  time_loop: do time_index = time_init, time_final, time_incr
-  time_loop: do time_index=1,1,1
-
+  time_loop: do time_index = time_init, time_final, time_incr
 
 
      ! SET TIME PARAMS:
@@ -164,14 +176,13 @@ program autonomic
      end if
 
 
-
      ! BREAKPOINT 1:
      if (useTestData) stop
 
 
      ! 3] GET FFT_DATA:
-     if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (n_uu,i_GRID,j_GRID,k_GRID))
-     if(allocated(T_ij).eqv..false.)       allocate (T_ij   (n_uu,i_GRID,j_GRID,k_GRID))
+     if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (n_uu, i_GRID, j_GRID, k_GRID))
+     if(allocated(T_ij).eqv..false.)       allocate (T_ij   (n_uu, i_GRID, j_GRID, k_GRID))
 
 
      ! COMPUTE ORIGINAL STRESS [SAVE]
@@ -185,7 +196,7 @@ program autonomic
         call loadFFT_data()
         call checkFFT_data()
      end if
-     if (plot_Stresses)                                            call plotOriginalStress('All')
+     if (plot_Stress)                                            call plotOriginalStress('All')
 
 
 
@@ -213,12 +224,13 @@ program autonomic
      ! ************** LEVEL 3 ****************!
      !
      ! ADD PATH DEPTH : (METHOD) - LU or SVD
-     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/'
-     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'
+     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/' !     TEMP_PATH = trim(TEMP_PATH)//trim('abs')//'/'
+     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'  !     RES_PATH =  trim(RES_PATH)//trim('abs')//'/'
+
+
      write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
-
 
 
      ! 6] AUTONOMICALLY TUNED LAMBDA
@@ -233,39 +245,27 @@ program autonomic
 
 
      print*, 'Autonomic closure ... '
-     open(cross_csv_T_ij, file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
+     open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
      open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
 
+! $$$
      do iter = 1, n_lambda
         lambda = lambda_0(1) * 10**(iter-1)
-        
-!         if (mod(iter,2).eq.1) then
-!            lambda = lambda_0(1) * 10**((iter-1)/2)
-!         else
-!            lambda = lambda_0(2) * 10**((iter-1)/2)
-!         end if
-        
-        print*, 'lambda ',lambda
-        call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
-        call computedStress   (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-        if (plot_Stresses)                                      call plotComputedStress(lambda,'All')
-        call trainingerror(T_ijOpt, T_ij, error_cross_T_ij,'plot',cross_csv_T_ij)
-        call trainingError(tau_ijOpt, tau_ij, error_cross_tau_ij, 'plot',cross_csv_tau_ij )
+        print('(a8,ES10.2)'), 'lambda ',lambda
+        call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+
+        if (plot_Stress)                                        call plotComputedStress(lambda,'All')
+        call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
+        call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
         ! 7] PRODUCTION FIELD - COMPUTED 
         if(production_Term) then
            call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
            call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
            if (save_ProductionTerm)                             call plotProductionTerm(lambda)
         end if
-
-
-        !     GET STATISTICS:
-        !      print*, 'testError'
-        !      call createPDF(,plot=.true.,fieldname='errorTest')
-        !      call createPDF(,plot=.true.,fieldname='errorSGS')
      end do
      close(cross_csv_T_ij)
      close(cross_csv_tau_ij)
-
+! %%
   end do time_loop
 end program

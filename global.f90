@@ -42,7 +42,7 @@ module global
                                       str16 ('Pressure')]
 
   type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),     & 
-                                            str16 ('jhu256'),  &
+                                            str16 ('jhu256'),  & ! jhu256
                                             str16 ('hst'),     &
                                             str16 ('sin3D'),   &
                                             str16 ('jhu1024')]
@@ -68,7 +68,7 @@ module global
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set = 'S6' ! [S1, S3, S6]
-  character(3) :: stress = 'dev' ! [dev, abs]
+  character(3) :: stress = 'abs' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
 
@@ -159,9 +159,9 @@ module global
   !
   !    ..FILEIO..
   integer :: z_print
-  integer :: path_txt   = 22
-  integer :: params_txt = 23
-  integer :: cross_csv_T_ij  = 81
+  integer :: path_txt          = 22
+  integer :: params_txt        = 23
+  integer :: cross_csv_T_ij    = 81
   integer :: cross_csv_tau_ij  = 82
 
 
@@ -232,6 +232,7 @@ contains
   
 
     ! TIME
+    if (dataset.eq.'jhu') time = '256'; time_init = 256; time_incr = 1; time_final = 256
     if (dataset.eq.'nrl') time = '0460'
     if (dataset.eq.'hst') then
        if (hst_set.eq.'S1') then
@@ -276,8 +277,8 @@ contains
     X = 1     
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
 
-    lambda_0 = 1.d-08 * [1,3]
-    n_lambda = 10
+    lambda_0 = 1.d-07 * [1,3]
+    n_lambda = 1
 
  
     ! Bounding Box parameters:  
@@ -359,7 +360,7 @@ contains
     write(params_txt,*) i_GRID
     write(params_txt,*) j_GRID
     write(params_txt,*) k_GRID
-    write(params_txt,*) dataset
+    write(params_txt,*) dataset(1:3)
     write(params_txt,*) hst_set
     close(params_txt)
 

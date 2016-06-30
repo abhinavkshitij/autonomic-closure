@@ -403,7 +403,23 @@ contains
   ! CHECK GAUSSIAN BY MEASURING THE THIRD ORDER MOMENT:
   !            print*, sum((field-avg)**3)/size(field)
   !
-  !          
+  ! STASH:
+  !
+  ! Ensemble mean of L2 norm error < ||.||2 > N_cr
+  !  error_ij = error_ij / N_cr**3
+  !
+  ! Non-dimensionalize error_ij by ||T_ij||_2/(nx*ny) -> Mean value at z-midplane [using numerical integration]
+  !  do ij = 1,6
+  !      error_ij(ij) = error_ij(ij) / sqrt(sum(T_ij(ij,:,:,bigHalf(k_GRID))**2)/(i_GRID*j_GRID))         
+  !  end do
+  !
+  !   
+  ! USING NORM: [OLD METHOD]
+  !      error_ij(ij) = norm((T_ij_F_cr(ij,:,:,:) - T_ij_cr(ij,:,:,:))) / norm(T_ij_cr(ij,:,:,:))
+  !      error_ij = error_ij/(N_cr)
+  !
+  ! PRINT T_ij_cr and T_ij_F_cr
+  ! !      print*, T_ij_F_cr(ij,6,6,6), T_ij_cr(ij,6,6,6)      
   !----------------------------------------------------------------
   
   subroutine trainingError(T_ijOpt, T_ij, error, plotOption,fID)
@@ -415,42 +431,50 @@ contains
     !
     !    ..SCALAR ARGUMENTS..
     real(8), intent(out) :: error
+    real(8), dimension (:,:,:,:), allocatable :: T_ij_F_cr, T_ij_cr
     character(*), optional, intent(in) :: plotOption
-    integer,optional, intent(in) :: fID   
+    integer, optional, intent(in) :: fID   
     !
     !   ..LOCAL VARS..
-    integer :: ij
+    integer :: ij, i,j,k
     real(8) :: error_ij(6)
 
+    allocate (T_ij_F_cr (6, N_cr, N_cr, N_cr))
+    allocate (T_ij_cr   (6, N_cr, N_cr, N_cr))
 
-    ! L2 norm error [difference between the original and the computed fields] ||.||2
-    do ij = 1,6
-       error_ij(ij) =  norm  (T_ijOpt(ij, bigHalf(i_GRID)-3*smallHalf(N_cr) : bigHalf(i_GRID)+3*smallHalf(N_cr) : 3, &
-                                          bigHalf(j_GRID)-3*smallHalf(N_cr) : bigHalf(j_GRID)+3*smallHalf(N_cr) : 3, &
-                                          bigHalf(k_GRID)-3*smallHalf(N_cr) : bigHalf(k_GRID)+3*smallHalf(N_cr) : 3) &
-
-                          - T_ij   (ij, bigHalf(i_GRID)-3*smallHalf(N_cr) : bigHalf(i_GRID)+3*smallHalf(N_cr) : 3, &
-                                        bigHalf(j_GRID)-3*smallHalf(N_cr) : bigHalf(j_GRID)+3*smallHalf(N_cr) : 3, &
-                                        bigHalf(k_GRID)-3*smallHalf(N_cr) : bigHalf(k_GRID)+3*smallHalf(N_cr) : 3) )  
-
-       ! Non-dimensionalize error_ij by ||T_ij||_2/(nx*ny) -> Mean value at z-midplane [using numerical integration]
-       error_ij(ij) = error_ij(ij) * (i_GRID*j_GRID) / sum(T_ij(ij,:,:,k_GRID)**2)
-    end do
-
-    ! Ensemble mean of L2 norm error < ||.||2 > N_cr
-    error_ij = error_ij / N_cr**3
-
-    ! ||error||_inf
-          !error = maxval(error_ij)
-
-    ! (error_ij)_rms
-         error = sqrt(sum(error_ij**2) / 6.d0)
-    
     !
-    !    PLOT RESULTS:
-    if (present(plotOption).and.plotOption.eq.'plot') then
-       write(fID,"( ES8.1,',',6(ES16.7,','),ES16.7 )"), lambda, error_ij, error    
-    end if
+    ! MARK CROSS-VALIDATION POINTS:
+     T_ij_F_cr = T_ijOpt(:,  bigHalf(i_GRID)-3*smallHalf(N_cr) : bigHalf(i_GRID)+3*smallHalf(N_cr) : 3, &
+                             bigHalf(j_GRID)-3*smallHalf(N_cr) : bigHalf(j_GRID)+3*smallHalf(N_cr) : 3, &
+                             bigHalf(k_GRID)-3*smallHalf(N_cr) : bigHalf(k_GRID)+3*smallHalf(N_cr) : 3) 
+
+     T_ij_cr = T_ij(:,       bigHalf(i_GRID)-3*smallHalf(N_cr) : bigHalf(i_GRID)+3*smallHalf(N_cr) : 3, &
+                             bigHalf(j_GRID)-3*smallHalf(N_cr) : bigHalf(j_GRID)+3*smallHalf(N_cr) : 3, &
+                             bigHalf(k_GRID)-3*smallHalf(N_cr) : bigHalf(k_GRID)+3*smallHalf(N_cr) : 3) 
+
+     !
+     ! TRAINING ERROR (_ij):
+     do ij = 1,6
+        error_ij(ij) = sqrt(sum((T_ij_F_cr(ij,:,:,:) - T_ij_cr(ij,:,:,:)) ** 2) / sum(T_ij_cr(ij,:,:,:) ** 2))
+     end do
+
+     ! ERROR (_rms):
+     error = sqrt(sum(error_ij**2)/6.d0)
+     
+     open(77, file = trim(RES_PATH)//'TrainingError27.csv', status = 'replace')
+
+     do j=1,N_cr
+     do i=1,N_cr
+!     write(77,"( 2(ES16.7,','),ES16.7 )"), T_ij_F_cr(1,i,j,2), T_ij_cr(1,i,j,2), error_ij(1)
+     end do
+     end do
+
+     close(77)
+
+     ! PLOT RESULTS:
+     if (present(plotOption).and.plotOption.eq.'plot') then
+        write(fID,"( ES8.1,',',6(ES16.7,','),ES16.7 )"), lambda, error_ij, error    
+     end if
 
   end subroutine trainingError
 

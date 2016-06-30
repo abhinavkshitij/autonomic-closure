@@ -235,11 +235,27 @@ contains
   !          Needs coarse grained parallization.
   !
   ! 
-  !          
+  !         
+  ! STASH:
+  !   ##
+  !     if (debug(1)) then
+  !        allocate(T_ijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
+  !        allocate(tau_ijOpt(1,testSize,testSize,testSize))
+  !     else
+  !        allocate(T_ijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
+  !        allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
+  !     end if
+  !  
+  !  ###
+  !   if(debug(2)) then
+  !      print*,'shape tau_ij cutout:    ',shape(tau_ij)
+  !      print*,'shape uu_t cutout:      ',shape(uu_t)
+  !      print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
+  !   end if
   !
   !----------------------------------------------------------------
   
-  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
+  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
@@ -248,10 +264,11 @@ contains
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
     real(8), dimension(:,:,:,:), intent(in) :: T_ij
     real(8), dimension(:,:),     intent(out):: h_ij
+    real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt
+    real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
     !
     !    ..LOCAL ARRAYS..
     real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
-    real(8), dimension(:,:,:,:), allocatable :: T_ijOpt, tau_ijOpt
     real(8), dimension(:,:),     allocatable :: V  
     real(8), dimension(:,:),     allocatable :: T  
     !
@@ -276,7 +293,7 @@ contains
     !
     !    ..DEBUG..
     logical :: printval
-    logical :: debug(4) = [1,0,0,0]
+    logical :: debug(4) = [0,0,0,0]
     ! 1 - Takes just one (tau_ij_11) for testing purpose. 
     ! 2 - Prints cutout shapes to check if cutout ops have gone well.
     ! 3 - Performs all computations on just the first point.
@@ -289,33 +306,17 @@ contains
     ! scale. Though on the test scale it will skip every other point (coarse stencil)
     ! the fine stencil will require LES scale values to compute tau_ijOpt
 
-
-    allocate(uu_t(n_uu,testcutSize,testcutSize,testcutSize)) !(6,51,51,51)
-    allocate(uu_f(n_uu,testcutSize,testcutSize,testcutSize))
-
-
-    if (debug(1)) then
-       allocate(T_ijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
-       allocate(tau_ijOpt(1,testSize,testSize,testSize))
-    else
-       allocate(T_ijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
-       allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
-    end if
-
-    allocate (V(M,N),T(M,P))
-    
-    T_ijOpt = 0.
-    tau_ijOpt=0.
-
-    if(debug(2)) then
-       print*,'shape tau_ij cutout:    ',shape(tau_ij)
-       print*,'shape uu_t cutout:      ',shape(uu_t)
-       print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
-    end if
-
+! ##
+    allocate (V (M, N) )
+    allocate (T (M, P) )
+! ###
 
     ! COLOCATED FORMULATION:
     if (formulation.eq.'colocated') then
+
+!    allocate(uu_t(n_uu,testcutSize,testcutSize,testcutSize)) !(6,51,51,51)
+!    allocate(uu_f(n_uu,testcutSize,testcutSize,testcutSize))
+
        
 !        ! Compute velocity products:(Lower triangle order for ij): Send to actools.f90
 !        call velocityProducts(uu_f, u_f)
@@ -460,7 +461,6 @@ contains
           row_index  = 0 
 
           ! ENTER STENCIL-CENTER POINTS: C-ORDER
-!          do i_box = i_test-126, i_test+125, skip
           do i_box = i_test-126, i_test+125, skip
           do j_box = j_test-j_optRange(1),  j_test+j_optRange(2), skip
           do k_box = k_test-126, k_test+125, skip ! i_box = 3,49,2
@@ -545,7 +545,7 @@ contains
              print*,'SVD check ... Passed'
           end if
           end if
-
+          call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
        end do
        end do
        end do ! test

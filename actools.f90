@@ -580,7 +580,7 @@ contains
      open(77, file = trim(RES_PATH)//'TrainingError27.csv', status = 'replace')
      do j=1,N_cr
      do i=1,N_cr
-     write(77,"( 2(ES16.7,','),ES16.7 )"), T_ij_F_cr(1,i,j,6), T_ij_cr(1,i,j,6), error_ij(1)
+!     write(77,"( 2(ES16.7,','),ES16.7 )"), T_ij_F_cr(1,i,j,6), T_ij_cr(1,i,j,6), error_ij(1)
      end do
      end do
      close(77)

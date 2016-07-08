@@ -338,7 +338,7 @@ contains
 
     ! Statistics parameters:
     samples = 250
-    N_cr = 3    !(11x11x11)
+    N_cr = 3   !(11x11x11)
 
   end subroutine setEnv
 

@@ -293,7 +293,7 @@ contains
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
 
     lambda_0 = 1.d-07 * [1,3]
-    n_lambda = 1
+    n_lambda = 2
 
  
     ! Bounding Box parameters:  

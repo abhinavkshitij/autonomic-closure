@@ -28,7 +28,7 @@
 
 module solver
   use global
-    integer :: i_test,    j_test,    k_test 
+    integer :: i_box,    j_box,    k_box 
 contains
 
 
@@ -222,10 +222,10 @@ contains
   !       *** INDEX Nomenclature:
   !          non_col_ : for non-colocated combinations.
   !          _comp    : To select velocity and velocity products.
-  !          _test    : for a point in the TEST-scale field
-  !          _box     : for a point in bounding BOX (stencil-center)
+  !          _box     : bounding box center
+  !          _train   : training point in bounding box (stencil-center)
   !          _stencil : for a point in the 3x3x3 STENCIL
-  !          _opt     : for computed(OPTIMIZED)values at LES and Test scales.
+  !          _opt     : for computed(OPTIMIZED) values at LES and test scales.
   !          _proj    : to project stresses  for postprocessing
   !
   !          coloc    : 0  means use non-coloc
@@ -280,8 +280,8 @@ contains
     integer :: randMask(boxSize - M) !512-243=269
     !
     !    ..INDICES..
-    integer :: j_testRange(2)
-    integer :: i_box,     j_box,     k_box  
+    integer :: j_boxRange(2)
+    integer :: i_train,     j_train,     k_train  
     integer :: i_stencil, j_stencil, k_stencil 
     integer :: i_opt,     j_opt,     k_opt     
     integer :: j_optRange(2)
@@ -322,24 +322,24 @@ contains
        
        
 !        ! WHOLE DOMAIN COMPUTATION: 
-!        do k_test = testLower, testUpper, stride 
-!        do j_test = testLower, testUpper, stride
-!        do i_test = testLower, testUpper, stride ! i_test = 11,43,2
+!        do k_box = testLower, testUpper, stride 
+!        do j_box = testLower, testUpper, stride
+!        do i_box = testLower, testUpper, stride ! i_box = 11,43,2
        
 !              row_index  = 0 
        
 !              ! ENTER STENCIL-CENTER POINTS:
-!              do k_box = k_test-boxLower, k_test+boxUpper, skip
-!              do j_box = j_test-boxLower, j_test+boxUpper, skip
-!              do i_box = i_test-boxLower, i_test+boxUpper, skip  ! i_box = 3,49,2
+!              do k_train = k_box-boxLower, k_box+boxUpper, skip
+!              do j_train = j_box-boxLower, j_box+boxUpper, skip
+!              do i_train = i_box-boxLower, i_box+boxUpper, skip  ! i_train = 3,49,2
        
 !                 col_index = 0 
 !                 row_index = row_index + 1
        
 !                 ! ENTER 3x3x3 STENCIL:
-!                 do k_stencil = k_box-stride, k_box+stride, stride ! Vectorize using (PACK/UNPACK)
-!                 do j_stencil = j_box-stride, j_box+stride, stride
-!                 do i_stencil = i_box-stride, i_box+stride, stride
+!                 do k_stencil = k_train-stride, k_train+stride, stride ! Vectorize using (PACK/UNPACK)
+!                 do j_stencil = j_train-stride, j_train+stride, stride
+!                 do i_stencil = i_train-stride, i_train+stride, stride
        
 !                    ! ZERO ORDER TERMS:
 !                    V(row_index, col_index) = 1.d0
@@ -360,7 +360,7 @@ contains
 !                 end do 
 !                 end do ! STENCIL
        
-!                 T(row_index) = T_ij(n,i_box,j_box,k_box) !Change 1 to (1-6) here.
+!                 T(row_index) = T_ij(n,i_train,j_train,k_train) !Change 1 to (1-6) here.
        
 !              end do
 !              end do
@@ -386,18 +386,18 @@ contains
 !              ! unused space with 0. If not, it results in a
 !              ! segmentation fault. Thus the index of the strided elements
 !              ! that are used to form T_ijOpt and tau_ijOpt arrays should be
-!              ! mapped with _test indices to give a contiguous array (17,17,17)
+!              ! mapped with _box indices to give a contiguous array (17,17,17)
        
-!              i_proj = (i_test-testLower)/stride + 1
-!              j_proj = (j_test-testLower)/stride + 1
-!              k_proj = (k_test-testLower)/stride + 1
+!              i_proj = (i_box-testLower)/stride + 1
+!              j_proj = (j_box-testLower)/stride + 1
+!              k_proj = (k_box-testLower)/stride + 1
        
 !              ! COARSE STENCIL: Project T_ij back to itself to compare with the original T_ij field
 !              ! VECTORIZE THIS PART FOR SPEED
 !              col = 0
-!              do k_opt = k_test-stride, k_test+stride, stride
-!              do j_opt = j_test-stride, j_test+stride, stride
-!              do i_opt = i_test-stride, i_test+stride, stride
+!              do k_opt = k_box-stride, k_box+stride, stride
+!              do j_opt = j_box-stride, j_box+stride, stride
+!              do i_opt = i_box-stride, i_box+stride, stride
        
 !                 do u_comp = 1,n_u ! 1 to 3
 !                    col = col+1
@@ -416,9 +416,9 @@ contains
        
 !              ! FINE STENCIL : Calculate the SGS stress with h_ij;compare with the original tau_ij     
 !              col = 0 
-!              do k_opt = k_test-1, k_test+1
-!              do j_opt = j_test-1, j_test+1
-!              do i_opt = i_test-1, i_test+1
+!              do k_opt = k_box-1, k_box+1
+!              do j_opt = j_box-1, j_box+1
+!              do i_opt = i_box-1, i_box+1
        
 !                 do u_comp = 1,n_u ! 1 to 3
 !                    col = col+1
@@ -444,25 +444,25 @@ contains
        allocate (u_n(stencil_size))
 
        ! WHOLE DOMAIN COMPUTATION: 
-       do i_test = 129, 129, 1 
-       do j_test = 129, 129, 1
-       do k_test = 129, 129, 1 ! i_test = 11,43,2
+       do i_box = 129, 129, 1 
+       do j_box = 129, 129, 1
+       do k_box = 129, 129, 1 ! i_box = 11,43,2
 
           row_index  = 0 
 
           ! ENTER STENCIL-CENTER POINTS: C-ORDER
-          do i_box = i_test-126, i_test+125, 10
-          do j_box = j_test-126, j_test+125, 10
-          do k_box = k_test-126, k_test+125, 10
+          do i_train = i_box-126, i_box+125, 10
+          do j_train = j_box-126, j_box+125, 10
+          do k_train = k_box-126, k_box+125, 10
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
          
              ! ENTER 3x3x3 STENCIL: C-ORDER
              
-             u_n = reshape(u_t (:, i_box-2 : i_box+2 : 2, & 
-                                   j_box-2 : j_box+2 : 2, &
-                                   k_box-2 : k_box+2 : 2), [stencil_size])
+             u_n = reshape(u_t (:, i_train-2 : i_train+2 : 2, & 
+                                   j_train-2 : j_train+2 : 2, &
+                                   k_train-2 : k_train+2 : 2), [stencil_size])
 
              ! ZERO ORDER TERMS: 80 C 0
              col_index = col_index + 1
@@ -483,7 +483,7 @@ contains
              end do
              end do
 
-             T(row_index,:) = T_ij(:,i_box,j_box,k_box) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
+             T(row_index,:) = T_ij(:,i_train,j_train,k_train) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
 
           end do
           end do
@@ -506,7 +506,7 @@ contains
           if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
              print*, "Error! Check sorting order in  T vector!"
              print*, T(3,1)
-!             stop
+             stop
           else 
              print*,'T vector check ... Passed'
           end if
@@ -515,11 +515,9 @@ contains
           !
           ! CALL SOLVER
           if (solutionMethod.eq.'LU') then
-             !Damped least squares
-             call LU(V, T, h_ij)           
+             call LU(V, T, h_ij)                       ! Damped least squares 
           elseif(solutionMethod.eq.'SVD') then
-             ! TSVD
-             call SVD(V, T, h_ij,printval) 
+             call SVD(V, T, h_ij,printval)             ! TSVD
           else
              print*, 'Choose correct solver: LU, SVD'
              stop
@@ -564,7 +562,7 @@ contains
   !           Indices are in C-order for direct comparison with MATLAB.
   !
   !     * * * INDEX Nomenclature:
-  !           _test: for a point in the TEST-scale field
+  !           _box: for a point in the TEST-scale field
   !           _opt: where same h_ij is being used for point(s)
   !           non_col_: for non-colocated combinations.
   !          _comp: To select velocity and velocity products.
@@ -598,7 +596,7 @@ contains
     !
     !    ..LOCAL INDICES.. 
 
-    integer :: j_testRange (2)
+    integer :: j_boxRange (2)
     integer :: i_opt,     j_opt,     k_opt  
     integer :: j_optRange (2)
     integer :: i_stencil, j_stencil, k_stencil
@@ -606,17 +604,17 @@ contains
 
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-       do i_opt = i_test-126, i_test+125
-       do j_opt = j_test-126, j_test+125
+       do i_opt = i_box-126, i_box+125
+       do j_opt = j_box-126, j_box+125
 ! Whole domain:
-          ! do k_opt = k_test-126, k_test+125 
+          ! do k_opt = k_box-126, k_box+125 
 ! Single point:
           ! do i_opt = 15,15
           ! do j_opt = 24,24
           ! do k_opt = 10,10
 
 ! Cross-validation points [Preferred]:
-       do k_opt = k_test-3*smallHalf(N_cr), k_test+3*smallHalf(N_cr), 3
+       do k_opt = k_box-3*smallHalf(N_cr), k_box+3*smallHalf(N_cr), 3
 
           col_index = 0 
          

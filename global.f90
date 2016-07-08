@@ -9,10 +9,20 @@
 ! FORM:
 !      module global
 !          contains
+!          namespace
 !          interface printplane
 !              subroutine plane3
 !              subroutine plane2
+!          interface norm
+!              subroutine norm3
+!              subroutine norm2
 !        subroutine printParams       [SINK]
+!        function nCk
+!        function factorial
+!        function mean
+!        function stdev
+!        function bigHalf
+!        function smallHalf
 !
 ! BEHAVIOR:
 !      * Check array rank while passing into printplane.
@@ -26,9 +36,9 @@
 module global
 
   integer, parameter :: dp = selected_real_kind(15,307)
-
   real,    parameter :: eps = 1e-5
   real(8), parameter :: pi = 4.d0 * atan(1.d0)
+
 
   ! DEFINE STRING ARRAY:
   type str16
@@ -68,7 +78,7 @@ module global
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set = 'S6' ! [S1, S3, S6]
-  character(3) :: stress = 'abs' ! [dev, abs]
+  character(3) :: stress = 'dev' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
 
@@ -96,8 +106,9 @@ module global
   real(8), dimension(:,:,:), allocatable :: test
   !
   !    ..STRAIN RATES..
-  real(8), dimension(:,:,:,:,:), allocatable :: Sij_f
-  real(8), dimension(:,:,:,:,:), allocatable :: Sij_t
+  real(8), dimension(:,:,:,:), allocatable :: Sij
+  real(8), dimension(:,:,:,:), allocatable :: Sij_f
+  real(8), dimension(:,:,:,:), allocatable :: Sij_t
   !
   !    ..COEFFICIENTS..
   real(8), dimension(:,:), allocatable :: h_ij
@@ -116,7 +127,7 @@ module global
   integer :: center
 
   real(8) :: dx ! To calculate gradient
-
+  real(8) :: nu 
 
   integer :: M               ! Number of training points 3x3x3x9
   integer :: N 
@@ -158,7 +169,7 @@ module global
 
   !
   !    ..FILEIO..
-  integer :: z_print
+  integer :: z_plane           
   integer :: path_txt          = 22
   integer :: params_txt        = 23
   integer :: cross_csv_T_ij    = 81
@@ -229,12 +240,16 @@ contains
     i_GRID = 256
     j_GRID = 256
     k_GRID = 256
-  
-
+    z_plane = bigHalf(k_GRID)
+    
     ! TIME
-    if (dataset.eq.'jhu') time = '256'; time_init = 256; time_incr = 1; time_final = 256
+    if (dataset.eq.'jhu256') then
+       time = '256'; time_init = 256; time_incr = 1; time_final = 256
+       nu = 1.85d-4
+    end if
     if (dataset.eq.'nrl') time = '0460'
     if (dataset.eq.'hst') then
+       nu = 5.67d-4 !6.093d-3
        if (hst_set.eq.'S1') then
           time = '016'; time_init = 16; time_incr = 1; time_final = 28
        end if
@@ -323,7 +338,7 @@ contains
 
     ! Statistics parameters:
     samples = 250
-    N_cr = 11    !(11x11x11)
+    N_cr = 3    !(11x11x11)
 
   end subroutine setEnv
 

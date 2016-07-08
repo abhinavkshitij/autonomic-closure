@@ -63,11 +63,12 @@ program autonomic
   character(10) :: scale
   !
   !    ..CONTROL SWITCHES..
+  logical :: turbulentStats       =  0
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
+  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: plot_Stress          =  0
@@ -77,6 +78,7 @@ program autonomic
 
   integer :: time_index
   real(8) :: error_cross_T_ij, error_cross_tau_ij
+  real(8) :: u_rms, epsilon, TKE
 
 
   if (computeFFT_data.eqv..false.) then
@@ -88,7 +90,7 @@ program autonomic
   end if
 
   !    ..INIT POSTPROCESSING..
-  open(path_txt, file = trim(RES_DIR)//'path.txt')
+  open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
 
   call setEnv()
   call printParams()
@@ -104,7 +106,6 @@ program autonomic
 
 
   time_loop: do time_index = time_init, time_final, time_incr
-
 
      ! SET TIME PARAMS:
      write(time,'(i0)') time_index !num2str
@@ -134,9 +135,21 @@ program autonomic
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
-     ! ## PLOT Energy spectra:
+     ! TURBULENT FIELD STATISTICS:
+     if (turbulentStats) then
+     ! ## PLOT Energy spectra
+         TKE  = turbulentKE(u)
+         u_rms = sqrt( (mean(u(1,:,:,:)**2) + mean(u(2,:,:,:)**2) + mean(u(3,:,:,:)**2))/3.d0 )
+         print*, 'turbulentKE (k) = ',TKE
+         print*, 'rms velocity (u_rms) = ', u_rms 
+         if(allocated(Sij).eqv..false.)     allocate (Sij  (n_uu, i_GRID,j_GRID,k_GRID))
+         print*, 'nu = ', nu
+         call computeSij(u, Sij)
+         call dissipationRate(Sij, epsilon)
+         print*, 'Dissipation rate (epsilon) = ', epsilon
+     end if
 
-
+!stop
      ! ************** LEVEL 2 ****************!
      !
      ! ADD PATH DEPTH : SCALE
@@ -146,8 +159,6 @@ program autonomic
      write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
-
-
 
      ! 2] FILTER VELOCITIES [AND PRESSURE]:
      if(allocated(u_f).eqv..false.)        allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
@@ -172,9 +183,13 @@ program autonomic
         ! ###
         print*, 'Completed'
         call check_FFT(u_t(1,15,24,10))  
-        if (plot_Velocities)                                        call plotVelocities()
+        if (plot_Velocities) then
+                                                                       call plotVelocities('All')
+        if (withPressure)                                              call plotPressure()
+        end if
      end if
 
+!stop
 
      ! BREAKPOINT 1:
      if (useTestData) stop
@@ -200,8 +215,10 @@ program autonomic
 
 
 
-     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (3,3, i_GRID,j_GRID,k_GRID))
-     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (3,3, i_GRID,j_GRID,k_GRID))
+     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (n_uu, i_GRID,j_GRID,k_GRID))
+     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (n_uu, i_GRID,j_GRID,k_GRID))
+
+
      ! 5] ORIGINAL PRODUCTION FIELD 
      if(production_Term) then
 
@@ -210,12 +227,14 @@ program autonomic
         call computeSij(u_f, Sij_f)
         call computeSij(u_t, Sij_t)
         ! ++ CHECK S_ij
+        
 
         if(allocated(Pij_f).eqv..false.)          allocate (Pij_f (i_GRID, j_GRID, k_GRID))
         if(allocated(Pij_t).eqv..false.)          allocate (Pij_t (i_GRID, j_GRID, k_GRID))
         call productionTerm(Pij_f, tau_ij, Sij_f)
         call productionTerm(Pij_t, T_ij,   Sij_t)
         ! +++  CHECK P_ij
+
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
      end if
@@ -224,8 +243,10 @@ program autonomic
      ! ************** LEVEL 3 ****************!
      !
      ! ADD PATH DEPTH : (METHOD) - LU or SVD
-     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/' !     TEMP_PATH = trim(TEMP_PATH)//trim('abs')//'/'
-     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'  !     RES_PATH =  trim(RES_PATH)//trim('abs')//'/'
+     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/' 
+!     TEMP_PATH = trim(TEMP_PATH)//trim('256')//'/'
+     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'  
+!     RES_PATH =  trim(RES_PATH)//trim('256')//'/'
 
 
      write(path_txt,*) RES_PATH
@@ -268,4 +289,6 @@ program autonomic
      close(cross_csv_tau_ij)
 ! %%
   end do time_loop
+
+close (path_txt)
 end program

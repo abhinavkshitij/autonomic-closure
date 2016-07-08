@@ -27,9 +27,8 @@
 !----------------------------------------------------------------
 
 module solver
-
   use global
-
+    integer :: i_test,    j_test,    k_test 
 contains
 
 
@@ -281,7 +280,6 @@ contains
     integer :: randMask(boxSize - M) !512-243=269
     !
     !    ..INDICES..
-    integer :: i_test,    j_test,    k_test
     integer :: j_testRange(2)
     integer :: i_box,     j_box,     k_box  
     integer :: i_stencil, j_stencil, k_stencil 
@@ -444,26 +442,18 @@ contains
     else
 
        allocate (u_n(stencil_size))
-       
-       j_testRange = [129, 129]  
-       j_optRange  = [126, 125]
-       if (dataset.eq.'hst') then
-          j_testRange = [65,65]
-          j_optRange  = [62,62]
-       end if
-
 
        ! WHOLE DOMAIN COMPUTATION: 
        do i_test = 129, 129, 1 
-       do j_test = j_testRange(1), j_testRange(2), 1
+       do j_test = 129, 129, 1
        do k_test = 129, 129, 1 ! i_test = 11,43,2
 
           row_index  = 0 
 
           ! ENTER STENCIL-CENTER POINTS: C-ORDER
-          do i_box = i_test-126, i_test+125, skip
-          do j_box = j_test-j_optRange(1),  j_test+j_optRange(2), skip
-          do k_box = k_test-126, k_test+125, skip ! i_box = 3,49,2
+          do i_box = i_test-126, i_test+125, 10
+          do j_box = j_test-126, j_test+125, 10
+          do k_box = k_test-126, k_test+125, 10
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
@@ -507,18 +497,18 @@ contains
              print*, 'V(1500,2000)', V(1500,2000)
              stop
           else 
-             !print*,'V matrix check ... Passed'
+             print*,'V matrix check ... Passed'
           end if
           end if
 
           !CHECK T:
-          if (withPressure.eqv..false.) then
+          if (withPressure.eqv..false. .and. stress.eq.'dev') then
           if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
              print*, "Error! Check sorting order in  T vector!"
              print*, T(3,1)
 !             stop
           else 
-             !print*,'T vector check ... Passed'
+             print*,'T vector check ... Passed'
           end if
           end if
 
@@ -536,16 +526,17 @@ contains
           end if
           
           ! CHECK h_ij:
-          if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD') then
+          if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
           if (h_ij(350,1).ne.-4.5121154730201521d-2)then
              print*, "Error! Check lambda, method or sorting order for h_ij computation:"
              print*,h_ij(350,1)
-             stop
+             !stop
           else 
              print*,'SVD check ... Passed'
           end if
           end if
           call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+
        end do
        end do
        end do ! test
@@ -606,28 +597,17 @@ contains
     real(8), dimension(stencil_size) :: u_t_stencil
     !
     !    ..LOCAL INDICES.. 
-    integer :: i_test,    j_test,    k_test 
+
     integer :: j_testRange (2)
     integer :: i_opt,     j_opt,     k_opt  
     integer :: j_optRange (2)
     integer :: i_stencil, j_stencil, k_stencil
     integer :: non_col_1, non_col_2  
 
-    j_testRange = [129, 129]  
-    j_optRange  = [126, 125]
-    if (dataset.eq.'hst') then
-       j_testRange = [65,65]
-       j_optRange  = [62,62]
-    end if
-  
-    ! WHOLE DOMAIN COMPUTATION: 
-    do i_test = 129, 129
-    do j_test = j_testRange(1), j_testRange(2)
-    do k_test = 129, 129
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
        do i_opt = i_test-126, i_test+125
-       do j_opt = j_test-j_optRange(1), j_test+j_optRange(2)
+       do j_opt = j_test-126, j_test+125
 ! Whole domain:
           ! do k_opt = k_test-126, k_test+125 
 ! Single point:
@@ -636,7 +616,7 @@ contains
           ! do k_opt = 10,10
 
 ! Cross-validation points [Preferred]:
-       do k_opt = bigHalf(k_GRID)-3*smallHalf(N_cr), bigHalf(k_GRID)+3*smallHalf(N_cr), 3
+       do k_opt = k_test-3*smallHalf(N_cr), k_test+3*smallHalf(N_cr), 3
 
           col_index = 0 
          
@@ -687,9 +667,6 @@ contains
        end do
        end do ! BOUNDING BOX
 
-    end do
-    end do
-    end do ! TEST
 
   end subroutine computedStress
 
@@ -767,8 +744,6 @@ contains
     call DGEMM('T', 'N', N, N, M, alpha, V, M, V, M, beta, A, N)
 
     ! Apply damping: A = A + lambda*I
-!    lambda = 1.d-1
-!    print*, lambda
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 
@@ -876,7 +851,7 @@ contains
     logical :: GESVD = 0
 
  
-    LWMAX = M * N
+    LWMAX =3 * M * N
     ! 
     ! SVD DECOMPOSITION: A(M,N) = U(M,M) S([M],N) V'(N,N)
     ! DGESVD returns N diagonal entries to S(N)
@@ -918,7 +893,7 @@ contains
     ! Create D(N,M) with S(i) as damped diagonal entries.
     allocate(D(N,M))
     D = 0.d0
-    lambda = 1.d-1
+!    lambda = 1.d-1
     forall(i=1:N) D(i,i) = S(i) / (S(i)**2 + lambda**2) 
     ! **  DEVELOPMENTAL NOTE IN THE HEADER
     !

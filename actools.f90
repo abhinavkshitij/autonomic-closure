@@ -91,6 +91,21 @@ contains
   !
   ! STATUS : Reverse indices to improve speed. 
   !          Need to time this section to track  performance.
+  ! STASH:
+  !  ***
+  !      write(*,'(a32)',ADVANCE='NO'), adjustl('        Compute velocity gradients:')
+  !      call cpu_time(tic)
+  !      ...
+  !      call cpu_time(toc)
+  !      write(*,*), toc-tic
+  !      
+  !      write(*,'(a16)',ADVANCE='NO'), adjustl('      Compute Sij:')
+  !      call cpu_time(tic)
+  !      ...
+  !      call cpu_time(toc)
+  !      write(*,*), toc-tic
+  !     
+  !
   !----------------------------------------------------------------
   
   subroutine computeSij(u, Sij)
@@ -98,45 +113,41 @@ contains
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:),  intent(in) :: u
-    real(8), dimension(:,:,:,:,:),intent(out) :: Sij 
+    real(8), dimension(:,:,:,:),intent(out) :: Sij 
     !
     !    ..WORK ARRAYS..
     real(8), allocatable, dimension(:,:,:,:,:)  :: A
     real(8), allocatable, dimension(:,:,:,:)    :: grad_u
     !
     !    ..INDICES..
-    integer :: i,j !DO NOT REMOVE THIS LINE. i IS PASSED INTO gradient() AND ITS VALUE IS MODIFIED.
+    integer :: i,j,k !DO NOT REMOVE THIS LINE. i IS PASSED INTO gradient() AND ITS VALUE IS MODIFIED.
 
     allocate (A(3,3,i_GRID,j_GRID,k_GRID))
     allocate (grad_u(3,i_GRID,j_GRID,k_GRID))
 
     !
     ! COMPUTE VELOCITY GRADIENTS:
-    write(*,'(a32)',ADVANCE='NO'), adjustl('        Compute velocity gradients:')
-    call cpu_time(tic)
     do i=1,3
        call gradient(u(i,:,:,:),grad_u)
        A(i,:,:,:,:) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
     end do
-    call cpu_time(toc)
-    write(*,*), toc-tic
     deallocate(grad_u)
 
     !
     ! COMPUTE S_ij:
-    write(*,'(a16)',ADVANCE='NO'), adjustl('      Compute Sij:')
-    call cpu_time(tic)
+    k = 0
     do j=1,3
        do i=1,3
-          Sij(i,j,:,:,:) = 0.5d0 * (A(i,j,:,:,:) + A(j,i,:,:,:))
+
+          if (i.ge.j) then
+             k = k + 1
+             Sij(k,:,:,:) = 0.5d0 * (A(i,j,:,:,:) + A(j,i,:,:,:))
+          end if
+
        end do
     end do
-    call cpu_time(toc)
-    write(*,*), toc-tic
-
     deallocate (A)
 
-    return
   end subroutine computeSij
 
 
@@ -236,7 +247,7 @@ contains
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
-    real(8), dimension(:,:,:,:,:), intent(in) :: S_ij
+    real(8), dimension(:,:,:,:), intent(in) :: S_ij
     real(8), dimension(:,:,:), intent(out) :: P
     !
     !   .. LOCAL VARS..
@@ -244,19 +255,124 @@ contains
     
     count = 0
     P = 0
+
     do j = 1,3
        do i = 1,3
           if(i.ge.j) then
              count = count + 1
              if (i.eq.j) then
-                P(:,:,:) = P(:,:,:) + tau_ij(count,:,:,:) * S_ij (i,j,:,:,:) 
+                P(:,:,:) = P(:,:,:) + tau_ij(count,:,:,:) * S_ij (count,:,:,:) 
              else
-                P(:,:,:) = P(:,:,:) + 2.d0 * (tau_ij(count,:,:,:) * S_ij(i,j,:,:,:))
+                P(:,:,:) = P(:,:,:) + 2.d0 * (tau_ij(count,:,:,:) * S_ij(count,:,:,:))
              end if
           end if
        end do
     end do
+
   end subroutine productionTerm
+
+  
+  !****************************************************************
+  !                        DISSIPATION RATE                        !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Calculates dissipation rate: epsilon = nu * S_ij * S_ij
+  !       
+  !       
+  !
+  ! FORM: subroutine dissipationRate(S_ij, epsilon)
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS : 
+  !       ##     print*, 'SijSij: ',mean(temp), temp (10,25,24), temp(3,4,5)
+  !          
+  !----------------------------------------------------------------
+
+
+  subroutine dissipationRate(S_ij, epsilon)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(in) :: S_ij
+    real(8), intent(out) :: epsilon
+    !
+    !   .. LOCAL VARS..
+    real(8), dimension(:,:,:), allocatable :: temp
+    integer :: count 
+    
+    allocate (temp(i_GRID, j_GRID, k_GRID))
+
+    
+    count = 0
+    do j = 1,3
+       do i = 1,3
+          if(i.ge.j) then
+             count = count + 1
+             if (i.eq.j) then
+                temp(:,:,:) = temp(:,:,:) + S_ij(count,:,:,:) * S_ij (count,:,:,:) 
+             else
+                temp(:,:,:) = temp(:,:,:) + 2.d0 * (S_ij(count,:,:,:) * S_ij(count,:,:,:))
+             end if
+          end if
+       end do
+    end do
+
+!## Print pointwise values
+    epsilon = 2.d0 * nu * mean(temp)
+
+  end subroutine dissipationRate
+
+
+  
+  !****************************************************************
+  !                   TURBULENT KINETIC ENERGY                    !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Calculates turbulent KE = 0.5 * (u_1'^2 + u_2'^2 + u_3'^3)
+  !       
+  !       
+  !
+  ! FORM: subroutine turbulentKE(u, TKE)
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS : 
+  !          
+  !----------------------------------------------------------------
+
+
+
+  function turbulentKE(u)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(in) :: u
+    real(8)  :: turbulentKE
+           
+    turbulentKE = 0.5d0 * mean( (u(1,:,:,:) - mean(u(1,:,:,:)))**2 &
+                               +(u(2,:,:,:) - mean(u(2,:,:,:)))**2 &
+                               +(u(3,:,:,:) - mean(u(3,:,:,:)))**2 ) 
+
+  end function turbulentKE
+
+
 
   
   !****************************************************************
@@ -462,13 +578,11 @@ contains
      error = sqrt(sum(error_ij**2)/6.d0)
      
      open(77, file = trim(RES_PATH)//'TrainingError27.csv', status = 'replace')
-
      do j=1,N_cr
      do i=1,N_cr
-!     write(77,"( 2(ES16.7,','),ES16.7 )"), T_ij_F_cr(1,i,j,2), T_ij_cr(1,i,j,2), error_ij(1)
+     write(77,"( 2(ES16.7,','),ES16.7 )"), T_ij_F_cr(1,i,j,6), T_ij_cr(1,i,j,6), error_ij(1)
      end do
      end do
-
      close(77)
 
      ! PLOT RESULTS:

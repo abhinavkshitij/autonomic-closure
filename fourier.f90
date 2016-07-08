@@ -348,8 +348,8 @@ contains
     ! ABSOLUTE STRESS:
     if (stress.eq.'abs') then
        k = 1
-       do j=1,n_u
-          do i=1,n_u
+       do j=1,3
+          do i=1,3
              if (i.le.3.and.j.le.3.and.i.ge.j) then
                 print *, 'tau(', i, ',', j, ')' !<-- CHECK ORDER OF i,j,k...affects performance!!!
                 tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:), LES)       &
@@ -365,8 +365,8 @@ contains
        ! DEVIATORIC STRESS:
     elseif (stress.eq.'dev')then
        k = 1
-       do j=1,n_u
-          do i=1,n_u
+       do j=1,3
+          do i=1,3
              if (i.le.3.and.j.le.3.and.i.ge.j) then
                 print *, 'tau(', i, ',', j, ')'
                 tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:),LES)     &

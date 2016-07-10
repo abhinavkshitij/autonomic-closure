@@ -28,6 +28,7 @@
 
 module solver
   use global
+  use actools
     integer :: i_box,    j_box,    k_box 
 contains
 
@@ -288,6 +289,8 @@ contains
     integer :: i_proj,    j_proj,    k_proj    
     integer :: row_index, col_index, row, col 
     integer :: u_comp, uu_comp 
+
+    real(8) :: error_cross_T_ij, error_cross_tau_ij
     !
     !    ..DEBUG..
     logical :: printval
@@ -450,7 +453,7 @@ contains
 
           row_index  = 0 
 
-          ! ENTER STENCIL-CENTER POINTS: C-ORDER
+          ! VISIT EACH TRAINING POINT: C-ORDER
           do i_train = i_box-126, i_box+125, 10
           do j_train = j_box-126, j_box+125, 10
           do k_train = k_box-126, k_box+125, 10
@@ -487,7 +490,7 @@ contains
 
           end do
           end do
-          end do ! BOUNDING BOX
+          end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
           
           ! CHECK V:
@@ -513,31 +516,45 @@ contains
           end if
 
           !
-          ! CALL SOLVER
-          if (solutionMethod.eq.'LU') then
-             call LU(V, T, h_ij)                       ! Damped least squares 
-          elseif(solutionMethod.eq.'SVD') then
-             call SVD(V, T, h_ij,printval)             ! TSVD
-          else
-             print*, 'Choose correct solver: LU, SVD'
-             stop
-          end if
-          
-          ! CHECK h_ij:
-          if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
-          if (h_ij(350,1).ne.-4.5121154730201521d-2)then
-             print*, "Error! Check lambda, method or sorting order for h_ij computation:"
-             print*,h_ij(350,1)
-             !stop
-          else 
-             print*,'SVD check ... Passed'
-          end if
-          end if
-          call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+          ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
+          do iter = 1, n_lambda
+             lambda = lambda_0(1) * 10**(iter-1)
+             print('(a8,ES10.2)'), 'lambda ',lambda
+             
+             !
+             ! CALL SOLVER: LATER SPLIT IT INTO 1) FACTORIZATION STEP (OUT OF LOOP)
+             ! AND 2] SOLUTION USING LAMBDA (WITHIN LOOP)
+             if (solutionMethod.eq.'LU') then
+                call LU(V, T, h_ij)                       ! DAMPED LEAST SQUARES 
+             elseif(solutionMethod.eq.'SVD') then
+                call SVD(V, T, h_ij,printval)             ! TSVD
+             else
+                print*, 'Choose correct solver: LU, SVD'
+                stop
+             end if
+
+             ! CHECK h_ij:
+             if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
+                if (h_ij(350,1).ne.-4.5121154730201521d-2)then
+                   print*, "Error! Check lambda, method or sorting order for h_ij computation:"
+                   print*,h_ij(350,1)
+                   !stop
+                else 
+                   print*,'SVD check ... Passed'
+                end if
+             end if
+
+             ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+             call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+             !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
+             call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
+             call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
+
+          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
 
        end do
        end do
-       end do ! test
+       end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
     end if
 

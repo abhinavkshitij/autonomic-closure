@@ -77,7 +77,6 @@ program autonomic
   logical :: compute_Stress       =  0
 
   integer :: time_index
-  real(8) :: error_cross_T_ij, error_cross_tau_ij
   real(8) :: u_rms, epsilon, TKE
 
 
@@ -265,26 +264,22 @@ program autonomic
      end if
 
 
+     ! */*  RESIZE u_t from (1:i_GRID, ...) to (-1:i_GRID+2, ...)
+     ! */*  RESIZE u_f from (1:i_GRID, ...) to (0:i_GRID+1, ...)
      print*, 'Autonomic closure ... '
      open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
      open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
 
 ! $$$
-     do iter = 1, n_lambda
-        lambda = lambda_0(1) * 10**(iter-1)
-        print('(a8,ES10.2)'), 'lambda ',lambda
-        call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+     call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
 
-        if (plot_Stress)                                        call plotComputedStress(lambda,'All')
-        call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
-        call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
-        ! 7] PRODUCTION FIELD - COMPUTED 
-        if(production_Term) then
-           call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
-           call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
-           if (save_ProductionTerm)                             call plotProductionTerm(lambda)
-        end if
-     end do
+     if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+     if (production_Term) then
+        call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+        call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+        if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+     end if
+
      close(cross_csv_T_ij)
      close(cross_csv_tau_ij)
 ! %%

@@ -78,9 +78,31 @@ module global
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set = 'S6' ! [S1, S3, S6]
-  character(3) :: stress = 'dev' ! [dev, abs]
+  character(3) :: stress = 'abs' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
+
+
+  !----------------------------------------------------------------
+  !
+  !****************************************************************
+  !                       ..CONTROL SWITCHES..                    !
+  !****************************************************************
+  
+
+  logical :: turbulentStats       =  0
+  logical :: useTestData          =  0
+  logical :: readFile             =  1
+  logical :: filterVelocities     =  1
+  logical :: plot_Velocities      =  1
+  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: save_FFT_data        =  1
+
+  logical :: plot_Stress          =  1
+  logical :: production_Term      =  1
+  logical :: save_ProductionTerm  =  1
+  logical :: compute_Stress       =  0
+
 
 
   !----------------------------------------------------------------
@@ -214,7 +236,8 @@ module global
   integer  :: i, j, k  
   integer  :: iter
   real(8)  :: tic, toc
-  
+
+
 
   !----------------------------------------------------------------
   !

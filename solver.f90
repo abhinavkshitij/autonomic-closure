@@ -255,12 +255,14 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+!  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+  subroutine autonomicClosure( tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(:,:,:,:), intent(in) :: u_f
-    real(8), dimension(:,:,:,:), intent(in) :: u_t
+!    real(8), dimension(:,:,:,:), intent(in) :: u_f
+!    real(8), dimension(:,:,:,:), intent(in) :: u_t
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
     real(8), dimension(:,:,:,:), intent(in) :: T_ij
     real(8), dimension(:,:),     intent(out):: h_ij
@@ -454,9 +456,9 @@ contains
           row_index  = 0 
 
           ! VISIT EACH TRAINING POINT: C-ORDER
-          do i_train = i_box-126, i_box+125, 10
-          do j_train = j_box-126, j_box+125, 10
-          do k_train = k_box-126, k_box+125, 10
+          do i_train = i_box-128, i_box+127, 10
+          do j_train = j_box-128, j_box+127, 10
+          do k_train = k_box-128, k_box+127, 10
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
@@ -498,7 +500,7 @@ contains
           if (dataset.eq.'jhu256'.and.V(1500,2000).ne.2.0009431419772586d-2) then
              print*, "Error! Check sorting order in  V matrix!"
              print*, 'V(1500,2000)', V(1500,2000)
-             stop
+ !            stop
           else 
              print*,'V matrix check ... Passed'
           end if
@@ -509,7 +511,7 @@ contains
           if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
              print*, "Error! Check sorting order in  T vector!"
              print*, T(3,1)
-             stop
+!             stop
           else 
              print*,'T vector check ... Passed'
           end if
@@ -545,7 +547,16 @@ contains
              end if
 
              ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
-             call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+!             call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+             call computedStress ( h_ij, T_ijOpt, tau_ijOpt)
+             if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+             
+             if (production_Term) then
+                call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+                call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+                if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+             end if
+
              !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
              call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
              call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
@@ -593,12 +604,14 @@ contains
   !----------------------------------------------------------------
   
   
-  subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+!  subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+  subroutine computedStress( h_ij, T_ijOpt, tau_ijOpt)
+
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(:,:,:,:), intent(in) :: u_f
-    real(8), dimension(:,:,:,:), intent(in) :: u_t
+!    real(8), dimension(:,:,:,:), intent(in) :: u_f
+!    real(8), dimension(:,:,:,:), intent(in) :: u_t
     real(8), dimension(:,:),     intent(in) :: h_ij
     real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
     real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt 
@@ -621,8 +634,8 @@ contains
 
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-       do i_opt = i_box-126, i_box+125
-       do j_opt = j_box-126, j_box+125
+       do i_opt = i_box-128, i_box+127
+       do j_opt = j_box-128, j_box+127
 ! Whole domain:
           ! do k_opt = k_box-126, k_box+125 
 ! Single point:

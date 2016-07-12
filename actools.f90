@@ -419,6 +419,81 @@ contains
     end do
   end subroutine velocityProducts
 
+
+  
+  !****************************************************************
+  !                        EXTEND DOMAIN
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Use ghost cells to extend domain 
+  !       
+  !       
+  !
+  ! FORM: subroutine extendDomain()
+  !       
+  !
+  ! BEHAVIOR: 
+  !           
+  !           
+  !           
+  !           
+  !          
+  !          
+  !
+  ! STATUS : 
+  !          
+  !----------------------------------------------------------------
+
+  subroutine extendDomain()
+    implicit none
+    !
+    !   .. LOCAL VARS..
+    real(8), dimension(:,:,:,:), allocatable :: temp
+    integer :: i,j,k
+
+
+    allocate (temp (1:n_u, 1:256, 1:256, 1:256))    
+    ! REALLOCATE ARRAY SIZE - u_f
+    temp(1:n_u, 1:256, 1:256, 1:256) = u_f(1:n_u, 1:256, 1:256, 1:256)
+    deallocate(u_f)
+    allocate(u_f(n_u, -1:256+2, -1:256+2, -1:256+2))
+    u_f(1:n_u, 1:256, 1:256, 1:256) = temp(1:n_u, 1:256, 1:256, 1:256)
+    
+    ! REALLOCATE ARRAY SIZE - u_t
+    temp(1:n_u, 1:256, 1:256, 1:256) = u_t(1:n_u, 1:256, 1:256, 1:256)
+    deallocate(u_t)
+    allocate(u_t(n_u, -1:256+2, -1:256+2, -1:256+2))
+    u_t(1:n_u, 1:256, 1:256, 1:256) = temp(1:n_u, 1:256, 1:256, 1:256)
+
+    ! USE PERIODIC CONDITIONS ON GHOST CELLS:
+    do k = 1,2
+       do j = 1,2
+          do i = 1,2
+             u_f(:, 1-i, :, :) = u_f(:, 256-i+1, :, :) ! x-plane (left)
+             u_f(:, 256+i, :, :) = u_f(:, i, :, :) ! x-plane (right)
+
+             u_f(:, :, 1-j, :) = u_f(:, :, 256-j+1, :) ! y-plane (left)
+             u_f(:, :, 256+j, :) = u_f(:, :, j, :) ! y-plane (right)
+
+             u_f(:, :, :, 1-k) = u_f(:, :, :, 256-k+1) ! z-plane (left)
+             u_f(:, :, :, 256+k) = u_f(:, :, :, k) ! z-plane (right)
+
+             u_t(:, 1-i, :, :) = u_t(:, 256-i+1, :, :) ! x-plane (left)
+             u_t(:, 256+i, :, :) = u_t(:, i, :, :) ! x-plane (right)
+
+             u_t(:, :, 1-j, :) = u_t(:, :, 256-j+1, :) ! y-plane (left)
+             u_t(:, :, 256+j, :) = u_t(:, :, j, :) ! y-plane (right)
+
+             u_t(:, :, :, 1-k) = u_t(:, :, :, 256-k+1) ! z-plane (left)
+             u_t(:, :, :, 256+k) = u_t(:, :, :, k) ! z-plane (right)
+          end do
+       end do
+    end do
+
+
+  end subroutine extendDomain
+
   
   !****************************************************************
   !                        CREATE PDF                             !

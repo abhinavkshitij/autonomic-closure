@@ -255,14 +255,14 @@ contains
   !
   !----------------------------------------------------------------
   
-!  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-  subroutine autonomicClosure( tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+!  subroutine autonomicClosure( tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
 
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-!    real(8), dimension(:,:,:,:), intent(in) :: u_f
-!    real(8), dimension(:,:,:,:), intent(in) :: u_t
+    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_f
+    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_t
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
     real(8), dimension(:,:,:,:), intent(in) :: T_ij
     real(8), dimension(:,:),     intent(out):: h_ij
@@ -547,8 +547,8 @@ contains
              end if
 
              ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
-!             call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-             call computedStress ( h_ij, T_ijOpt, tau_ijOpt)
+             call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+!             call computedStress ( h_ij, T_ijOpt, tau_ijOpt)
              if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
              
              if (production_Term) then
@@ -604,14 +604,14 @@ contains
   !----------------------------------------------------------------
   
   
-!  subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-  subroutine computedStress( h_ij, T_ijOpt, tau_ijOpt)
+  subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+!  subroutine computedStress( h_ij, T_ijOpt, tau_ijOpt)
 
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-!    real(8), dimension(:,:,:,:), intent(in) :: u_f
-!    real(8), dimension(:,:,:,:), intent(in) :: u_t
+    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_f
+    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_t
     real(8), dimension(:,:),     intent(in) :: h_ij
     real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
     real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt 

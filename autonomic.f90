@@ -260,8 +260,8 @@ program autonomic
      open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
 
 ! $$$
-!     call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-     call autonomicClosure ( tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+     call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+!     call autonomicClosure ( tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
 
 
      close(cross_csv_T_ij)

@@ -98,9 +98,9 @@ module global
   logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
-  logical :: plot_Stress          =  1
-  logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  1
+  logical :: plot_Stress          =  0
+  logical :: production_Term      =  0
+  logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
 
 

@@ -729,7 +729,7 @@ end subroutine plotVelocities
      write(lambda_char,'(ES6.0E2)') lambda
 
      ! SAVE COMPUTED STRESS
-     print*,'Saving computed stress in', RES_PATH, '\n'
+     print*,'Saving computed stress in', RES_PATH
  
      do i = 1, n_ij
         write(ij, '(i0)') i
@@ -780,7 +780,7 @@ end subroutine plotVelocities
      write(lambda_char,'(ES6.0E2)') lambda
 
      ! SAVE COMPUTED STRESS
-     print*,'Load computed stress from', RES_PATH, '\n'
+     print*,'Load computed stress from', RES_PATH
  
      do i = 1, n_ij
         write(ij, '(i0)') i
@@ -827,7 +827,6 @@ end subroutine plotVelocities
      
      if (present(lambda)) then
         ! SAVE COMPUTED PRODUCTION TERM
-        print*
         print*,'Saving computed production field in', RES_PATH
         call system ('mkdir -p '//trim(RES_PATH))
 

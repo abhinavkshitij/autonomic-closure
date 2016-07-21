@@ -78,7 +78,7 @@ program autonomic
   open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
 
   call setEnv()
-  call printParams()
+  call printParams('display')
   print*, 'Dataset: ', dataset, '\n'
 
 
@@ -229,9 +229,9 @@ program autonomic
      !
      ! ADD PATH DEPTH : (METHOD) - LU or SVD
 !     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/' 
-     TEMP_PATH = trim(TEMP_PATH)//trim('check-ghost')//'/'
+     TEMP_PATH = trim(TEMP_PATH)//trim('colocated-pressure-all')//'/'
 !     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'  
-     RES_PATH =  trim(RES_PATH)//trim('check-ghost')//'/'
+     RES_PATH =  trim(RES_PATH)//trim('colocated-pressure-all')//'/'
 
 
      write(path_txt,*) RES_PATH
@@ -261,7 +261,6 @@ program autonomic
 
 ! $$$
      call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-!     call autonomicClosure ( tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
 
 
      close(cross_csv_T_ij)

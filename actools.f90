@@ -403,12 +403,13 @@ contains
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(:,:,:,:), intent(in) :: ui
-    real(8), dimension(:,:,:,:), intent(out) :: uiuj
+    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: ui
+    real(8), dimension(1:,-1:,-1:,-1:), intent(out) :: uiuj
     !
     !   .. LOCAL VARS..
-    integer :: count = 0
+    integer :: count 
 
+    count = 0
     do j = 1,3
        do i = 1,3
           if(i.ge.j) then

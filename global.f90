@@ -37,7 +37,7 @@ module global
 
   integer, parameter :: dp = selected_real_kind(15,307)
   real,    parameter :: eps = 1e-5
-  real(8), parameter :: pi = 4.d0 * atan(1.d0)
+  real(8), parameter :: PI = 4.d0 * atan(1.d0)
 
 
   ! DEFINE STRING ARRAY:
@@ -72,15 +72,21 @@ module global
   type(str16), parameter :: l_formulation(2) = [str16 ('colocated'),     &
                                                 str16 ('noncolocated')]
 
+  type(str16), parameter :: l_scheme(2) = [str16 ('local'),     &
+                                           str16 ('global')]
+
+
               
   character(8) :: machine        = trim (l_machine(1) % name)
   character(8) :: dataset        = trim (l_dataset(2) % name)
   logical      :: withPressure   = 0
+
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set = 'S6' ! [S1, S3, S6]
-  character(3) :: stress = 'abs' ! [dev, abs]
-  character(16):: formulation    = trim (l_formulation(2) % name)
-  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
+  character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
+  character(3) :: stress         = 'abs'                             ! [dev, abs]
+  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
 
 
   !----------------------------------------------------------------
@@ -95,12 +101,12 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
-  logical :: plot_Stress          =  0
-  logical :: production_Term      =  0
-  logical :: save_ProductionTerm  =  0
+  logical :: plot_Stress          =  1
+  logical :: production_Term      =  1
+  logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
 
@@ -148,10 +154,10 @@ module global
   integer :: f_GRID 
   integer :: center
 
-  real(8) :: dx ! To calculate gradient
-  real(8) :: nu 
+  real(8) :: dx                 ! To calculate gradient
+  real(8) :: nu                 ! Viscosity
 
-  integer :: M               ! Number of training points 3x3x3x9
+  integer :: M                  ! Number of training points 3x3x3x9
   integer :: N 
   integer :: P                  ! Number of components (1 to 6)
   integer :: stencil_size 
@@ -160,34 +166,30 @@ module global
 
 
   ! Stencil parameters:
-  integer :: stride ! Is the ratio between LES(taken as 1) and test scale
-  integer :: skip 
-  integer :: X ! Number of realizations
-  integer :: n_lambda  ! Number of lambdas
+  integer :: stride              ! Is the ratio between LES(taken as 1) and test scale
+  integer :: trainingPointSkip   ! 1 for RANDOMLY sampled traning points; Some fixed value for ORDERED [REGULARIZED]set
+  integer :: X                   ! Number of realizations
+  integer :: n_lambda            ! Number of lambdas
   real(8) :: lambda, lambda_0(2)
  
-  ! Bounding Box parameters:  
+  !   ..BOUNDING BOX..
   integer :: box(3) 
   integer :: boxSize  
   integer :: maskSize  
   integer :: boxCenter
   integer :: boxLower 
   integer :: boxUpper 
+  integer :: boxFirst
+  integer :: boxLast
+  integer :: boxCenterSkip
 
-  ! Test field parameters: 
-  integer :: testSize 
-  integer :: testcutSize 
-  integer :: testLower
-  integer :: testUpper
-  
+  !   .. EXTENDED DOMAIN..
+  integer :: extLower           ! Lower index of extended domain using ghost cells
+  integer :: extUpper           ! Upper index                "
 
-  ! Cutout parameters:
-  integer :: lBound 
-  integer :: uBound 
-
-  ! Statistics parameters:
-  integer :: samples 
-  integer :: N_cr
+  !   ..STATISTICS..
+  integer :: samples            ! Number of bins
+  integer :: N_cr               ! Number of cross-validation points
 
   !
   !    ..FILEIO..
@@ -197,7 +199,7 @@ module global
   integer :: cross_csv_T_ij    = 81
   integer :: cross_csv_tau_ij  = 82
 
-
+  !
   !    ..TIME..
   character(32) :: time = '256' ! 256 is the initial value
   integer :: time_init
@@ -306,58 +308,60 @@ contains
     ! FFT 
     f_GRID = 256 !For FFT ops, the grid must be cubic.
     center = (0.5d0 * f_GRID) + 1.d0
-    dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
+    dx = 2.d0*PI/dble(i_GRID) !Only for JHU data. Check for others.    
 
 
     ! Stencil parameters:
     stride = 1              ! No subsampling on the original DNS GRID 
-    skip = 10               ! For training points
+    trainingPointSkip = 10      ! For training points
     X = 1     
     stencil_size = n_u * (3*3*3) !3 * 27 = 81  
 
-    lambda_0 = 1.d-07 * [1,3]
-    n_lambda = 2
-
- 
+    lambda_0 = 1.d+01 * [1,3]
+    n_lambda = 1
+    
+    
     ! Bounding Box parameters:  
     if (formulation.eq.'noncolocated') then
-       ! Set number of features
-       N = nCk(stencil_size + 1, 2) + nCk(stencil_size, 1) + 1
+       N = nCk(stencil_size + 1, 2) + nCk(stencil_size, 1) + 1 !  Set number of features
 
        if (trainingPoints.eq.'ordered') then
-          ! Set bounding box size
-          box = [i_GRID-2, j_GRID-2, k_GRID-2]
+          box = [256, 256, 256]
           ! Set number of training points
-          M =    (floor((real(box(1) - 1)) / skip) + 1)    &
-               * (floor((real(box(2) - 1)) / skip) + 1)    &
-               * (floor((real(box(3) - 1)) / skip) + 1)  !17576 
+          M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
+               * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
+               * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  !17576 
+       end if
 
-       else if (formulation.eq.'colocated') then
-          box  = [8,8,8]
-          if (trainingPoints.eq.'random') then
-          end if
+    elseif  (formulation.eq.'colocated') then
+       box  = [8, 8, 8]
+       if (withPressure) then
+          M = 379
+          N = 379
+       else
+          M = 244
+          N = 244
        end if
     end if
-
     
 
     boxSize   = product(box)
     maskSize  = boxSize - M ! 512-Training points(243) = 269
-    boxCenter = smallHalf(box(1)) * box(1)*(box(1) + 1) + bigHalf(box(1))
+    boxCenter = smallHalf(box(1)) * box(1)*(box(1) + 1) + bigHalf(box(1)) 
 
-    boxLower  = stride * (bigHalf(box(1)) - 1)
-    boxUpper  = stride * (box(1) - bigHalf(box(1)))
+    boxLower  = bigHalf(box(1)) - 1
+    boxUpper  = box(1) - bigHalf(box(1))
 
+    boxFirst  = bigHalf(box(1))  
+    boxLast   = bigHalf(box(1)) + i_GRID - box(1)
 
-    ! Test field parameters: 
-    testSize    = 1
-    testLower   = stride *  bigHalf(box(1)) + 1
-    testUpper   = stride * (bigHalf(box(1)) - 1 + testSize) + 1
-    testcutSize = stride * (testSize + box(1)) + 1
-
-    ! Cutout parameters:
-    lBound = 0.5*(f_GRID - testcutSize)
-    uBound = 0.5*(f_GRID + testcutSize) - 1
+    if (scheme.eq.'local') then
+       boxCenterSkip = 1
+    else
+       boxCenterSkip = box(1)
+       extLower = 1  -  2 
+       extUpper = i_GRID + 2  
+    end if
 
     ! Statistics parameters:
     samples = 250
@@ -405,25 +409,17 @@ contains
     if (displayOption.eq.'display') then
      write(fileID, * ), 'Dataset:            ', dataset, '\n'
 
-     write(fileID, * ), 'Stencil parameters: \n'
+     write(fileID, * ), 'Training points(M):    ',M
+     write(fileID, * ), 'Features(N):           ',N, '\n'
 
-     write(fileID, * ), 'Training points :    ',M
-     write(fileID, * ), 'Features :           ',N, '\n'
-
-     write(fileID, * ), 'Box parameters:      '
-     write(fileID, * ), 'Bounding box:        ',box
+     write(fileID, * ), 'BOX PARAMETERS:      '
+     write(fileID, * ), 'Bounding box:        ',box(1)
      write(fileID, * ), 'boxCenter:           ',boxCenter
      write(fileID, * ), 'boxLower:            ',boxLower
      write(fileID, * ), 'boxUpper:            ',boxUpper, '\n'
-
-     write(fileID, * ), 'Test field parameters:'
-     write(fileID, * ), 'testcutSize:         ',testcutSize
-     write(fileID, * ), 'testLower:           ',testLower
-     write(fileID, * ), 'testUpper:           ',testUpper, '\n'
-
-     write(fileID, * ), 'Cutout parameters:'
-     write(fileID, * ), 'lower bound:         ',lBound
-     write(fileID, * ), 'upper bound:         ',uBound, '\n'
+     write(fileID, * ), 'boxFirst:            ',boxFirst
+     write(fileID, * ), 'boxLast:             ',boxLast, '\n'
+     
 
      write(fileID, * ),  'Number of samples'    ,samples
   end if

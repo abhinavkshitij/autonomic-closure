@@ -324,7 +324,7 @@ contains
   !----------------------------------------------------------------
   ! USE: Computes tau_ij and T_ij for all ij 
   !      
-  ! FORM: subroutine computeStress(u, u_f, u_t, tau_ij, T_ij, n_u, n_uu, LES, test, stress)
+  ! FORM: subroutine computeStress(u, u_f, u_t, tau_ij, T_ij,  LES, test)
   !       
   ! BEHAVIOR: 
   !         

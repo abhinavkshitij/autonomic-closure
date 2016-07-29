@@ -29,6 +29,7 @@
 module solver
   use global
   use actools
+  implicit none
     integer :: i_boxCenter,    j_boxCenter,    k_boxCenter 
     real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
 contains
@@ -56,7 +57,6 @@ contains
 
 
 !   subroutine cutout(array, n_comp)
-!     implicit none
 !     !
 !     !    ..ARRAY ARGUMENTS..
 !     integer, intent(in) :: n_comp
@@ -97,7 +97,6 @@ contains
   !----------------------------------------------------------------
 
   subroutine init_random_seed()
-    implicit none
     !
     !    ..LOCAL ARRAY..
     integer, allocatable :: seed(:)
@@ -160,7 +159,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine randTrainingSet(randMask)
-    implicit none
     !
     !    ..ARRAY ARGUMENT..
     integer, allocatable, intent(out) :: randMask(:)
@@ -284,14 +282,15 @@ contains
   !----------------------------------------------------------------
   
   subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_f
-    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_f
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: T_ij
+!    real(8), dimension(:,:,:,:), intent(in) :: T_ij
+
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
-    real(8), dimension(:,:,:,:), intent(in) :: T_ij
+
     real(8), dimension(:,:),     intent(out):: h_ij
     real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt
     real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
@@ -330,37 +329,42 @@ contains
     allocate (T (M, P) )
 ! ###
 
-    ! COLOCATED FORMULATION:
+    ! COLOCATED FORMULATION WITH RANDOMLY SELECTED TRANING POINTS:
     if (formulation.eq.'colocated') then
 
-       ! COMPUTE VELOCITY PRODUCTS:
-       allocate(uu_t(n_uu, -1:i_GRID+2, -1:j_GRID+2, -1:k_GRID+2)) 
-       allocate(uu_f(n_uu, -1:i_GRID+2, -1:j_GRID+2, -1:k_GRID+2)) 
-       call velocityProducts(uu_f, u_f)
-       call velocityProducts(uu_t, u_t)
-       
-       
+       ! COMPUTE VELOCITY PRODUCTS: TAKE THIS STEP OUT - DON'T NEED TO SAVE EVERYTHING IN AN ARRAY
+       ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
+       ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
+       if (order == 2) then
+          allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,extLower:extUpper))
+          allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,extLower:extUpper))
+          call secondOrderProducts(uu_t, u_t)
+          call secondOrderProducts(uu_f, u_f)
+       end if
        ! WHOLE DOMAIN COMPUTATION: 
 !       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
        do k_boxCenter = 129, 129
 !       do j_boxCenter = 129, 129
 !       do i_boxCenter = 129, 129
-
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
-       
+
+! print*, i_boxCenter, j_boxCenter, k_boxCenter      
+! print*, row_index
           call randTrainingSet(randMask)
           rand_count = 0
           row_index  = 0 
        
              ! VISIT M TRANING POINTS:
-             do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper
-             do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper
-             do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper
+             do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
+             do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
+             do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip
                 
                 rand_count = rand_count + 1
                 if (any(randMask.eq.rand_count)) cycle
-                
+
+!print*, rand_count,i_train, j_train, k_train
+
                 col_index = 0 
                 row_index = row_index + 1
        
@@ -378,13 +382,15 @@ contains
                       col_index = col_index+1
                       V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
+                   
+                   if (order == 2) then
+                      ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
+                      do uu_comp = 1, n_uu ! 1 to 6
+                         col_index = col_index+1
+                         V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                      end do
+                   end if
 
-                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
-                   do uu_comp = 1, n_uu ! 1 to 6
-                      col_index = col_index+1
-                      V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                   end do
-       
                 end do 
                 end do 
                 end do ! STENCIL
@@ -392,14 +398,16 @@ contains
                 T(row_index,:) = T_ij(:,i_train,j_train,k_train) !Change 1 to (1-6) here.
 
              end do
+
+             call progressBar(j_boxCenter, boxLast)
+             
              end do
              end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
-
              
              !
              ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
              do iter = 1, n_lambda
-                lambda = lambda_0(2) * 10**(iter-1)
+                lambda = lambda_0(1) * 10**(iter-1)
 
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
@@ -436,7 +444,7 @@ contains
        
     else
 
-       ! NON-COLOCATED FORMULATION:
+       ! NON-COLOCATED FORMULATION WITH ORDERED TRAINING POINTS:
 
        allocate (u_n(stencil_size))
 
@@ -447,17 +455,17 @@ contains
 
           row_index  = 0 
 
-          ! VISIT TRAINING POINT: C-ORDER
-          do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip
-          do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
-          do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
+           ! VISIT TRAINING POINT: C-ORDER
+           do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip
+           do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
+           do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
+
 
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
          
              ! ENTER 3x3x3 STENCIL: C-ORDER
-             
              u_n = reshape(u_t (:, i_train-2 : i_train+2 : 2, & 
                                    j_train-2 : j_train+2 : 2, &
                                    k_train-2 : k_train+2 : 2), [stencil_size])
@@ -501,13 +509,13 @@ contains
 
           !CHECK T:
           if (withPressure.eqv..false. .and. stress.eq.'dev') then
-          if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
-             print*, "Error! Check sorting order in  T vector!"
-             print*, T(3,1)
-!             stop
-          else 
-             print*,'T vector check ... Passed'
-          end if
+             if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
+                print*, "Error! Check sorting order in  T vector!"
+                print*, T(3,1)
+                !             stop
+             else 
+                print*,'T vector check ... Passed'
+             end if
           end if
 
           !
@@ -597,12 +605,10 @@ contains
   
   
   subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_f
-    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_f
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_t
     real(8), dimension(:,:),     intent(in) :: h_ij
     real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
     real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt 
@@ -616,18 +622,15 @@ contains
     real(8), dimension(stencil_size) :: u_t_stencil
     !
     !    ..LOCAL INDICES.. 
-
-    integer :: j_boxRange (2)
     integer :: i_opt,     j_opt,     k_opt  
-    integer :: j_optRange (2)
     integer :: i_stencil, j_stencil, k_stencil
-    integer :: non_col_1, non_col_2  
+    integer :: non_col_1, non_col_2
 
     if (formulation.eq.'colocated') then
 
-       do k_opt = k_boxCenter-boxLower, k_boxCenter+boxUpper
-       do j_opt = j_boxCenter-boxLower, j_boxCenter+boxUpper
-       do i_opt = i_boxCenter-boxLower, i_boxCenter+boxUpper
+       do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper
+       do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
+       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
          
           ! T_ij^F
           col_index = 0 
@@ -649,14 +652,17 @@ contains
                      (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
              end do
 
+             
              ! SECOND ORDER TERMS: 
-             do uu_comp = 1, n_uu
-                col_index = col_index + 1
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
 
-                T_ijOpt (:,i_opt,j_opt,k_opt) = T_ijOpt(:,i_opt,j_opt,k_opt)               &
-                                             +                                            &
-                     (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
-             end do
+                   T_ijOpt (:,i_opt,j_opt,k_opt) = T_ijOpt(:,i_opt,j_opt,k_opt)               &
+                        +                                            &
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                end do
+             end if
 
           end do
           end do
@@ -680,14 +686,16 @@ contains
                      +                                          &
                      (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
              end do
-
+             
              ! SECOND ORDER TERMS: 
-             do uu_comp = 1, n_uu
-                col_index = col_index + 1
-                tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
-                     +                                &
-                     (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
-             end do
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
+                   tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
+                        +                                &
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                end do
+             end if
 
           end do
           end do
@@ -702,10 +710,10 @@ contains
        ! NON-COLOCATED
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-       do i_opt = i_boxCenter-boxLower, i_boxCenter+boxUpper
-       do j_opt = j_boxCenter-boxLower, j_boxCenter+boxUpper
+       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
+       do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
 ! Whole domain:
-          ! do k_opt = k_boxCenter-boxLower, k_boxCenter+boxUpper 
+          ! do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper 
 ! Single point:
           ! do i_opt = 15,15
           ! do j_opt = 24,24
@@ -802,8 +810,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine LU (V,  T_ij, h_ij)
-    implicit none
-
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:), intent(in)  :: V 
@@ -915,7 +921,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine SVD (A, T, h_ij, printval)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:), intent(in)  :: A
@@ -1017,8 +1022,6 @@ contains
     end if
 
   end subroutine SVD
-
-
 
 end module solver
 

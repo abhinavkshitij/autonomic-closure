@@ -181,8 +181,8 @@ program autonomic
 
 
      ! 3] GET FFT_DATA:
-     if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (n_uu, i_GRID, j_GRID, k_GRID))
-     if(allocated(T_ij).eqv..false.)       allocate (T_ij   (n_uu, i_GRID, j_GRID, k_GRID))
+     if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6, i_GRID, j_GRID, k_GRID))
+     if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
 
 
      ! COMPUTE ORIGINAL STRESS [SAVE]
@@ -200,8 +200,8 @@ program autonomic
 
 
 
-     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (n_uu, i_GRID,j_GRID,k_GRID))
-     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (n_uu, i_GRID,j_GRID,k_GRID))
+     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,k_GRID))
+     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,k_GRID))
 
 
      ! 5] ORIGINAL PRODUCTION FIELD 
@@ -229,19 +229,19 @@ program autonomic
      !
      ! ADD PATH DEPTH : (METHOD) - LU or SVD
 !     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/' 
-     TEMP_PATH = trim(TEMP_PATH)//trim('colocated-pressure-all')//'/'
 !     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'  
-     RES_PATH =  trim(RES_PATH)//trim('colocated-pressure-all')//'/'
+     TEMP_PATH = trim(TEMP_PATH)//trim(CASE_NAME)//'/'
+     RES_PATH =  trim(RES_PATH)//trim(CASE_NAME)//'/'
 
 
      write(path_txt,*) RES_PATH
-     call system ('mkdir -p '//trim(TEMP_PATH))
+!     call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
 
      ! 6] AUTONOMICALLY TUNED LAMBDA
-     if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (n_uu,i_GRID,j_GRID,k_GRID))
-     if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (n_uu,i_GRID,j_GRID,k_GRID))
+     if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (6,i_GRID,j_GRID,k_GRID))
+     if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (6,i_GRID,j_GRID,k_GRID))
      if(allocated(h_ij).eqv..false.)               allocate (h_ij      (N,P))
 
      if (production_Term) then
@@ -250,18 +250,16 @@ program autonomic
      end if
 
 
-     ! */*  RESIZE u_t from (1:i_GRID, ...) to (-1:i_GRID+2, ...)
-     ! */*  RESIZE u_f from (1:i_GRID, ...) to (0:i_GRID+1, ...)
-     call extendDomain()
-
+     ! EXTEND DOMAIN:
+     call extendDomain(u_f)
+     call extendDomain(u_t)
+     call extendDomain(T_ij) 
 
      print*, 'Autonomic closure ... '
      open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
      open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
-
 ! $$$
      call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-
 
      close(cross_csv_T_ij)
      close(cross_csv_tau_ij)

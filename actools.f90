@@ -13,8 +13,13 @@
 !       subroutine computeS_ij         [FILTER]
 !       subroutine gradient            [FILTER]    
 !       subroutine productionTerm      [FILTER]
-!       subroutine velocityProducts    [FILTER]
+!       subroutine dissipationRate     
+!       function   turbulentKE         
+!       subroutine secondOrderProducts [FILTER]
+!       subroutine extendDomain        [FILTER]
 !       subroutine createPDF           [FILTER]
+!       subroutine trainingError
+!       
 ! BEHAVIOR: 
 !           
 !           
@@ -29,6 +34,7 @@ module actools
 
   use fourier
   use fileio
+  implicit none
 
 contains
   
@@ -57,7 +63,7 @@ contains
   !----------------------------------------------------------------
   
   subroutine energySpectra(u)
-    implicit none
+
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: u
@@ -109,7 +115,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine computeSij(u, Sij)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:),  intent(in) :: u
@@ -176,7 +181,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine gradient(f, grad_f)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension (:,:,:), intent(in) ::  f
@@ -243,7 +247,6 @@ contains
   !----------------------------------------------------------------
 
   subroutine productionTerm(P, tau_ij, S_ij)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
@@ -299,7 +302,6 @@ contains
 
 
   subroutine dissipationRate(S_ij, epsilon)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: S_ij
@@ -360,7 +362,6 @@ contains
 
 
   function turbulentKE(u)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: u
@@ -384,7 +385,7 @@ contains
   !       
   !       
   !
-  ! FORM: subroutine productionTerm(P, tau_ij, S_ij)
+  ! FORM: subroutine secondOrderProducts(uiuj, ui)
   !       
   !
   ! BEHAVIOR: 
@@ -399,26 +400,25 @@ contains
   !          
   !----------------------------------------------------------------
 
-  subroutine velocityProducts(uiuj,ui)
-    implicit none
+  subroutine secondOrderProducts(uiuj,ui)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(1:,-1:,-1:,-1:), intent(in) :: ui
-    real(8), dimension(1:,-1:,-1:,-1:), intent(out) :: uiuj
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: ui
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(out) :: uiuj
     !
     !   .. LOCAL VARS..
     integer :: count 
 
     count = 0
-    do j = 1,3
-       do i = 1,3
+    do j = 1, n_u
+       do i = 1, n_u
           if(i.ge.j) then
              count = count + 1
              uiuj(count,:,:,:) = ui(i,:,:,:) * ui(j,:,:,:)
           end if
        end do
     end do
-  end subroutine velocityProducts
+  end subroutine secondOrderProducts
 
 
   
@@ -446,52 +446,49 @@ contains
   !          
   !----------------------------------------------------------------
 
-  subroutine extendDomain()
-    implicit none
+  subroutine extendDomain(array, varName)
+    !
+    !   .. ARRAY ARGUMENTS ..
+    real(8), dimension (:,:,:,:), allocatable, intent(inout) :: array
+    !
+    !   .. SCALAR ARGUMENTS..
+    character(*), intent(in), optional :: varName
     !
     !   .. LOCAL VARS..
     real(8), dimension(:,:,:,:), allocatable :: temp
+    integer :: n_extendedLayers
+    integer :: tempDim(4)
     integer :: i,j,k
 
+    tempDim = shape(array)
+    allocate (temp (tempDim(1), tempDim(2), tempDim(3), tempDim(4)))
 
-    allocate (temp (n_u, i_GRID, j_GRID, k_GRID))    
-    ! REALLOCATE ARRAY SIZE - u_f
-    temp = u_f
-    deallocate(u_f)
-    allocate(u_f(n_u, -1:256+2, -1:256+2, -1:256+2))
-    u_f(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
+    ! REALLOCATE ARRAY SIZE
+    temp = array
+    deallocate(array)
+    allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, extLower:extUpper))
+    array(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
     
-    ! REALLOCATE ARRAY SIZE - u_t
-    temp = u_t
-    deallocate(u_t)
-    allocate(u_t(n_u, -1:256+2, -1:256+2, -1:256+2))
-    u_t(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
-
     ! USE PERIODIC CONDITIONS ON GHOST CELLS:
-    do k = 1,2
-       do j = 1,2
-          do i = 1,2
-             u_f(:, 1-i, :, :) = u_f(:, i_GRID-i+1, :, :) ! x-plane (left)
-             u_f(:, i_GRID+i, :, :) = u_f(:, i, :, :) ! x-plane (right)
+    if (scheme.eq.'global') then
+       n_extendedLayers = 2
+    else
+        n_extendedLayers = boxLower + 2
+    end if
+    
+    do k = 1, n_extendedLayers
+       do j = 1, n_extendedLayers
+          do i = 1, n_extendedLayers
+             array(:, 1-i, :, :) = array(:, i_GRID-i+1, :, :) ! x-plane 
+             array(:, :, 1-j, :) = array(:, :, j_GRID-j+1, :) ! y-plane 
+             array(:, :, :, 1-k) = array(:, :, :, k_GRID-k+1) ! z-plane 
 
-             u_f(:, :, 1-j, :) = u_f(:, :, j_GRID-j+1, :) ! y-plane (left)
-             u_f(:, :, j_GRID+j, :) = u_f(:, :, j, :) ! y-plane (right)
-
-             u_f(:, :, :, 1-k) = u_f(:, :, :, k_GRID-k+1) ! z-plane (left)
-             u_f(:, :, :, k_GRID+k) = u_f(:, :, :, k) ! z-plane (right)
-
-             u_t(:, 1-i, :, :) = u_t(:, i_GRID-i+1, :, :) ! x-plane (left)
-             u_t(:, i_GRID+i, :, :) = u_t(:, i, :, :) ! x-plane (right)
-
-             u_t(:, :, 1-j, :) = u_t(:, :, j_GRID-j+1, :) ! y-plane (left)
-             u_t(:, :, j_GRID+j, :) = u_t(:, :, j, :) ! y-plane (right)
-
-             u_t(:, :, :, 1-k) = u_t(:, :, :, k_GRID-k+1) ! z-plane (left)
-             u_t(:, :, :, k_GRID+k) = u_t(:, :, :, k) ! z-plane (right)
+             array(:, i_GRID+i, :, :) = array(:, i, :, :)     ! x-plane 
+             array(:, :, j_GRID+j, :) = array(:, :, j, :)     ! y-plane 
+             array(:, :, :, k_GRID+k) = array(:, :, :, k)     ! z-plane 
           end do
        end do
     end do
-
 
   end subroutine extendDomain
 
@@ -525,7 +522,6 @@ contains
   !----------------------------------------------------------------
 
   subroutine createPDF(field, plotOption, fieldname)
-    implicit none
     !
     !    ..ARRAY ARGUMENT..
     real(8), dimension(:,:,:), intent(in) :: field
@@ -579,8 +575,7 @@ contains
   !       
   !       
   !
-  ! FORM: subroutine createPDF(field, [plot], [fieldname])
-  !       
+  ! FORM: subroutine trainingError(T_ijOpt, T_ij, error, plotOption,fID)
   !
   ! BEHAVIOR: 
   !           
@@ -615,7 +610,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine trainingError(T_ijOpt, T_ij, error, plotOption,fID)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:), intent(in) :: T_ijOpt

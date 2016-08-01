@@ -5,7 +5,7 @@
 !----------------------------------------------------------------
 ! USE:  1) Compute strain field - S_ij                  : FILTER
 !       2) Compute gradient with central differencing   : FILTER
-!       3) [SAVE] final results in RUN dir              : SINK 
+!       3) [SAVE] final results in RESULTS dir          : SINK 
 !
 ! FORM: module actools
 !          contains

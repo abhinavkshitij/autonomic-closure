@@ -80,16 +80,16 @@ module global
 
               
   character(8) :: machine        = trim (l_machine(1) % name)
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
+  character(8) :: dataset        = trim (l_dataset(3) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0
 
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
+  character(2) :: hst_set        = 'S3'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev, abs]
-  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
-  integer      :: order          = 1                                 ! [first, second]
+  character(16):: formulation    = trim (l_formulation(2) % name)    ! [colocated, non-colocated]
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
+  integer      :: order          = 2                                 ! [first, second]
 
   !----------------------------------------------------------------
   !
@@ -103,7 +103,7 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: plot_Stress          =  1
@@ -246,7 +246,7 @@ module global
 
   !
   !    ..CASE NAME ..
-  character(*), parameter :: CASE_NAME = 'scratch'
+  character(*), parameter :: CASE_NAME = 'scratch-noncol'
 
   !----------------------------------------------------------------
   !
@@ -307,11 +307,11 @@ contains
     P = 6
 
     ! SCALE
-    LES_scale  = 40
-    test_scale = 20
+    LES_scale  = 16
+    test_scale = 8
 
     ! LAMBDA
-    lambda_0 = 1.d+00 * [1,3]
+    lambda_0 = 1.d-03 * [1,3]
     n_lambda = 1
     
 

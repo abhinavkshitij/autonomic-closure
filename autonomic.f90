@@ -199,7 +199,6 @@ program autonomic
      if (plot_Stress)                                            call plotOriginalStress('All')
 
 
-
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,k_GRID))
      if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,k_GRID))
 

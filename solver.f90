@@ -317,7 +317,7 @@ contains
     !
     !    ..DEBUG..
     logical :: printval
-
+    logical :: check_h_ij = 1
 
     ! To determine stresses at coarse and fine stencil,
     ! velocities and their products must be known at LES
@@ -419,8 +419,19 @@ contains
                    stop
                 end if
 
+! PRINT H_IJ
+! if (check_h_ij) then
+!    print*, 'size(h_ij):', size(h_ij)
+!    do i = 1, size(h_ij,dim=1)
+!       print*, i, h_ij(i,:)
+!    end do
+!    check_h_ij = 0
+! end if
+
+
                 ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
                 call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+
 
                 !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
 !                call trainingError(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
@@ -432,6 +443,7 @@ contains
        end do
        end do
        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
+
 
  
        ! PLOT STRESS AND PRODUCTION TERMS:

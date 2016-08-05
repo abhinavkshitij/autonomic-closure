@@ -889,7 +889,7 @@ end subroutine plotVelocities
      !
      ! PLOT PDF
      open(10, file = trim(RES_PATH)//trim('PDF')//trim(fieldname)//'.csv')
-     write(10,"( F10.4,',',F10.4 )"), (x(i), pdf(i), i=1,samples)
+     write(10,"( F10.4,',',F10.4 )"), (x(i), pdf(i), i=1,n_bins)
      close(10)
 
      ! SAVE STAT DATA

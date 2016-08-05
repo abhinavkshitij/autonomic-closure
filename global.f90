@@ -86,9 +86,9 @@ module global
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S3'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev, abs]
-  character(16):: formulation    = trim (l_formulation(2) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
+  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
+  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
 
   !----------------------------------------------------------------
@@ -103,7 +103,7 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: plot_Stress          =  1
@@ -165,13 +165,15 @@ module global
   integer :: stencil_size 
   integer :: LES_scale 
   integer :: test_scale 
-
+  integer :: Freq_Nyq
 
   !    ..STENCIL..
-  integer :: trainingPointSkip   ! 1 for RANDOMLY sampled traning points; Some fixed value for ORDERED [REGULARIZED]set
+  integer :: Delta_LES          ! Grid spacing at LES scale = Nyquist frequ/LES_scale  (128/40 = 3)
+  integer :: Delta_test         ! Grid spacing at test scale = Nyquist freq/ test_scale (128/20 = 6)
+  integer :: trainingPointSkip   ! 1 for RANDOMLY sampled training points; Some fixed value for ORDERED [REGULARIZED]set
   integer :: X                   ! Number of realizations
   integer :: n_lambda            ! Number of lambdas
-  real(8) :: lambda, lambda_0(2)
+  real(8) :: lambda, lambda_0(2) !lambda_0(2)
  
   !   ..BOUNDING BOX..
   integer :: box(3) 
@@ -193,7 +195,7 @@ module global
   integer :: optUpper
 
   !   ..STATISTICS..
-  integer :: samples            ! Number of bins
+  integer :: n_bins            ! Number of bins
   integer :: N_cr               ! Number of cross-validation points
 
   !
@@ -272,6 +274,7 @@ contains
     i_GRID = 256
     j_GRID = 256
     k_GRID = 256
+    Freq_Nyq = i_GRID/2
     z_plane = bigHalf(k_GRID)
     
     ! TIMESTEPS:
@@ -307,11 +310,13 @@ contains
     P = 6
 
     ! SCALE
-    LES_scale  = 16
-    test_scale = 8
-
-    ! LAMBDA
-    lambda_0 = 1.d-03 * [1,3]
+    LES_scale  = 20
+    test_scale = 10
+    Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
+    Delta_test = floor(real(Freq_Nyq) / real(test_scale))
+    
+    ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
+    lambda_0 = 1.d+01 * [1,3]
     n_lambda = 1
     
 
@@ -324,8 +329,8 @@ contains
 
     if (trainingPoints.eq.'ordered') then
        trainingPointSkip = 10   ! ORDERED 
-    else                        ! RANDOM
-       trainingPointSkip = 2    
+    else                    
+       trainingPointSkip = Delta_test    ! RANDOM   
     end if
     
 
@@ -342,7 +347,7 @@ contains
                * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
                * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  !17576 
        elseif (trainingPoints.eq.'random') then ! NON-COLOCATED, RANDOM
-          M = 8 * N
+          M = 5 * N
           box = ceiling(M**(1./3.)) * trainingPointSkip * box
           boxSize   = product(box/trainingPointSkip)
           maskSize  = boxSize - M 
@@ -370,7 +375,6 @@ contains
        end if
     end if
     
-    
     boxLower  = bigHalf(box(1)) - 1
     boxUpper  = box(1) - bigHalf(box(1))
 
@@ -397,7 +401,7 @@ contains
     end if
 
     ! Statistics parameters:
-    samples = 250
+    n_bins = 250
     N_cr = 3   !(11x11x11)
 
   end subroutine setEnv
@@ -437,36 +441,42 @@ contains
     write(params_txt,*) k_GRID
     write(params_txt,*) dataset(1:3)
     write(params_txt,*) hst_set
+    write(params_txt,*) LES_scale
     close(params_txt)
 
     if (displayOption.eq.'display') then
-     write(fileID, * ), 'Dataset:            ', dataset, '\n'
+     write(fileID, * ), 'Dataset:             ', dataset, '\n'
+     
+     if (dataset.eq.'hst') then
+        write(fileID, * ), 'HST set:          ', hst_set, '\n'
+     end if
 
-     write(fileID, * ), 'Scheme:             ', scheme
-     write(fileID, * ), 'Formulation:        ', formulation
-     write(fileID, * ), 'Pressure Term:      ', withPressure
+     write(fileID, * ), 'Scheme:              ', scheme
+     write(fileID, * ), 'Formulation:         ', formulation
+     write(fileID, * ), 'Pressure Term:       ', withPressure
 
-     write(fileID, * ), 'Training points(M):    ',M, '\t', trainingPoints
-     write(fileID, * ), 'Features(N):           ',N, '\n'
+     write(fileID, * ), 'Order:               ', order
+     write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
+     write(fileID, * ), 'Features(N):         ', N, '\n'
+     write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
+     write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
+
 
      write(fileID, * ), 'BOX PARAMETERS:      '
-     write(fileID, * ), 'Bounding box:        ',box!(1)
-     write(fileID, * ), 'boxLower:            ',boxLower
-     write(fileID, * ), 'boxUpper:            ',boxUpper, '\n'
+     write(fileID, * ), 'Bounding box:        ', box
+     write(fileID, * ), 'boxLower:            ', boxLower
+     write(fileID, * ), 'boxUpper:            ', boxUpper, '\n'
 
-     write(fileID, * ), 'boxFirst:            ',boxFirst
-     write(fileID, * ), 'boxLast:             ',boxLast, '\n'
+     write(fileID, * ), 'boxFirst:            ', boxFirst
+     write(fileID, * ), 'boxLast:             ', boxLast, '\n'
      
-     write(fileID, * ), 'boxCenterSkip:       ',boxCenterSkip
-     write(fileID, * ), 'trainingPointSkip:   ',trainingPointSkip
-     write(fileID, * ), 'lambda_0:            ', lambda_0(1)
-     write(fileID, * ), 'order:               ', order
-
+     write(fileID, * ), 'boxCenterSkip:       ', boxCenterSkip
+     write(fileID, * ), 'trainingPointSkip:   ', trainingPointSkip
+     write(fileID, '(a22,ES8.1)' ), 'lambda_0:               ', lambda_0(1)
 
      
-     write(fileID, * ), 'extendedDomain:      ',extLower, '\t', extUpper ,'\n'     
-
-     write(fileID, * ),  'Number of samples'    ,samples
+     write(fileID, * ), 'extendedDomain:      ', extLower, '\t', extUpper ,'\n'     
+     write(fileID, * ), 'Number of bins:      ', n_bins
   end if
   end subroutine printParams
 
@@ -865,5 +875,20 @@ contains
     progress(1) = progress(2)
   end subroutine progressBar
 
+
+  !----------------------------------------------------------------
+  !                          PROGRESS BAR
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Displays progress bar at every 10th percentage point
+  !     
+  ! FORM:
+  ! 
+  !         
+  ! BEHAVIOR: 
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
  
 end module global

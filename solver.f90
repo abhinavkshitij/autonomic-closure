@@ -341,29 +341,27 @@ contains
           call secondOrderProducts(uu_t, u_t)
           call secondOrderProducts(uu_f, u_f)
        end if
-       ! WHOLE DOMAIN COMPUTATION: 
-!       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
-       do k_boxCenter = 129, 129
-!       do j_boxCenter = 129, 129
-!       do i_boxCenter = 129, 129
+
+       ! Z-MIDPLANE COMPUTATION: 
+       do k_boxCenter = z_plane, z_plane
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
-! print*, i_boxCenter, j_boxCenter, k_boxCenter      
-! print*, row_index
-          call randTrainingSet(randMask)
-          rand_count = 0
+          if (trainingPoints.eq.'random') then
+             call randTrainingSet(randMask)
+             rand_count = 0
+          end if
           row_index  = 0 
-       
+
              ! VISIT M TRANING POINTS:
              do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
              do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
              do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip
-                
-                rand_count = rand_count + 1
-                if (any(randMask.eq.rand_count)) cycle
-
-!print*, rand_count,i_train, j_train, k_train
+             
+                if (trainingPoints.eq.'random') then
+                   rand_count = rand_count + 1
+                   if (any(randMask.eq.rand_count)) cycle
+                end if
 
                 col_index = 0 
                 row_index = row_index + 1
@@ -372,20 +370,20 @@ contains
                 col_index = col_index + 1
                 V(row_index, col_index) = 1.d0
 
-                ! ENTER 3x3x3 STENCIL:
-                do k_stencil = k_train-2, k_train+2, 2 ! Vectorize using (PACK/UNPACK)
-                do j_stencil = j_train-2, j_train+2, 2
-                do i_stencil = i_train-2, i_train+2, 2
+                ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
+                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test ! Vectorize using (PACK/UNPACK)
+                do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
+                do i_stencil = i_train-Delta_test, i_train+Delta_test, Delta_test
               
                    ! FIRST ORDER TERMS:
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
                       V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
-                   
+
+                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
-                      ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
-                      do uu_comp = 1, n_uu ! 1 to 6
+                      do uu_comp = 1, n_uu 
                          col_index = col_index+1
                          V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
@@ -395,19 +393,18 @@ contains
                 end do 
                 end do ! STENCIL
        
-                T(row_index,:) = T_ij(:,i_train,j_train,k_train) !Change 1 to (1-6) here.
+                T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
 
              end do
-
              call progressBar(j_boxCenter, boxLast)
-             
              end do
              end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
-             
+
              !
              ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
              do iter = 1, n_lambda
                 lambda = lambda_0(1) * 10**(iter-1)
+
 
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
@@ -464,6 +461,11 @@ contains
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do k_boxCenter = boxFirst, boxLast, boxCenterSkip
+                    
+          if (trainingPoints.eq.'random') then
+             call randTrainingSet(randMask)
+             rand_count = 0
+          end if
 
           row_index  = 0 
 
@@ -472,15 +474,21 @@ contains
            do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
            do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
 
+              
+              if (trainingPoints.eq.'random') then
+                 rand_count = rand_count + 1
+                 if (any(randMask.eq.rand_count)) cycle
+              end if
 
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
-         
+
+
              ! ENTER 3x3x3 STENCIL: C-ORDER
-             u_n = reshape(u_t (:, i_train-2 : i_train+2 : 2, & 
-                                   j_train-2 : j_train+2 : 2, &
-                                   k_train-2 : k_train+2 : 2), [stencil_size])
+             u_n = reshape(u_t (:, i_train-Delta_test : i_train+Delta_test : Delta_test, & 
+                                   j_train-Delta_test : j_train+Delta_test : Delta_test, &
+                                   k_train-Delta_test : k_train+Delta_test : Delta_test), [stencil_size])
 
              ! ZERO ORDER TERMS: 80 C 0
              col_index = col_index + 1
@@ -533,7 +541,8 @@ contains
           !
           ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
           do iter = 1, n_lambda
-             lambda = lambda_0(1) * 10**(iter-1)
+!             lambda = lambda_0(1) * 10**(iter-1)
+             lambda = lambda_0(iter)
              print('(a8,ES10.2)'), 'lambda ',lambda
              
              !
@@ -644,16 +653,16 @@ contains
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
          
-          ! T_ij^F
+          ! T_ij^F: Test scale
           col_index = 0 
           
-          ! ZERO ORDER TERMS: WILL BE 1
+          ! ZERO ORDER TERMS: [1]
           col_index = col_index + 1
           T_ijOpt   (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
           
-          do k_stencil = k_opt-2, k_opt+2, 2
-          do j_stencil = j_opt-2, j_opt+2, 2
-          do i_stencil = i_opt-2, i_opt+2, 2
+          do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
+          do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
+          do i_stencil = i_opt-Delta_test, i_opt+Delta_test, Delta_test
 
              ! FIRST ORDER TERMS:             
              do u_comp = 1, n_u
@@ -680,16 +689,16 @@ contains
           end do
           end do
 
-          ! tau_ij^F
+          ! tau_ij^F: LES scale
           col_index = 0
           
-          ! ZERO ORDER TERMS: WILL BE 1
+          ! ZERO ORDER TERMS: [1]
           col_index = col_index + 1
           tau_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
           
-          do k_stencil = k_opt-1, k_opt+1
-          do j_stencil = j_opt-1, j_opt+1
-          do i_stencil = i_opt-1, i_opt+1
+          do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
+          do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES
+          do i_stencil = i_opt-Delta_LES, i_opt+Delta_LES, Delta_LES
 
              ! FIRST ORDER TERMS:             
              do u_comp = 1, n_u
@@ -726,23 +735,19 @@ contains
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
 ! Whole domain:
           ! do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper 
-! Single point:
-          ! do i_opt = 15,15
-          ! do j_opt = 24,24
-          ! do k_opt = 10,10
 ! Cross-validation points [Preferred]:
        do k_opt = k_boxCenter-3*smallHalf(N_cr), k_boxCenter+3*smallHalf(N_cr), 3
 
           col_index = 0 
          
           ! ENTER 3x3x3 STENCIL: C-ORDER                                      
-          u_t_stencil = reshape(u_t (:, i_opt-2 : i_opt+2 : 2, &
-                                        j_opt-2 : j_opt+2 : 2, &
-                                        k_opt-2 : k_opt+2 : 2),  [stencil_size]) 
+          u_t_stencil = reshape(u_t (:, i_opt-Delta_test : i_opt+Delta_test : Delta_test, &
+                                        j_opt-Delta_test : j_opt+Delta_test : Delta_test, &
+                                        k_opt-Delta_test : k_opt+Delta_test : Delta_test),  [stencil_size]) 
 
-          u_f_stencil = reshape(u_f (:, i_opt-1 : i_opt+1 : 1, &
-                                        j_opt-1 : j_opt+1 : 1, &
-                                        k_opt-1 : k_opt+1 : 1),  [stencil_size]) 
+          u_f_stencil = reshape(u_f (:, i_opt-Delta_LES : i_opt+Delta_LES : Delta_LES, &
+                                        j_opt-Delta_LES : j_opt+Delta_LES : Delta_LES, &
+                                        k_opt-Delta_LES : k_opt+Delta_LES : Delta_LES),  [stencil_size]) 
 
           ! ZERO ORDER TERMS: WILL BE 1
           col_index = col_index + 1

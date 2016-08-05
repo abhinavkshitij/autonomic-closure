@@ -539,13 +539,13 @@ contains
     real(8) :: delta, avg, SD
 
 
-    allocate (x(samples))
-    allocate (pdf(samples))
+    allocate (x(n_bins))
+    allocate (pdf(n_bins))
     
     !
     ! LINSPACE-LIKE FUNCTION - IND. DOMAIN
-    delta = (maxval(field) - minval(field)) / (samples-1)
-    forall(i=1:samples)  x(i) = minval(field) + (delta * (i-1))
+    delta = (maxval(field) - minval(field)) / (n_bins-1)
+    forall(i=1:n_bins)  x(i) = minval(field) + (delta * (i-1))
 
     !
     ! CALCULATE FIELD MEAN AND STD DEV
@@ -661,5 +661,6 @@ contains
      end if
 
   end subroutine trainingError
+
 
 end module actools

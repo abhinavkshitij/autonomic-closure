@@ -3,19 +3,17 @@
 !****************************************************************
 
 !----------------------------------------------------------------
-! USE: 1)
-!      
+! USE: This is the MAIN() equivalent of the code. Loads library 
+!      procedures that are defined in MODULES. 
 !      
 !      
 !
 ! FORM: program autonomic
 !       
-!       
-!       
-!       
-!       
 !
-! BEHAVIOR: 
+! BEHAVIOR: Currently has no capability to read command line inputs.
+!
+!
 !           
 ! DEBUG FLAGS:
 !     useTestData:  Use only one velocity component and 3 velocity products
@@ -58,7 +56,6 @@ program autonomic
 
   implicit none
 
-
   character(64) :: filename
   character(10) :: scale
 
@@ -81,6 +78,8 @@ program autonomic
   call printParams('display')
   print*, 'Dataset: ', dataset, '\n'
 
+stop
+!print*, n_u, n_uu
 
   ! TEST DATA:
   if (useTestData) then

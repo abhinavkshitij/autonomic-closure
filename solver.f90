@@ -27,52 +27,53 @@
 !----------------------------------------------------------------
 
 module solver
-
   use global
-
+  use actools
+  implicit none
+    integer :: i_boxCenter,    j_boxCenter,    k_boxCenter 
+    real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
 contains
 
 
 
-  !****************************************************************
-  !                             CUTOUT                            !
-  !****************************************************************
+!   !****************************************************************
+!   !                             CUTOUT                            !
+!   !****************************************************************
   
-  !----------------------------------------------------------------
-  ! USE: Resizes an array to a smaller cutout size. 
-  !      
-  !      
-  ! FORM: cutout(array, n_comp)
-  !       n_comp stands for number of components. 
-  !      
-  ! BEHAVIOR: 
-  !           
-  !
-  ! STATUS : 
-  !          
-  !
-  !----------------------------------------------------------------
+!   !----------------------------------------------------------------
+!   ! USE: Resizes an array to a smaller cutout size. 
+!   !      
+!   !      
+!   ! FORM: cutout(array, n_comp)
+!   !       n_comp stands for number of components. 
+!   !      
+!   ! BEHAVIOR: 
+!   !           
+!   !
+!   ! STATUS : 
+!   !          
+!   !
+!   !----------------------------------------------------------------
 
 
-  subroutine cutout(array, n_comp)
-    implicit none
-    !
-    !    ..ARRAY ARGUMENTS..
-    integer, intent(in) :: n_comp
-    real(8), allocatable, dimension(:,:,:,:),intent(inout) :: array
-    !
-    !    ..WORK ARRAY..
-    real(8), allocatable, dimension(:,:,:,:):: temp
+!   subroutine cutout(array, n_comp)
+!     !
+!     !    ..ARRAY ARGUMENTS..
+!     integer, intent(in) :: n_comp
+!     real(8), allocatable, dimension(:,:,:,:),intent(inout) :: array
+!     !
+!     !    ..WORK ARRAY..
+!     real(8), allocatable, dimension(:,:,:,:):: temp
 
-    allocate (temp(n_comp,testcutSize,testcutSize,testcutSize))
-    temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
-    deallocate(array)
+!     allocate (temp(n_comp,testcutSize,testcutSize,testcutSize))
+!     temp = array(:,lBound:uBound,lBound:uBound,lBound:uBound)
+!     deallocate(array)
 
-    allocate(array(n_comp,testcutSize,testcutSize,testcutSize))
-    array = temp   
-    deallocate(temp)
+!     allocate(array(n_comp,testcutSize,testcutSize,testcutSize))
+!     array = temp   
+!     deallocate(temp)
 
-  end subroutine cutout
+!   end subroutine cutout
 
 
 
@@ -96,7 +97,6 @@ contains
   !----------------------------------------------------------------
 
   subroutine init_random_seed()
-    implicit none
     !
     !    ..LOCAL ARRAY..
     integer, allocatable :: seed(:)
@@ -140,11 +140,25 @@ contains
   !
   ! STATUS : 
   !          
+  ! STASH: TO ENSURE THAT THE BOX CENTER IS ALWAYS RETAINED   
   !
+  ! **
+  !     ! CREATE RANDOM MASK:
+  !     allocate(randMask(maskSize))
+  !     randMask=0; i=1          ! i starts at 1 because (M-1) points are randomly selected
+  !     call init_random_seed()
+  !     do
+  !        call random_number(random_0_to_1) !returns a random value from 0 to 1
+  !        randomInt = nint( (boxSize-1) * random_0_to_1 ) + 1 ! (511 * x) + 1
+  ! !       if(any(randMask.eq.randomInt).or.(randomInt.eq.boxCenter)) cycle ! Enforce element uniqueness
+  !        i = i + 1   
+  !        randMask(i) = randomInt       
+  !        if (i.gt.maskSize) exit   
+  !     end do
+  
   !----------------------------------------------------------------
   
   subroutine randTrainingSet(randMask)
-    implicit none
     !
     !    ..ARRAY ARGUMENT..
     integer, allocatable, intent(out) :: randMask(:)
@@ -154,29 +168,28 @@ contains
     integer :: randomInt     !stores integer values  from 1 to 512
     !
     !    ..DEBUG..
-    logical                 :: debugRandom = .FALSE.
+    logical                 :: debugRandom = 0
     integer, dimension(:,:,:), allocatable :: randomMatrix
     integer                 :: i, j, k
     integer                 :: count
-
+    integer, save           :: debugCount ! To print this section only once 
     
-    ! Create random mask:
+    ! Create random mask: **
     allocate(randMask(maskSize))
-    randMask=0; i=1          ! i starts at 1 because (M-1) points are randomly selected
+    randMask=0; i=0          ! i starts at 0 because (M) points are randomly selected
     call init_random_seed()
     do
        call random_number(random_0_to_1) !returns a random value from 0 to 1
        randomInt = nint( (boxSize-1) * random_0_to_1 ) + 1 ! (511 * x) + 1
-       if(any(randMask.eq.randomInt).or.(randomInt.eq.boxCenter)) cycle ! Enforce element uniqueness
-       randMask(i) = randomInt       
+       if(any(randMask.eq.randomInt)) cycle ! Enforce element uniqueness
        i = i+1   
-       if (i.gt.maskSize) exit   
+       randMask(i) = randomInt       
+       if (i.ge.maskSize) exit   
     end do
     
     ! DEBUG:
-    if (debugRandom) then
+    if (debugRandom.and.debugCount == 0) then
        allocate (randomMatrix(box(1),box(2),box(3)))
-       call bubblesort(randMask)
        count=0;randomMatrix=0
 
        do k=1,box(3)
@@ -196,6 +209,7 @@ contains
        end do
        print*,''
        end do
+       debugCount = 1
     end if
 
   end subroutine randTrainingSet
@@ -223,10 +237,10 @@ contains
   !       *** INDEX Nomenclature:
   !          non_col_ : for non-colocated combinations.
   !          _comp    : To select velocity and velocity products.
-  !          _test    : for a point in the TEST-scale field
-  !          _box     : for a point in bounding BOX (stencil-center)
+  !          _boxCenter     : bounding box center
+  !          _train   : training point in bounding box (stencil-center)
   !          _stencil : for a point in the 3x3x3 STENCIL
-  !          _opt     : for computed(OPTIMIZED)values at LES and Test scales.
+  !          _opt     : for computed(OPTIMIZED) values at LES and test scales.
   !          _proj    : to project stresses  for postprocessing
   !
   !          coloc    : 0  means use non-coloc
@@ -235,23 +249,53 @@ contains
   !          Needs coarse grained parallization.
   !
   ! 
-  !          
+  !         
+  ! STASH:
+  !   ##
+  !     if (debug(1)) then
+  !        allocate(T_ijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
+  !        allocate(tau_ijOpt(1,testSize,testSize,testSize))
+  !     else
+  !        allocate(T_ijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
+  !        allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
+  !     end if
+  !  
+  !  ###
+  !   if(debug(2)) then
+  !      print*,'shape tau_ij cutout:    ',shape(tau_ij)
+  !      print*,'shape uu_t cutout:      ',shape(uu_t)
+  !      print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
+  !   end if
   !
+  ! &&& : ALLOCATING STRIDED MATRICES
+  ! Test scale computations will involve creation
+  ! of a strided matrix. Since an array stores contiguous
+  ! set of memory, two things will happen if the array index
+  ! is not carefully set - if there is a regular chuck of
+  ! heap memory, then it creates a (51,51,51) array and fills
+  ! unused space with 0. If not, it results in a
+  ! segmentation fault. Thus the index of the strided elements
+  ! that are used to form T_ijOpt and tau_ijOpt arrays should be
+  ! mapped with _boxCenter indices to give a contiguous array (17,17,17)
+  !
+  !     
   !----------------------------------------------------------------
   
-  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij)
-    implicit none
+  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(:,:,:,:), intent(in) :: u_f
-    real(8), dimension(:,:,:,:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_f
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: T_ij
+!    real(8), dimension(:,:,:,:), intent(in) :: T_ij
+
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
-    real(8), dimension(:,:,:,:), intent(in) :: T_ij
+
     real(8), dimension(:,:),     intent(out):: h_ij
+    real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt
+    real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
     !
     !    ..LOCAL ARRAYS..
-    real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
-    real(8), dimension(:,:,:,:), allocatable :: T_ijOpt, tau_ijOpt
     real(8), dimension(:,:),     allocatable :: V  
     real(8), dimension(:,:),     allocatable :: T  
     !
@@ -261,218 +305,190 @@ contains
     !
     !    ..RANDOM TRAINING POINTS (STENCIL-CENTERS)..
     integer :: rand_count
-    integer :: randMask(boxSize - M) !512-243=269
+    integer,dimension(:), allocatable :: randMask
     !
     !    ..INDICES..
-    integer :: i_test,    j_test,    k_test
-    integer :: j_testRange(2)
-    integer :: i_box,     j_box,     k_box  
+    integer :: i_train,     j_train,     k_train  
     integer :: i_stencil, j_stencil, k_stencil 
-    integer :: i_opt,     j_opt,     k_opt     
-    integer :: j_optRange(2)
-    integer :: i_proj,    j_proj,    k_proj    
     integer :: row_index, col_index, row, col 
     integer :: u_comp, uu_comp 
+
+    real(8) :: error_cross_T_ij, error_cross_tau_ij
     !
     !    ..DEBUG..
     logical :: printval
-    logical :: debug(4) = [1,0,0,0]
-    ! 1 - Takes just one (tau_ij_11) for testing purpose. 
-    ! 2 - Prints cutout shapes to check if cutout ops have gone well.
-    ! 3 - Performs all computations on just the first point.
-    ! 4 - To check if values from the stencil and bounding box are working well.
+    logical :: check_h_ij = 1
 
-
- !   print*, 'Computing SGS stress...'
     ! To determine stresses at coarse and fine stencil,
     ! velocities and their products must be known at LES
     ! scale. Though on the test scale it will skip every other point (coarse stencil)
     ! the fine stencil will require LES scale values to compute tau_ijOpt
 
+! ##
+    allocate (V (M, N) )
+    allocate (T (M, P) )
+! ###
 
-    allocate(uu_t(n_uu,testcutSize,testcutSize,testcutSize)) !(6,51,51,51)
-    allocate(uu_f(n_uu,testcutSize,testcutSize,testcutSize))
-
-
-    if (debug(1)) then
-       allocate(T_ijOpt(1,testSize,testSize,testSize)) !(1,17,17,17)
-       allocate(tau_ijOpt(1,testSize,testSize,testSize))
-    else
-       allocate(T_ijOpt(n_uu,testSize,testSize,testSize)) !(6,17,17,17)
-       allocate(tau_ijOpt(n_uu,testSize,testSize,testSize))
-    end if
-
-    allocate (V(M,N),T(M,P))
-    
-    T_ijOpt = 0.
-    tau_ijOpt=0.
-
-    if(debug(2)) then
-       print*,'shape tau_ij cutout:    ',shape(tau_ij)
-       print*,'shape uu_t cutout:      ',shape(uu_t)
-       print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
-    end if
-
-
-    ! COLOCATED FORMULATION:
+    ! COLOCATED FORMULATION WITH RANDOMLY SELECTED TRANING POINTS:
     if (formulation.eq.'colocated') then
-       
-!        ! Compute velocity products:(Lower triangle order for ij): Send to actools.f90
-!        call velocityProducts(uu_f, u_f)
-!        call velocityProducts(uu_t, u_t)
-       
-       
-!        ! WHOLE DOMAIN COMPUTATION: 
-!        do k_test = testLower, testUpper, stride 
-!        do j_test = testLower, testUpper, stride
-!        do i_test = testLower, testUpper, stride ! i_test = 11,43,2
-       
-!              row_index  = 0 
-       
-!              ! ENTER STENCIL-CENTER POINTS:
-!              do k_box = k_test-boxLower, k_test+boxUpper, skip
-!              do j_box = j_test-boxLower, j_test+boxUpper, skip
-!              do i_box = i_test-boxLower, i_test+boxUpper, skip  ! i_box = 3,49,2
-       
-!                 col_index = 0 
-!                 row_index = row_index + 1
-       
-!                 ! ENTER 3x3x3 STENCIL:
-!                 do k_stencil = k_box-stride, k_box+stride, stride ! Vectorize using (PACK/UNPACK)
-!                 do j_stencil = j_box-stride, j_box+stride, stride
-!                 do i_stencil = i_box-stride, i_box+stride, stride
-       
-!                    ! ZERO ORDER TERMS:
-!                    V(row_index, col_index) = 1.d0
-       
-!                    ! FIRST ORDER TERMS:
-!                    do u_comp = 1,n_u ! 1 to 3 -> 3x(3x3x3) = 81
-!                       col_index = col_index+1
-!                       V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-!                    end do
-       
-!                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
-!                    do uu_comp = 1,n_uu ! 1 to 6
-!                       col_index = col_index+1
-!                       V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-!                    end do
-       
-!                 end do 
-!                 end do 
-!                 end do ! STENCIL
-       
-!                 T(row_index) = T_ij(n,i_box,j_box,k_box) !Change 1 to (1-6) here.
-       
-!              end do
-!              end do
-!              end do ! BOUNDING BOX
-       
-       
-!              ! 1) Until here, the mechanism to compute the coefficient matrix
-!              ! is tested and verified. There are no issues with the basic mechanism.
-!              ! Only variable strides, for more than 2 is to be adjusted in the code later.
-       
-!              ! 2) For testing, only the '_11' component is evaluated. Later extend to all 6 ij's
-!              ! V matrix generated can be used to determine Volterra coefficients for all six ij components.
-       
-       
-!              !call LU(V,T,h_ij,lambda)     ! Least squares by LU decomposition
-       
-       
-!              ! Test scale computations will involve creation
-!              ! of a strided matrix. Since an array stores contiguous
-!              ! set of memory, two things will happen if the array index
-!              ! is not carefully set - if there is a regular chuck of
-!              ! heap memory, then it creates a (51,51,51) array and fills
-!              ! unused space with 0. If not, it results in a
-!              ! segmentation fault. Thus the index of the strided elements
-!              ! that are used to form T_ijOpt and tau_ijOpt arrays should be
-!              ! mapped with _test indices to give a contiguous array (17,17,17)
-       
-!              i_proj = (i_test-testLower)/stride + 1
-!              j_proj = (j_test-testLower)/stride + 1
-!              k_proj = (k_test-testLower)/stride + 1
-       
-!              ! COARSE STENCIL: Project T_ij back to itself to compare with the original T_ij field
-!              ! VECTORIZE THIS PART FOR SPEED
-!              col = 0
-!              do k_opt = k_test-stride, k_test+stride, stride
-!              do j_opt = j_test-stride, j_test+stride, stride
-!              do i_opt = i_test-stride, i_test+stride, stride
-       
-!                 do u_comp = 1,n_u ! 1 to 3
-!                    col = col+1
-!                    T_ijOpt(1,i_proj,j_proj,k_proj) = T_ijOpt(1,i_proj,j_proj,k_proj)&
-!                         + u_t(u_comp,i_opt,j_opt,k_opt) * h_ij(col)
-!                 end do
-!                 do uu_comp = 1,n_uu ! 1 to 6
-!                    col = col+1
-!                    T_ijOpt(1,i_proj,j_proj,k_proj) = T_ijOpt(1,i_proj,j_proj,k_proj)&
-!                         + uu_t(uu_comp,i_opt,j_opt,k_opt) * h_ij(col)
-!                 end do
-       
-!              end do
-!              end do
-!              end do ! coarse
-       
-!              ! FINE STENCIL : Calculate the SGS stress with h_ij;compare with the original tau_ij     
-!              col = 0 
-!              do k_opt = k_test-1, k_test+1
-!              do j_opt = j_test-1, j_test+1
-!              do i_opt = i_test-1, i_test+1
-       
-!                 do u_comp = 1,n_u ! 1 to 3
-!                    col = col+1
-!                    tau_ijOpt(1,i_proj,j_proj,k_proj) = tau_ijOpt(1,i_proj,j_proj,k_proj)&
-!                         + u_f(u_comp,i_opt,j_opt,k_opt) * h_ij(col)
-!                 end do
-!                 do uu_comp = 1,n_uu ! 1 to 6
-!                    col = col+1
-!                    tau_ijOpt(1,i_proj,j_proj,k_proj) = tau_ijOpt(1,i_proj,j_proj,k_proj)&
-!                         + uu_f(uu_comp,i_opt,j_opt,k_opt) * h_ij(col)
-!                 end do
-       
-!              end do
-!              end do
-!              end do  ! fine                
-       
-!        end do
-!        end do
-!        end do ! test
-       
-    else
 
-       allocate (u_n(stencil_size))
-       
-       j_testRange = [129, 129]  
-       j_optRange  = [126, 125]
-       if (dataset.eq.'hst') then
-          j_testRange = [65,65]
-          j_optRange  = [62,62]
+       ! COMPUTE VELOCITY PRODUCTS: TAKE THIS STEP OUT - DON'T NEED TO SAVE EVERYTHING IN AN ARRAY
+       ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
+       ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
+       if (order == 2) then
+          allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,extLower:extUpper))
+          allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,extLower:extUpper))
+          call secondOrderProducts(uu_t, u_t)
+          call secondOrderProducts(uu_f, u_f)
        end if
 
+       ! Z-MIDPLANE COMPUTATION: 
+       do k_boxCenter = z_plane, z_plane
+       do j_boxCenter = boxFirst, boxLast, boxCenterSkip
+       do i_boxCenter = boxFirst, boxLast, boxCenterSkip
+
+          if (trainingPoints.eq.'random') then
+             call randTrainingSet(randMask)
+             rand_count = 0
+          end if
+          row_index  = 0 
+
+             ! VISIT M TRANING POINTS:
+             do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
+             do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
+             do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip
+             
+                if (trainingPoints.eq.'random') then
+                   rand_count = rand_count + 1
+                   if (any(randMask.eq.rand_count)) cycle
+                end if
+
+                col_index = 0 
+                row_index = row_index + 1
+       
+                ! ZERO ORDER TERMS:
+                col_index = col_index + 1
+                V(row_index, col_index) = 1.d0
+
+                ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
+                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test ! Vectorize using (PACK/UNPACK)
+                do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
+                do i_stencil = i_train-Delta_test, i_train+Delta_test, Delta_test
+              
+                   ! FIRST ORDER TERMS:
+                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
+                      col_index = col_index+1
+                      V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   end do
+
+                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
+                   if (order == 2) then
+                      do uu_comp = 1, n_uu 
+                         col_index = col_index+1
+                         V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                      end do
+                   end if
+
+                end do 
+                end do 
+                end do ! STENCIL
+       
+                T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
+
+             end do
+             call progressBar(j_boxCenter, boxLast)
+             end do
+             end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
+
+             !
+             ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
+             do iter = 1, n_lambda
+                lambda = lambda_0(1) * 10**(iter-1)
+
+
+                ! CALL SOLVER:
+                if (solutionMethod.eq.'LU') then
+                   call LU(V, T, h_ij)                       ! DAMPED LEAST SQUARES 
+                elseif(solutionMethod.eq.'SVD') then
+                   call SVD(V, T, h_ij, printval)             ! TSVD
+                else
+                   print*, 'Choose correct solver: LU, SVD'
+                   stop
+                end if
+
+! PRINT H_IJ
+! if (check_h_ij) then
+!    print*, 'size(h_ij):', size(h_ij)
+!    do i = 1, size(h_ij,dim=1)
+!       print*, i, h_ij(i,:)
+!    end do
+!    check_h_ij = 0
+! end if
+
+
+                ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+                call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+
+
+                !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
+!                call trainingError(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
+!                call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
+
+             end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX       
+! &&&     
+
+       end do
+       end do
+       end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
+
+
+ 
+       ! PLOT STRESS AND PRODUCTION TERMS:
+       if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+       if (production_Term) then
+          call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+          call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+          if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+       end if
+       
+    else
+
+       ! NON-COLOCATED FORMULATION WITH ORDERED TRAINING POINTS:
+
+       allocate (u_n(stencil_size))
 
        ! WHOLE DOMAIN COMPUTATION: 
-       do i_test = 129, 129, 1 
-       do j_test = j_testRange(1), j_testRange(2), 1
-       do k_test = 129, 129, 1 ! i_test = 11,43,2
+       do i_boxCenter = boxFirst, boxLast, boxCenterSkip
+       do j_boxCenter = boxFirst, boxLast, boxCenterSkip
+       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
+                    
+          if (trainingPoints.eq.'random') then
+             call randTrainingSet(randMask)
+             rand_count = 0
+          end if
 
           row_index  = 0 
 
-          ! ENTER STENCIL-CENTER POINTS: C-ORDER
-!          do i_box = i_test-126, i_test+125, skip
-          do i_box = i_test-126, i_test+125, skip
-          do j_box = j_test-j_optRange(1),  j_test+j_optRange(2), skip
-          do k_box = k_test-126, k_test+125, skip ! i_box = 3,49,2
+           ! VISIT TRAINING POINT: C-ORDER
+           do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip
+           do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
+           do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
+
+              
+              if (trainingPoints.eq.'random') then
+                 rand_count = rand_count + 1
+                 if (any(randMask.eq.rand_count)) cycle
+              end if
+
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
-         
+
+
              ! ENTER 3x3x3 STENCIL: C-ORDER
-             
-             u_n = reshape(u_t (:, i_box-2 : i_box+2 : 2, & 
-                                   j_box-2 : j_box+2 : 2, &
-                                   k_box-2 : k_box+2 : 2), [stencil_size])
+             u_n = reshape(u_t (:, i_train-Delta_test : i_train+Delta_test : Delta_test, & 
+                                   j_train-Delta_test : j_train+Delta_test : Delta_test, &
+                                   k_train-Delta_test : k_train+Delta_test : Delta_test), [stencil_size])
 
              ! ZERO ORDER TERMS: 80 C 0
              col_index = col_index + 1
@@ -493,11 +509,11 @@ contains
              end do
              end do
 
-             T(row_index,:) = T_ij(:,i_box,j_box,k_box) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
+             T(row_index,:) = T_ij(:,i_train,j_train,k_train) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
 
           end do
           end do
-          end do ! BOUNDING BOX
+          end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
           
           ! CHECK V:
@@ -505,50 +521,72 @@ contains
           if (dataset.eq.'jhu256'.and.V(1500,2000).ne.2.0009431419772586d-2) then
              print*, "Error! Check sorting order in  V matrix!"
              print*, 'V(1500,2000)', V(1500,2000)
-             stop
+ !            stop
           else 
-             !print*,'V matrix check ... Passed'
+             print*,'V matrix check ... Passed'
           end if
           end if
 
           !CHECK T:
-          if (withPressure.eqv..false.) then
-          if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
-             print*, "Error! Check sorting order in  T vector!"
-             print*, T(3,1)
-!             stop
-          else 
-             !print*,'T vector check ... Passed'
-          end if
+          if (withPressure.eqv..false. .and. stress.eq.'dev') then
+             if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
+                print*, "Error! Check sorting order in  T vector!"
+                print*, T(3,1)
+                !             stop
+             else 
+                print*,'T vector check ... Passed'
+             end if
           end if
 
           !
-          ! CALL SOLVER
-          if (solutionMethod.eq.'LU') then
-             !Damped least squares
-             call LU(V, T, h_ij)           
-          elseif(solutionMethod.eq.'SVD') then
-             ! TSVD
-             call SVD(V, T, h_ij,printval) 
-          else
-             print*, 'Choose correct solver: LU, SVD'
-             stop
-          end if
-          
-          ! CHECK h_ij:
-          if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD') then
-          if (h_ij(350,1).ne.-4.5121154730201521d-2)then
-             print*, "Error! Check lambda, method or sorting order for h_ij computation:"
-             print*,h_ij(350,1)
-             stop
-          else 
-             print*,'SVD check ... Passed'
-          end if
-          end if
+          ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
+          do iter = 1, n_lambda
+!             lambda = lambda_0(1) * 10**(iter-1)
+             lambda = lambda_0(iter)
+             print('(a8,ES10.2)'), 'lambda ',lambda
+             
+             !
+             ! CALL SOLVER: LATER SPLIT IT INTO 1) FACTORIZATION STEP (OUT OF LOOP)
+             ! AND 2] SOLUTION USING LAMBDA (WITHIN LOOP)
+             if (solutionMethod.eq.'LU') then
+                call LU(V, T, h_ij)                       ! DAMPED LEAST SQUARES 
+             elseif(solutionMethod.eq.'SVD') then
+                call SVD(V, T, h_ij, printval)             ! TSVD
+             else
+                print*, 'Choose correct solver: LU, SVD'
+                stop
+             end if
+
+             ! CHECK h_ij:
+             if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
+                if (h_ij(350,1).ne.-4.5121154730201521d-2)then
+                   print*, "Error! Check lambda, method or sorting order for h_ij computation:"
+                   print*,h_ij(350,1)
+                   !stop
+                else 
+                   print*,'SVD check ... Passed'
+                end if
+             end if
+
+             ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+             call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+             if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+             
+             if (production_Term) then
+                call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+                call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+                if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+             end if
+
+             !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
+             call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
+             call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
+
+          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
 
        end do
        end do
-       end do ! test
+       end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
     end if
 
@@ -573,7 +611,7 @@ contains
   !           Indices are in C-order for direct comparison with MATLAB.
   !
   !     * * * INDEX Nomenclature:
-  !           _test: for a point in the TEST-scale field
+  !           _boxCenter: for a point in the TEST-scale field
   !           _opt: where same h_ij is being used for point(s)
   !           non_col_: for non-colocated combinations.
   !          _comp: To select velocity and velocity products.
@@ -588,11 +626,10 @@ contains
   
   
   subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(:,:,:,:), intent(in) :: u_f
-    real(8), dimension(:,:,:,:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_f
+    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_t
     real(8), dimension(:,:),     intent(in) :: h_ij
     real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
     real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt 
@@ -606,43 +643,111 @@ contains
     real(8), dimension(stencil_size) :: u_t_stencil
     !
     !    ..LOCAL INDICES.. 
-    integer :: i_test,    j_test,    k_test 
-    integer :: j_testRange (2)
     integer :: i_opt,     j_opt,     k_opt  
-    integer :: j_optRange (2)
     integer :: i_stencil, j_stencil, k_stencil
-    integer :: non_col_1, non_col_2  
+    integer :: non_col_1, non_col_2
 
-    j_testRange = [129, 129]  
-    j_optRange  = [126, 125]
-    if (dataset.eq.'hst') then
-       j_testRange = [65,65]
-       j_optRange  = [62,62]
-    end if
-  
-    ! WHOLE DOMAIN COMPUTATION: 
-    do i_test = 129, 129
-    do j_test = j_testRange(1), j_testRange(2)
-    do k_test = 129, 129
+    if (formulation.eq.'colocated') then
+
+       do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper
+       do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
+       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
+         
+          ! T_ij^F: Test scale
+          col_index = 0 
+          
+          ! ZERO ORDER TERMS: [1]
+          col_index = col_index + 1
+          T_ijOpt   (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
+          
+          do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
+          do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
+          do i_stencil = i_opt-Delta_test, i_opt+Delta_test, Delta_test
+
+             ! FIRST ORDER TERMS:             
+             do u_comp = 1, n_u
+                col_index = col_index + 1
+
+                T_ijOpt (:,i_opt,j_opt,k_opt) = T_ijOpt (:,i_opt,j_opt,k_opt)             &
+                                        +                                          &
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+             end do
+
+             
+             ! SECOND ORDER TERMS: 
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
+
+                   T_ijOpt (:,i_opt,j_opt,k_opt) = T_ijOpt(:,i_opt,j_opt,k_opt)               &
+                        +                                            &
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                end do
+             end if
+
+          end do
+          end do
+          end do
+
+          ! tau_ij^F: LES scale
+          col_index = 0
+          
+          ! ZERO ORDER TERMS: [1]
+          col_index = col_index + 1
+          tau_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
+          
+          do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
+          do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES
+          do i_stencil = i_opt-Delta_LES, i_opt+Delta_LES, Delta_LES
+
+             ! FIRST ORDER TERMS:             
+             do u_comp = 1, n_u
+                col_index = col_index + 1
+                tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt)         &
+                     +                                          &
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+             end do
+             
+             ! SECOND ORDER TERMS: 
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
+                   tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
+                        +                                &
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                end do
+             end if
+
+          end do
+          end do
+          end do
+
+       end do
+       end do
+       end do
+
+    else
+       
+       ! NON-COLOCATED
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-       do i_opt = i_test-126, i_test+125
-       do j_opt = j_test-j_optRange(1), j_test+j_optRange(2)
-!       do k_opt = k_test-126, k_test+125
-!       do i_opt = 15,15
-!       do j_opt = 24,24
-       do k_opt = 129-3, 129+3,3 !10,10
+       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
+       do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
+! Whole domain:
+          ! do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper 
+! Cross-validation points [Preferred]:
+       do k_opt = k_boxCenter-3*smallHalf(N_cr), k_boxCenter+3*smallHalf(N_cr), 3
 
           col_index = 0 
          
           ! ENTER 3x3x3 STENCIL: C-ORDER                                      
-          u_t_stencil = reshape(u_t (:, i_opt-2 : i_opt+2 : 2, &
-                                        j_opt-2 : j_opt+2 : 2, &
-                                        k_opt-2 : k_opt+2 : 2),  [stencil_size]) 
+          u_t_stencil = reshape(u_t (:, i_opt-Delta_test : i_opt+Delta_test : Delta_test, &
+                                        j_opt-Delta_test : j_opt+Delta_test : Delta_test, &
+                                        k_opt-Delta_test : k_opt+Delta_test : Delta_test),  [stencil_size]) 
 
-          u_f_stencil = reshape(u_f (:, i_opt-1 : i_opt+1 : 1, &
-                                        j_opt-1 : j_opt+1 : 1, &
-                                        k_opt-1 : k_opt+1 : 1),  [stencil_size]) 
+          u_f_stencil = reshape(u_f (:, i_opt-Delta_LES : i_opt+Delta_LES : Delta_LES, &
+                                        j_opt-Delta_LES : j_opt+Delta_LES : Delta_LES, &
+                                        k_opt-Delta_LES : k_opt+Delta_LES : Delta_LES),  [stencil_size]) 
 
           ! ZERO ORDER TERMS: WILL BE 1
           col_index = col_index + 1
@@ -663,7 +768,7 @@ contains
                                           (u_f_stencil(non_col_1) * h_ij(col_index,:))
           end do
 
-          ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
+          ! SECOND ORDER TERMS: 
           do non_col_1 = 1, stencil_size
           do non_col_2 = non_col_1, stencil_size
              col_index = col_index+1
@@ -680,11 +785,9 @@ contains
 
        end do
        end do
-       end do ! BOUNDING BOX
+       end do ! DONE COMPUTING STRESSES USING NON-COLOCATED FORM
 
-    end do
-    end do
-    end do ! TEST
+    end if
 
   end subroutine computedStress
 
@@ -724,8 +827,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine LU (V,  T_ij, h_ij)
-    implicit none
-
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:), intent(in)  :: V 
@@ -762,8 +863,6 @@ contains
     call DGEMM('T', 'N', N, N, M, alpha, V, M, V, M, beta, A, N)
 
     ! Apply damping: A = A + lambda*I
-!    lambda = 1.d-1
-!    print*, lambda
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 
@@ -839,7 +938,6 @@ contains
   !----------------------------------------------------------------
   
   subroutine SVD (A, T, h_ij, printval)
-    implicit none
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:), intent(in)  :: A
@@ -871,7 +969,7 @@ contains
     logical :: GESVD = 0
 
  
-    LWMAX = M * N
+    LWMAX =3 * M * N
     ! 
     ! SVD DECOMPOSITION: A(M,N) = U(M,M) S([M],N) V'(N,N)
     ! DGESVD returns N diagonal entries to S(N)
@@ -913,7 +1011,7 @@ contains
     ! Create D(N,M) with S(i) as damped diagonal entries.
     allocate(D(N,M))
     D = 0.d0
-    lambda = 1.d-1
+!    lambda = 1.d-1
     forall(i=1:N) D(i,i) = S(i) / (S(i)**2 + lambda**2) 
     ! **  DEVELOPMENTAL NOTE IN THE HEADER
     !
@@ -941,8 +1039,6 @@ contains
     end if
 
   end subroutine SVD
-
-
 
 end module solver
 

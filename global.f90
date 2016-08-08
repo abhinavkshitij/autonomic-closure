@@ -9,10 +9,20 @@
 ! FORM:
 !      module global
 !          contains
+!          namespace
 !          interface printplane
 !              subroutine plane3
 !              subroutine plane2
+!          interface norm
+!              subroutine norm3
+!              subroutine norm2
 !        subroutine printParams       [SINK]
+!        function nCk
+!        function factorial
+!        function mean
+!        function stdev
+!        function bigHalf
+!        function smallHalf
 !
 ! BEHAVIOR:
 !      * Check array rank while passing into printplane.
@@ -21,14 +31,16 @@
 !      * 
 !      * 
 !  
+! STASH:
+!    boxCenterFlatIndex = smallHalf(box(1)) * box(1)*(box(1) + 1) + bigHalf(box(1)) 
 !----------------------------------------------------------------
 
 module global
-
+  implicit none
   integer, parameter :: dp = selected_real_kind(15,307)
-
   real,    parameter :: eps = 1e-5
-  real(8), parameter :: pi = 4.d0 * atan(1.d0)
+  real(8), parameter :: PI = 4.d0 * atan(1.d0)
+
 
   ! DEFINE STRING ARRAY:
   type str16
@@ -42,7 +54,7 @@ module global
                                       str16 ('Pressure')]
 
   type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),     & 
-                                            str16 ('jhu256'),  &
+                                            str16 ('jhu256'),  & ! jhu256
                                             str16 ('hst'),     &
                                             str16 ('sin3D'),   &
                                             str16 ('jhu1024')]
@@ -62,15 +74,43 @@ module global
   type(str16), parameter :: l_formulation(2) = [str16 ('colocated'),     &
                                                 str16 ('noncolocated')]
 
+  type(str16), parameter :: l_scheme(2) = [str16 ('local'),     &
+                                           str16 ('global')]
+
+
               
   character(8) :: machine        = trim (l_machine(1) % name)
-  character(8) :: dataset        = trim (l_dataset(5) % name)
+  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0
+
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set = 'S1' ! [S1, S3, S6]
-  character(3) :: stress = 'abs' ! [dev, abs]
-  character(16):: formulation    = trim (l_formulation(2) % name)
-  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
+  character(2) :: hst_set        = 'S3'                              ! [S1, S3, S6]
+  character(3) :: stress         = 'abs'                             ! [dev, abs]
+  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
+  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
+  integer      :: order          = 2                                 ! [first, second]
+
+  !----------------------------------------------------------------
+  !
+  !****************************************************************
+  !                       ..CONTROL SWITCHES..                    !
+  !****************************************************************
+  
+
+  logical :: turbulentStats       =  0
+  logical :: useTestData          =  0
+  logical :: readFile             =  1
+  logical :: filterVelocities     =  1
+  logical :: plot_Velocities      =  1
+  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: save_FFT_data        =  1
+
+  logical :: plot_Stress          =  1
+  logical :: production_Term      =  1
+  logical :: save_ProductionTerm  =  1
+  logical :: compute_Stress       =  0
+
 
 
   !----------------------------------------------------------------
@@ -96,8 +136,9 @@ module global
   real(8), dimension(:,:,:), allocatable :: test
   !
   !    ..STRAIN RATES..
-  real(8), dimension(:,:,:,:,:), allocatable :: Sij_f
-  real(8), dimension(:,:,:,:,:), allocatable :: Sij_t
+  real(8), dimension(:,:,:,:), allocatable :: Sij
+  real(8), dimension(:,:,:,:), allocatable :: Sij_f
+  real(8), dimension(:,:,:,:), allocatable :: Sij_t
   !
   !    ..COEFFICIENTS..
   real(8), dimension(:,:), allocatable :: h_ij
@@ -115,53 +156,57 @@ module global
   integer :: f_GRID 
   integer :: center
 
-  real(8) :: dx ! To calculate gradient
+  real(8) :: dx                 ! To calculate gradient
+  real(8) :: nu                 ! Viscosity
 
-
-  integer :: M               ! Number of training points 3x3x3x9
-  integer :: N 
+  integer :: M                  ! Number of training points 3x3x3x9
+  integer :: N = 0
   integer :: P                  ! Number of components (1 to 6)
   integer :: stencil_size 
   integer :: LES_scale 
   integer :: test_scale 
+  integer :: Freq_Nyq
 
-
-  ! Stencil parameters:
-  integer :: stride ! Is the ratio between LES(taken as 1) and test scale
-  integer :: skip 
-  integer :: X ! Number of realizations
-  integer :: n_lambda  ! Number of lambdas
-  real(8) :: lambda, lambda_0(2)
+  !    ..STENCIL..
+  integer :: Delta_LES          ! Grid spacing at LES scale = Nyquist frequ/LES_scale  (128/40 = 3)
+  integer :: Delta_test         ! Grid spacing at test scale = Nyquist freq/ test_scale (128/20 = 6)
+  integer :: trainingPointSkip   ! 1 for RANDOMLY sampled training points; Some fixed value for ORDERED [REGULARIZED]set
+  integer :: X                   ! Number of realizations
+  integer :: n_lambda            ! Number of lambdas
+  real(8) :: lambda, lambda_0(2) !lambda_0(2)
  
-  ! Bounding Box parameters:  
+  !   ..BOUNDING BOX..
   integer :: box(3) 
   integer :: boxSize  
   integer :: maskSize  
-  integer :: boxCenter
+ 
   integer :: boxLower 
   integer :: boxUpper 
+  integer :: boxFirst
+  integer :: boxLast
+  integer :: boxCenterSkip
 
-  ! Test field parameters: 
-  integer :: testSize 
-  integer :: testcutSize 
-  integer :: testLower
-  integer :: testUpper
-  
+  !   .. EXTENDED DOMAIN..
+  integer :: extLower           ! Lower index of extended domain using ghost cells
+  integer :: extUpper           ! Upper index                "
 
-  ! Cutout parameters:
-  integer :: lBound 
-  integer :: uBound 
+  !    ..OPT..
+  integer :: optLower
+  integer :: optUpper
 
-  ! Statistics parameters:
-  integer :: samples 
+  !   ..STATISTICS..
+  integer :: n_bins            ! Number of bins
+  integer :: N_cr               ! Number of cross-validation points
 
   !
   !    ..FILEIO..
-  integer :: z_print
-  integer :: path_txt   = 22
-  integer :: params_txt = 23
-  integer :: cross_csv  = 81
+  integer :: z_plane           
+  integer :: path_txt          = 22
+  integer :: params_txt        = 23
+  integer :: cross_csv_T_ij    = 81
+  integer :: cross_csv_tau_ij  = 82
 
+  !
   !    ..TIME..
   character(32) :: time = '256' ! 256 is the initial value
   integer :: time_init
@@ -200,7 +245,10 @@ module global
   integer  :: i, j, k  
   integer  :: iter
   real(8)  :: tic, toc
-  
+
+  !
+  !    ..CASE NAME ..
+  character(*), parameter :: CASE_NAME = 'scratch-col'
 
   !----------------------------------------------------------------
   !
@@ -212,6 +260,10 @@ module global
      module procedure plane2, plane3
   end interface
 
+  interface norm
+     module procedure norm3, norm2
+  end interface
+
 contains
   
   subroutine setEnv()
@@ -219,14 +271,21 @@ contains
     RES_PATH = RES_DIR
 
     ! GRID
-    i_GRID = 1024
-    j_GRID = 1024
-    k_GRID = 1024
-  
+    i_GRID = 256
+    j_GRID = 256
+    k_GRID = 256
+    Freq_Nyq = i_GRID/2
+    z_plane = bigHalf(k_GRID)
+    
+    ! TIMESTEPS:
+    if (dataset.eq.'jhu256') then
+       time = '256'; time_init = 256; time_incr = 1; time_final = 256
+       nu = 1.85d-4
+    end if
 
-    ! TIME
     if (dataset.eq.'nrl') time = '0460'
     if (dataset.eq.'hst') then
+       nu = 5.67d-4 !6.093d-3
        if (hst_set.eq.'S1') then
 !          time = '016'; time_init = 16; time_incr = 1; time_final = 28
           time = '017'; time_init = 17; time_incr = 1; time_final = 28
@@ -242,80 +301,111 @@ contains
     if (machine.eq.'local') time_final = time_init
     
 
-    ! COMPONENT
-    n_u = 3
-    if (withPressure) n_u = 4
+    n_u = 3 
+    if (withPressure) n_u = n_u + 1
+   
     ! CHECK PRESSURE DATA AVAILABLIITY:
-!    if(dataset.ne.'jhu256'.and.n_u.eq.4) then
-!       print*, 'Dataset ',dataset,' has no pressure data files'
-!       stop
-!    end if
-    n_uu = 6
+    if(dataset.ne.'jhu256'.and.n_u.eq.4) then
+       print*, 'Dataset ',dataset,' has no pressure data files'
+       stop
+    end if
+
     P = 6
 
     ! SCALE
-    LES_scale  = 128
+    LES_scale  = 40
     test_scale = 20
-
+    Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
+    Delta_test = floor(real(Freq_Nyq) / real(test_scale))
+    
+    ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
+    lambda_0 = 1.d-01 * [1,3]
+    n_lambda = 1
+    
 
     ! FFT 
     f_GRID = 1024 !For FFT ops, the grid must be cubic.
     center = (0.5d0 * f_GRID) + 1.d0
-    dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
-
-
-    ! Stencil parameters:
-    stride = 1              ! No subsampling on the original DNS GRID 
-    skip = 10               ! For training points
-    X = 1     
-    stencil_size = n_u * (3*3*3) !3 * 27 = 81  
-
-    lambda_0 = 1.d-08 * [1,3]
-    n_lambda = 10
-
- 
-    ! Bounding Box parameters:  
-    if (formulation.eq.'noncolocated') then
-       ! Set number of features
-       N = nCk(stencil_size + 1, 2) + nCk(stencil_size, 1) + 1
-
-       if (trainingPoints.eq.'ordered') then
-          ! Set bounding box size
-          box = [i_GRID-2, j_GRID-2, k_GRID-2]
-          ! Set number of training points
-          M =    (floor((real(box(1) - 1)) / skip) + 1)    &
-               * (floor((real(box(2) - 1)) / skip) + 1)    &
-               * (floor((real(box(3) - 1)) / skip) + 1)  !17576 
-
-       else if (formulation.eq.'colocated') then
-          box  = [8,8,8]
-          if (trainingPoints.eq.'random') then
-          end if
-       end if
-    end if
+    dx = 2.d0*PI/dble(i_GRID) !Only for JHU data. Check for others.    
 
     
 
-    boxSize   = product(box)
-    maskSize  = boxSize - M ! 512-Training points(243) = 269
-    boxCenter = smallHalf(box(1)) * box(1)*(box(1) + 1) + bigHalf(box(1))
+    if (trainingPoints.eq.'ordered') then
+       trainingPointSkip = 10   ! ORDERED 
+    else                    
+       trainingPointSkip = Delta_test    ! RANDOM   
+    end if
+    
 
-    boxLower  = stride * (bigHalf(box(1)) - 1)
-    boxUpper  = stride * (box(1) - bigHalf(box(1)))
+    ! Bounding Box parameters:  YES ITS VERBOSE AND LOOKS DUMB BUT IT IS A NEAT LAYOUT [FOR THE TIME BEING]
+    box = [1, 1, 1]             ! Initialize bounding box size
+    if (formulation.eq.'noncolocated') then 
+       stencil_size = n_u * (3*3*3) 
+       do i = 0, order
+          N = N + nCk(stencil_size - 1 + i, i) 
+       end do
+       if (trainingPoints.eq.'ordered') then ! NON-COLOCATED, ORDERED
+          box = 256 * box
+          M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
+               * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
+               * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  !17576 
+       elseif (trainingPoints.eq.'random') then ! NON-COLOCATED, RANDOM
+          M = 5 * N
+          box = ceiling(M**(1./3.)) * trainingPointSkip * box
+          boxSize   = product(box/trainingPointSkip)
+          maskSize  = boxSize - M 
+          X = 1     
+       end if
+       
+    elseif  (formulation.eq.'colocated') then
+       if (order == 2) then
+          do i = 1, order
+             n_uu = n_uu + nCk(n_u, i)    ! NUMBER OF uu, [up, pp] PRODUCTS
+          end do
+       end if
+       N = 1 + ((n_u + n_uu) * (3*3*3))
+       if (trainingPoints.eq.'ordered') then ! COLOCATED, ORDERED
+          box = 256 * box
+          M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
+               * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
+               * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
+       elseif (trainingPoints.eq.'random') then ! COLOCATED, RANDOM
+          M = 8 * N
+          box  = ceiling(M**(1./3.)) * trainingPointSkip * box
+          boxSize   = product(box/trainingPointSkip)
+          maskSize  = boxSize - M ! 512-Training points(243) = 269
+          X = 1     
+       end if
+    end if
+    
+    boxLower  = bigHalf(box(1)) - 1
+    boxUpper  = box(1) - bigHalf(box(1))
 
+    if (scheme.eq.'local') then
+       boxFirst  = 1
+       boxLast   = i_GRID       ! Assuming the domain is equal in all directions
 
-    ! Test field parameters: 
-    testSize    = 1
-    testLower   = stride *  bigHalf(box(1)) + 1
-    testUpper   = stride * (bigHalf(box(1)) - 1 + testSize) + 1
-    testcutSize = stride * (testSize + box(1)) + 1
+       boxCenterSkip = 1
+       extLower = 1  - boxLower - Delta_test
+       extUpper = i_GRID + boxLower + Delta_test ! Should be i_GRID + boxUpper + 2 [optimal but makes code complex]
+       
+       optLower = 0
+       optUpper = 0
+    else if (scheme.eq.'global') then  ! GLOBAL
+       boxFirst  = bigHalf(box(1))  
+       boxLast   = bigHalf(box(1)) + i_GRID - box(1)
 
-    ! Cutout parameters:
-    lBound = 0.5*(f_GRID - testcutSize)
-    uBound = 0.5*(f_GRID + testcutSize) - 1
+       boxCenterSkip = box(1)
+       extLower = 1  -  Delta_test 
+       extUpper = i_GRID + Delta_test  
+
+       optLower = boxLower
+       optUpper = boxUpper
+    end if
 
     ! Statistics parameters:
-    samples = 250
+    n_bins = 250
+    N_cr = 3   !(11x11x11)
 
   end subroutine setEnv
 
@@ -352,34 +442,44 @@ contains
     write(params_txt,*) i_GRID
     write(params_txt,*) j_GRID
     write(params_txt,*) k_GRID
-    write(params_txt,*) dataset
+    write(params_txt,*) dataset(1:3)
     write(params_txt,*) hst_set
+    write(params_txt,*) LES_scale
     close(params_txt)
 
     if (displayOption.eq.'display') then
-     write(fileID, * ), 'Dataset:            ', dataset, '\n'
+     write(fileID, * ), 'Dataset:             ', dataset, '\n'
+     
+     if (dataset.eq.'hst') then
+        write(fileID, * ), 'HST set:          ', hst_set, '\n'
+     end if
 
-     write(fileID, * ), 'Stencil parameters: \n'
+     write(fileID, * ), 'Scheme:              ', scheme
+     write(fileID, * ), 'Formulation:         ', formulation
+     write(fileID, * ), 'Pressure Term:       ', withPressure
 
-     write(fileID, * ), 'Training points :    ',M
-     write(fileID, * ), 'Features :           ',N, '\n'
+     write(fileID, * ), 'Order:               ', order
+     write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
+     write(fileID, * ), 'Features(N):         ', N, '\n'
+     write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
+     write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
 
-     write(fileID, * ), 'Box parameters:      '
-     write(fileID, * ), 'Bounding box:        ',box
-     write(fileID, * ), 'boxCenter:           ',boxCenter
-     write(fileID, * ), 'boxLower:            ',boxLower
-     write(fileID, * ), 'boxUpper:            ',boxUpper, '\n'
 
-     write(fileID, * ), 'Test field parameters:'
-     write(fileID, * ), 'testcutSize:         ',testcutSize
-     write(fileID, * ), 'testLower:           ',testLower
-     write(fileID, * ), 'testUpper:           ',testUpper, '\n'
+     write(fileID, * ), 'BOX PARAMETERS:      '
+     write(fileID, * ), 'Bounding box:        ', box
+     write(fileID, * ), 'boxLower:            ', boxLower
+     write(fileID, * ), 'boxUpper:            ', boxUpper, '\n'
 
-     write(fileID, * ), 'Cutout parameters:'
-     write(fileID, * ), 'lower bound:         ',lBound
-     write(fileID, * ), 'upper bound:         ',uBound, '\n'
+     write(fileID, * ), 'boxFirst:            ', boxFirst
+     write(fileID, * ), 'boxLast:             ', boxLast, '\n'
+     
+     write(fileID, * ), 'boxCenterSkip:       ', boxCenterSkip
+     write(fileID, * ), 'trainingPointSkip:   ', trainingPointSkip
+     write(fileID, '(a22,ES8.1)' ), 'lambda_0:              ', lambda_0(1)
 
-     write(fileID, * ),  'Number of samples'    ,samples
+     
+     write(fileID, * ), 'extendedDomain:      ', extLower, '\t', extUpper ,'\n'     
+     write(fileID, * ), 'Number of bins:      ', n_bins
   end if
   end subroutine printParams
 
@@ -405,7 +505,6 @@ contains
   !----------------------------------------------------------------
 
   subroutine plane3 (box, frameLim, x, y, z, fID)
-    implicit none
    
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:),intent(in) :: box
@@ -421,7 +520,6 @@ contains
     !    ..FORMATTING..
     character(4) :: form 
     character(8) :: digits = short 
-
 
 
     ! Check [frameLimits]:
@@ -480,8 +578,6 @@ contains
   !----------------------------------------------------------------
 
   subroutine plane2 (matrix, frameLim, fID)
-    implicit none
-
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:), intent(in) :: matrix
     !
@@ -540,7 +636,7 @@ contains
   !----------------------------------------------------------------
   
   function nCk(n,k) result(res)
-    implicit none
+
     !
     !    ..SCALAR ARGUMENTS..
     integer, value:: n, k
@@ -577,7 +673,7 @@ contains
   !----------------------------------------------------------------
   
   recursive function factorial(num) result (res)
-    implicit none
+
     !
     !    ..SCALAR ARGUMENTS..
     integer :: num
@@ -606,9 +702,8 @@ contains
   !  
   !----------------------------------------------------------------
   
-  function mean(array) 
+  real(8) function mean(array) 
     real(8),dimension(:,:,:),intent(in):: array  
-    real(8) :: mean
     mean = sum(array) / size(array)
   end function mean
 
@@ -629,54 +724,92 @@ contains
   !  
   !----------------------------------------------------------------
   
-  function stdev(array)
+  real(8) function stdev(array)
     real(8), dimension(:,:,:),intent(in):: array
-    real(8) :: stdev
     stdev = sqrt ( sum((array - mean(array))**2) / (size(array)-1) )
   end function stdev
 
 
 
   !----------------------------------------------------------------
-  !                          NORM
+  !                          NORM3
   !----------------------------------------------------------------
   ! USE:  
   !     Computes norm-1, norm-2 or norm-Inf of a 3D array     
   !     
   ! FORM:
-  !      function norm(double array,['1', or '2', or 'Inf'])
+  !      function norm3(double array,['1', or '2', or 'Inf'])
   !         
   ! BEHAVIOR: default is norm-2
   ! 
   !  
   !----------------------------------------------------------------
   
-  function norm(array, normType)
+  real(8) function norm3(array, normType)
     real(8), dimension(:,:,:),intent(in):: array
     character(*), optional, intent(in) :: normType 
-    real(8) :: norm
 
     if (present(normType)) then
        ! 
        ! L1 norm
        if (normType.eq.'1') then 
-          norm = sum(abs(array))
+          norm3 = sum(abs(array))
        !
        ! L2 norm   
        elseif (normType.eq.'2') then
-          norm = sqrt(sum(array**2))
+          norm3 = sqrt(sum(array**2))
        !
        ! L-Inf norm    
        elseif (normType.eq.'Inf') then
-          norm = maxval(array)
+          norm3 = maxval(array)
        else
           print*, 'Norms computed are 1-norm, 2-norm or Inf-norm'
        end if
     else
        ! Default: norm-2 
-       norm = sqrt(sum(array**2)) 
+       norm3 = sqrt(sum(array**2)) 
     end if   
-  end function norm
+  end function norm3
+
+  !----------------------------------------------------------------
+  !                          NORM2
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Computes norm-1, norm-2 or norm-Inf of a 3D array     
+  !     
+  ! FORM:
+  !      function norm2(double array,['1', or '2', or 'Inf'])
+  !         
+  ! BEHAVIOR: default is norm-2
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+  real(8) function norm2(array, normType)
+    real(8), dimension(:,:),intent(in):: array
+    character(*), optional, intent(in) :: normType 
+
+    if (present(normType)) then
+       ! 
+       ! L1 norm
+       if (normType.eq.'1') then 
+          norm2 = sum(abs(array))
+       !
+       ! L2 norm   
+       elseif (normType.eq.'2') then
+          norm2 = sqrt(sum(array**2))
+       !
+       ! L-Inf norm    
+       elseif (normType.eq.'Inf') then
+          norm2 = maxval(array)
+       else
+          print*, 'Norms computed are 1-norm, 2-norm or Inf-norm'
+       end if
+    else
+       ! Default: norm-2 
+       norm2 = sqrt(sum(array**2)) 
+    end if   
+  end function norm2
 
 
   !----------------------------------------------------------------
@@ -693,18 +826,9 @@ contains
   !  
   !----------------------------------------------------------------
   
-  function bigHalf(num)
-    implicit none
-    !
-    !    ..SCALAR ARGUMENTS..
+  integer function bigHalf(num)
     integer, intent(in) :: num
-    integer :: bighalf
-    !
-    !    ..LOCAL SCALARS..
-    real :: eps = 1e-5
-
-    bigHalf   = ceiling(0.5*real(num) + eps) 
-
+    bigHalf  = ceiling(0.5*real(num) + eps) 
   end function bigHalf
 
 
@@ -722,20 +846,52 @@ contains
   !  
   !----------------------------------------------------------------
   
-  function smallHalf(num)
-    implicit none
-    !
-    !    ..SCALAR ARGUMENTS..
+  integer function smallHalf(num)
     integer, intent(in) :: num
-    integer :: smallhalf
-    !
-    !    ..LOCAL SCALARS..
-    real :: eps = 1e-5
-
-    smallHalf   = floor(0.5*real(num) + eps) 
-
+    smallHalf  = floor(0.5*real(num) + eps) 
   end function smallHalf
 
-  
 
+  !----------------------------------------------------------------
+  !                          PROGRESS BAR
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Displays progress bar at every 10th percentage point
+  !     
+  ! FORM:
+  ! 
+  !         
+  ! BEHAVIOR: 
+  ! 
+  !  
+  !----------------------------------------------------------------
+
+  subroutine progressBar(count, count_max)
+    integer, intent(in) :: count
+    integer, intent(in) :: count_max
+    integer, save :: progress(2)
+
+    progress(2) = floor(real(count) / real(count_max) * 100.)
+    if ((mod(progress(2),10) == 0) .and. (progress(2) >= 10) .and. (progress(2).ne.progress(1))) then
+          print*, progress(2), ' %'
+    end if
+    progress(1) = progress(2)
+  end subroutine progressBar
+
+
+  !----------------------------------------------------------------
+  !                          PROGRESS BAR
+  !----------------------------------------------------------------
+  ! USE:  
+  !     Displays progress bar at every 10th percentage point
+  !     
+  ! FORM:
+  ! 
+  !         
+  ! BEHAVIOR: 
+  ! 
+  !  
+  !----------------------------------------------------------------
+  
+ 
 end module global

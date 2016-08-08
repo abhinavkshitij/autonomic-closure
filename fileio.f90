@@ -88,7 +88,7 @@ contains
      if (dataset.eq.'nrl') then
         endian = 'big_endian'
 
-!        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
+
         allocate(u_s(i_GRID,j_GRID,k_GRID))
         
         do fID = 1,DIM
@@ -107,12 +107,12 @@ contains
      elseif (dataset.eq.'hst') then
         DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
 
-
         allocate(u_s(i_GRID, bigHalf(j_GRID),k_GRID))
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
            filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
+!           print*, filename
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
@@ -121,7 +121,7 @@ contains
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
      elseif (dataset.eq.'jhu256'.or.dataset.eq.'sin3D') then
 
-        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
+        if (allocated(u).eqv..false.) allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         do fID = 1,DIM
            write(fIndex,'(i1)') fID
            if (fID.eq.4) then
@@ -197,7 +197,7 @@ contains
            end do
         end do
      end do
-     u(fID,:,1:129,:) = u_s(:,1:129,:) ! ### move back to (:,:,:)
+     u(fID,1:256,1:129,1:256) = u_s(1:256,1:129,1:256) ! ### move back to (:,:,:)
      close(fID)
 
    end subroutine readBinSingle
@@ -359,6 +359,7 @@ contains
 
            lowerIndex = lowerIndex + 96 
            upperIndex = upperIndex + 96
+
            if (fCount == 10) upperIndex = 1024
 
         end do
@@ -442,23 +443,60 @@ contains
    !   
    !----------------------------------------------------------------
    
-   subroutine plotVelocities()
+   subroutine plotVelocities(plotOption)
      implicit none
+     !
+     !    ..SCALAR ARGUMENTS..
+     character(*), optional, intent(in) :: plotOption
+     !
+     !    ..LOCAL VARIABLES..
+     character(64) :: filename
+     integer :: i, n_ij
+     character(1) :: ij
+
+
+     n_ij = 1
+     if (plotOption.eq.'All') n_ij = 3
      !
      ! SAVE VELOCITIES:
      print*
      print*,'Saving filtered velocities in', RES_PATH
-          
-     open(20,file=trim(RES_PATH)//'u_i.dat')
-     open(21,file=trim(RES_PATH)//'u_f.dat')
-     open(22,file=trim(RES_PATH)//'u_t.dat')
-     write(20,*) u (1,:,:,bigHalf(k_GRID))
-     write(21,*) u_f(1,:,:,bigHalf(k_GRID))
-     write(22,*) u_t(1,:,:,bigHalf(k_GRID))
-     close(20)
-     close(21)
-     close(22)
 
+     do i=1, n_ij
+        write(ij, '(i0)') i
+        open(20,file=trim(RES_PATH)//'u_i'//trim(ij)//'.dat')
+        open(21,file=trim(RES_PATH)//'u_f'//trim(ij)//'.dat')
+        open(22,file=trim(RES_PATH)//'u_t'//trim(ij)//'.dat')
+        write(20,*) u  (i,:,:,z_plane)
+        write(21,*) u_f(i,:,:,z_plane)
+        write(22,*) u_t(i,:,:,z_plane)
+        close(20)
+        close(21)
+        close(22)
+     end do
+
+end subroutine plotVelocities
+
+
+   !****************************************************************
+   !                            PLOT PRESSURE
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM:    subroutine plotPressure()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !      
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine plotPressure()
+     implicit none
      !
      ! SAVE PRESSURE:
      print*
@@ -467,14 +505,14 @@ contains
      open(30,file=trim(RES_PATH)//'p.dat')
      open(31,file=trim(RES_PATH)//'p_f.dat')
      open(32,file=trim(RES_PATH)//'p_t.dat')
-     write(30,*) u (4,:,:,bigHalf(k_GRID))
-     write(31,*) u_f(4,:,:,bigHalf(k_GRID))
-     write(32,*) u_t(4,:,:,bigHalf(k_GRID))
+     write(30,*) u  (4,:,:,z_plane)
+     write(31,*) u_f(4,:,:,z_plane)
+     write(32,*) u_t(4,:,:,z_plane)
      close(30)
      close(31)
      close(32)
 
-   end subroutine plotVelocities
+   end subroutine plotPressure
 
 
 
@@ -590,7 +628,8 @@ contains
            print*, 'ERROR READING DATA'
            print*, u_t(1,15,24,10)
            stop
-        elseif(T_ij(1,15,24,10).ne.-5.2544371578038401d-3) then
+        elseif( ( (stress.eq.'dev') .and. (T_ij(1,15,24,10).ne.-5.2544371578038401d-3))   &
+               .or. ( (stress.eq.'abs') .and. (T_ij(1,15,24,10).ne.-4.0152351790891661d-3) ) )then
            print*, 'ERROR COMPUTING T_ij'
            print*,'T_ij(1,15,24,10)',T_ij(1,15,24,10)
            stop
@@ -652,8 +691,8 @@ contains
         open(10,file=trim(RES_PATH)//'T_ij'//trim(ij)//'.dat')
         open(11,file=trim(RES_PATH)//'tau_ij'//trim(ij)//'.dat')
 
-        write(10,*) T_ij  (i,:,:,bigHalf(k_GRID))
-        write(11,*) tau_ij(i,:,:,bigHalf(k_GRID))
+        write(10,*) T_ij  (i,:,:,z_plane)
+        write(11,*) tau_ij(i,:,:,z_plane)
 
         close(10)
         close(11)
@@ -697,21 +736,72 @@ contains
      write(lambda_char,'(ES6.0E2)') lambda
 
      ! SAVE COMPUTED STRESS
-     print*,'Saving computed stresss in', RES_PATH, '\n'
+     print*,'Saving computed stress in', RES_PATH
  
      do i = 1, n_ij
         write(ij, '(i0)') i
         open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
         open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
 
-        write(10,*) T_ijOpt  (i,:,:,bigHalf(k_GRID))
-        write(11,*) tau_ijOpt(i,:,:,bigHalf(k_GRID))
+        write(10,*) T_ijOpt  (i,:,:,z_plane)
+        write(11,*) tau_ijOpt(i,:,:,z_plane)
 
         close(10)
         close(11)
      end do
 
    end subroutine plotComputedStress
+  
+   !****************************************************************
+   !                        LOAD COMPUTED STRESS
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Loads precomputed stresses for each lambda value
+   !      
+   !
+   ! FORM:    subroutine loadComputedStress()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !   
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine loadComputedStress(lambda, loadOption)
+     implicit none
+     !
+     !    ..SCALAR ARGUMENTS..
+     real(8), intent(in) :: lambda
+     character(*), optional, intent(in) :: loadOption
+     !
+     !    ..LOCAL VARIABLES..
+     integer :: i, n_ij
+     character(64) :: lambda_char
+     character(1) :: ij
+
+     n_ij = 1
+     if (loadOption.eq.'All') n_ij = 6
+
+     write(lambda_char,'(ES6.0E2)') lambda
+
+     ! SAVE COMPUTED STRESS
+     print*,'Load computed stress from', RES_PATH
+ 
+     do i = 1, n_ij
+        write(ij, '(i0)') i
+        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+
+        read(10,*) T_ijOpt  (i,:,:,z_plane)
+        read(11,*) tau_ijOpt(i,:,:,z_plane)
+
+        close(10)
+        close(11)
+     end do
+
+   end subroutine loadComputedStress
 
 
 
@@ -744,15 +834,14 @@ contains
      
      if (present(lambda)) then
         ! SAVE COMPUTED PRODUCTION TERM
-        print*
         print*,'Saving computed production field in', RES_PATH
         call system ('mkdir -p '//trim(RES_PATH))
 
         open(1,file=trim(RES_PATH)//'Pij_fOpt'  //trim(lambda_char(4:6)) // '.dat')
         open(2,file=trim(RES_PATH)//'Pij_tOpt'  //trim(lambda_char(4:6)) // '.dat')
 
-        write(1,*) Pij_fOpt(:,:,bigHalf(k_GRID))
-        write(2,*) Pij_tOpt(:,:,bigHalf(k_GRID))
+        write(1,*) Pij_fOpt(:,:,z_plane)
+        write(2,*) Pij_tOpt(:,:,z_plane)
         close(1)
         close(2)
 
@@ -764,8 +853,8 @@ contains
 
         open(1,file = trim(RES_PATH)//'Pij_f.dat')
         open(2,file = trim(RES_PATH)//'Pij_t.dat')
-        write(1,*) Pij_f(:,:,bigHalf(k_GRID))
-        write(2,*) Pij_t(:,:,bigHalf(k_GRID))
+        write(1,*) Pij_f(:,:,z_plane)
+        write(2,*) Pij_t(:,:,z_plane)
         close(1)
         close(2)
      end if
@@ -807,7 +896,7 @@ contains
      !
      ! PLOT PDF
      open(10, file = trim(RES_PATH)//trim('PDF')//trim(fieldname)//'.csv')
-     write(10,"( F10.4,',',F10.4 )"), (x(i), pdf(i), i=1,samples)
+     write(10,"( F10.4,',',F10.4 )"), (x(i), pdf(i), i=1,n_bins)
      close(10)
 
      ! SAVE STAT DATA

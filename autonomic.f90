@@ -3,19 +3,17 @@
 !****************************************************************
 
 !----------------------------------------------------------------
-! USE: 1)
-!      
+! USE: This is the MAIN() equivalent of the code. Loads library 
+!      procedures that are defined in MODULES. 
 !      
 !      
 !
 ! FORM: program autonomic
 !       
-!       
-!       
-!       
-!       
 !
-! BEHAVIOR: 
+! BEHAVIOR: Currently has no capability to read command line inputs.
+!
+!
 !           
 ! DEBUG FLAGS:
 !     useTestData:  Use only one velocity component and 3 velocity products
@@ -35,6 +33,19 @@
 !     
 ! ### Speed up this part -- Bottleneck  
 ! 
+! $$$ lambda (coarse points vs fine points)
+!         if (mod(iter,2).eq.1) then
+!            lambda = lambda_0(1) * 10**((iter-1)/2)
+!         else
+!            lambda = lambda_0(2) * 10**((iter-1)/2)
+!         end if
+!
+! %%%
+!   GET STATISTICS:
+!       print*, 'testError'
+!       call createPDF(var,plot=.true.,fieldname='errorTest')
+!       call createPDF(var,plot=.true.,fieldname='errorSGS')
+!
 !----------------------------------------------------------------
 
 program autonomic
@@ -45,24 +56,11 @@ program autonomic
 
   implicit none
 
-
   character(64) :: filename
   character(10) :: scale
-  !
-  !    ..CONTROL SWITCHES..
-  logical :: useTestData          =  0
-  logical :: readFile             =  1
-  logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  0
-  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
-  logical :: save_FFT_data        =  0
-
-  logical :: plot_Stresses        =  1
-  logical :: production_Term      =  0
-  logical :: save_ProductionTerm  =  0
 
   integer :: time_index
-  real(8) :: error_cross
+  real(8) :: u_rms, epsilon, TKE
 
 
   if (computeFFT_data.eqv..false.) then
@@ -74,11 +72,13 @@ program autonomic
   end if
 
   !    ..INIT POSTPROCESSING..
-  open(path_txt, file = trim(RES_DIR)//'path.txt')
+  open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
 
   call setEnv()
-  call printParams()
+  call printParams('display')
   print*, 'Dataset: ', dataset, '\n'
+  !print*, n_u, n_uu
+  !stop
 
 
   ! TEST DATA:
@@ -90,9 +90,6 @@ program autonomic
 
 
   time_loop: do time_index = time_init, time_final, time_incr
-!  time_loop: do time_index=1,1,1
-
-
 
      ! SET TIME PARAMS:
      write(time,'(i0)') time_index !num2str
@@ -122,9 +119,21 @@ program autonomic
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
-     ! ## PLOT Energy spectra:
+     ! TURBULENT FIELD STATISTICS:
+     if (turbulentStats) then
+     ! ## PLOT Energy spectra
+         TKE  = turbulentKE(u)
+         u_rms = sqrt( (mean(u(1,:,:,:)**2) + mean(u(2,:,:,:)**2) + mean(u(3,:,:,:)**2))/3.d0 )
+         print*, 'turbulentKE (k) = ',TKE
+         print*, 'rms velocity (u_rms) = ', u_rms 
+         if(allocated(Sij).eqv..false.)     allocate (Sij  (n_uu, i_GRID,j_GRID,k_GRID))
+         print*, 'nu = ', nu
+         call computeSij(u, Sij)
+         call dissipationRate(Sij, epsilon)
+         print*, 'Dissipation rate (epsilon) = ', epsilon
+     end if
 
-
+!stop
      ! ************** LEVEL 2 ****************!
      !
      ! ADD PATH DEPTH : SCALE
@@ -134,8 +143,6 @@ program autonomic
      write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
-
-
 
      ! 2] FILTER VELOCITIES [AND PRESSURE]:
      if(allocated(u_f).eqv..false.)        allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
@@ -160,18 +167,21 @@ program autonomic
         ! ###
         print*, 'Completed'
         call check_FFT(u_t(1,15,24,10))  
-        if (plot_Velocities)                                        call plotVelocities()
+        if (plot_Velocities) then
+                                                                       call plotVelocities('All')
+        if (withPressure)                                              call plotPressure()
+        end if
      end if
 
-
+!stop
 
      ! BREAKPOINT 1:
      if (useTestData) stop
 
 
      ! 3] GET FFT_DATA:
-     if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (n_uu,i_GRID,j_GRID,k_GRID))
-     if(allocated(T_ij).eqv..false.)       allocate (T_ij   (n_uu,i_GRID,j_GRID,k_GRID))
+     if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6, i_GRID, j_GRID, k_GRID))
+     if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
 
 
      ! COMPUTE ORIGINAL STRESS [SAVE]
@@ -185,12 +195,13 @@ program autonomic
         call loadFFT_data()
         call checkFFT_data()
      end if
-     if (plot_Stresses)                                            call plotOriginalStress('All')
+     if (plot_Stress)                                            call plotOriginalStress('All')
 
 
+     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,k_GRID))
+     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,k_GRID))
 
-     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (3,3, i_GRID,j_GRID,k_GRID))
-     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (3,3, i_GRID,j_GRID,k_GRID))
+
      ! 5] ORIGINAL PRODUCTION FIELD 
      if(production_Term) then
 
@@ -199,12 +210,14 @@ program autonomic
         call computeSij(u_f, Sij_f)
         call computeSij(u_t, Sij_t)
         ! ++ CHECK S_ij
+        
 
         if(allocated(Pij_f).eqv..false.)          allocate (Pij_f (i_GRID, j_GRID, k_GRID))
         if(allocated(Pij_t).eqv..false.)          allocate (Pij_t (i_GRID, j_GRID, k_GRID))
         call productionTerm(Pij_f, tau_ij, Sij_f)
         call productionTerm(Pij_t, T_ij,   Sij_t)
         ! +++  CHECK P_ij
+
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
      end if
@@ -213,17 +226,20 @@ program autonomic
      ! ************** LEVEL 3 ****************!
      !
      ! ADD PATH DEPTH : (METHOD) - LU or SVD
-     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/'
-     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'
+!     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/' 
+!     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'  
+     TEMP_PATH = trim(TEMP_PATH)//trim(CASE_NAME)//'/'
+     RES_PATH =  trim(RES_PATH)//trim(CASE_NAME)//'/'
+
+
      write(path_txt,*) RES_PATH
-     call system ('mkdir -p '//trim(TEMP_PATH))
+!     call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
 
-
      ! 6] AUTONOMICALLY TUNED LAMBDA
-     if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (n_uu,i_GRID,j_GRID,k_GRID))
-     if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (n_uu,i_GRID,j_GRID,k_GRID))
+     if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (6,i_GRID,j_GRID,k_GRID))
+     if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (6,i_GRID,j_GRID,k_GRID))
      if(allocated(h_ij).eqv..false.)               allocate (h_ij      (N,P))
 
      if (production_Term) then
@@ -232,37 +248,22 @@ program autonomic
      end if
 
 
+     ! EXTEND DOMAIN:
+     print*,'Extend domain:'
+     call extendDomain(u_f)
+     call extendDomain(u_t)
+     call extendDomain(T_ij) 
+
      print*, 'Autonomic closure ... '
-     open(cross_csv, file=trim(RES_PATH)//trim('crossValidationError')//trim(time)//trim('.csv'))
-     do iter = 1, n_lambda
-        lambda = lambda_0(1) * 10**(iter-1)
-        
-!         if (mod(iter,2).eq.1) then
-!            lambda = lambda_0(1) * 10**((iter-1)/2)
-!         else
-!            lambda = lambda_0(2) * 10**((iter-1)/2)
-!         end if
-        
-        print*, 'lambda ',lambda
-        call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
-        call computedStress   (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-        if (plot_Stresses)                                      call plotComputedStress(lambda,'All')
-        call trainingerror(T_ijOpt, T_ij, error_cross,'plot',cross_csv)
+     open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
+     open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
+! $$$
+     call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
 
-        ! 7] PRODUCTION FIELD - COMPUTED 
-        if(production_Term) then
-           call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
-           call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
-           if (save_ProductionTerm)                             call plotProductionTerm(lambda)
-        end if
-
-
-        !     GET STATISTICS:
-        !      print*, 'testError'
-        !      call createPDF(,plot=.true.,fieldname='errorTest')
-        !      call createPDF(,plot=.true.,fieldname='errorSGS')
-     end do
-     close(cross_csv)
-
+     close(cross_csv_T_ij)
+     close(cross_csv_tau_ij)
+! %%
   end do time_loop
+
+  close (path_txt)
 end program

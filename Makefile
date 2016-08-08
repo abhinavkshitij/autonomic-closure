@@ -18,6 +18,7 @@ include $(WORK)/../config/macros.mk
 #----------------------------------------------------------------
 
 
+
 #
 # AUTONOMIC : Validation case.
 OBJECTS_AUTONOMIC = global.o fileio.o fourier.o actools.o solver.o autonomic.o
@@ -40,6 +41,13 @@ OBJECTS_OPTIMIZE = global.o fileio.o solver.o optimize.o
 optimize : LFLAGS = -lblas -llapack $(HDF5_LIB)
 optimize : $(OBJECTS_OPTIMIZE)
 	   $(build-exe)
+
+#
+# JHU1024 : Dealias jhu1024 DATASET
+OBJECTS_JHU1024 = global.o fileio.o fourier.o  jhu_dealias.o
+dealias_jhu1024 : $(OBJECTS_JHU1024)
+	 $(build-exe)
+#	 $(plot-exe)
 
 
 #

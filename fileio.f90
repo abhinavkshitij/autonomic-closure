@@ -88,7 +88,7 @@ contains
      if (dataset.eq.'nrl') then
         endian = 'big_endian'
 
-        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
+!        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         allocate(u_s(i_GRID,j_GRID,k_GRID))
         
         do fID = 1,DIM
@@ -136,7 +136,7 @@ contains
 
         ! READ DOUBLE PRECISION DATA - JHU1024 - HDF5
       elseif (dataset.eq.'jhu1024'.and.ext.eq.'h5') then
-         call readHDF5(n_files=1)
+         call readHDF5(n_files=11)
       
         ! DEFAULT:
      else
@@ -313,9 +313,9 @@ contains
         if (n_files.le.10)then
            allocate(u(n_u, i_GRID,j_GRID, 96*n_files))
         end if
-        else
-           allocate(u(n_u, i_GRID, j_GRID, k_GRID))
-        end if
+     else
+        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
+     end if
 
         ! HDF5_INIT
         call h5open_f(error)  
@@ -328,7 +328,7 @@ contains
            else if (fCount.eq.2) then
               write(L_Index,'(i2)') lowerIndex
               write(U_Index,'(i3)') upperIndex
-           else if(fCount.ge.3.and.fCount.lt.10) then
+           else if(fCount.ge.3.and.fCount.le.10) then
               write(L_Index,'(i3)') lowerIndex
               write(U_Index,'(i3)') upperIndex
            else
@@ -347,14 +347,19 @@ contains
 
            ! LOAD DATA
            ! +     
-           call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) 
+           if (fCount == 11) then
+              call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex), data_dims, error) 
+           else
+              call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) 
+           end if
            ! ++ 
            ! ALTERNATE METHOD:READ INTO DSET_DATA. STASHED ABOVE.
            call h5dclose_f(dset_id, error)    
            call h5fclose_f(file_id, error)
 
-           lowerIndex = lowerIndex + 96
+           lowerIndex = lowerIndex + 96 
            upperIndex = upperIndex + 96
+           if (fCount == 10) upperIndex = 1024
 
         end do
 

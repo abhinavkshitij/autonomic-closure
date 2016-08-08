@@ -54,12 +54,12 @@ program autonomic
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  0
-  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
+  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN**** !
   logical :: save_FFT_data        =  0
 
   logical :: plot_Stresses        =  1
-  logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  1
+  logical :: production_Term      =  0
+  logical :: save_ProductionTerm  =  0
 
   integer :: time_index
   real(8) :: error_cross
@@ -89,8 +89,8 @@ program autonomic
   end if
 
 
-!  time_loop: do time_index = time_init, time_final, time_incr
-  time_loop: do time_index=1,1,1
+  time_loop: do time_index = time_init, time_final, time_incr
+!  time_loop: do time_index=1,1,1
 
 
 

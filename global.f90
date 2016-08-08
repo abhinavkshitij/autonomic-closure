@@ -64,11 +64,11 @@ module global
 
               
   character(8) :: machine        = trim (l_machine(1) % name)
-  character(8) :: dataset        = trim (l_dataset(2) % name)
+  character(8) :: dataset        = trim (l_dataset(5) % name)
   logical      :: withPressure   = 0
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set = 'S3' ! [S1, S3, S6]
-  character(3) :: stress = 'dev' ! [dev, abs]
+  character(2) :: hst_set = 'S1' ! [S1, S3, S6]
+  character(3) :: stress = 'abs' ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(2) % name)
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name)
 
@@ -179,7 +179,7 @@ module global
   character(64) :: TEMP_PATH
   character(64) :: RES_PATH
 
-  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
+  character(4) :: ext   = 'h5'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
   !
   !    ..MPI..
@@ -219,16 +219,17 @@ contains
     RES_PATH = RES_DIR
 
     ! GRID
-    i_GRID = 256
-    j_GRID = 256
-    k_GRID = 256
+    i_GRID = 1024
+    j_GRID = 1024
+    k_GRID = 1024
   
 
     ! TIME
     if (dataset.eq.'nrl') time = '0460'
     if (dataset.eq.'hst') then
        if (hst_set.eq.'S1') then
-          time = '016'; time_init = 16; time_incr = 1; time_final = 28
+!          time = '016'; time_init = 16; time_incr = 1; time_final = 28
+          time = '017'; time_init = 17; time_incr = 1; time_final = 28
        end if
        if (hst_set.eq.'S3') then
           time = '015'; time_init = 15; time_incr = 1; time_final = 24
@@ -245,20 +246,20 @@ contains
     n_u = 3
     if (withPressure) n_u = 4
     ! CHECK PRESSURE DATA AVAILABLIITY:
-    if(dataset.ne.'jhu256'.and.n_u.eq.4) then
-       print*, 'Dataset ',dataset,' has no pressure data files'
-       stop
-    end if
+!    if(dataset.ne.'jhu256'.and.n_u.eq.4) then
+!       print*, 'Dataset ',dataset,' has no pressure data files'
+!       stop
+!    end if
     n_uu = 6
     P = 6
 
     ! SCALE
-    LES_scale  = 40
+    LES_scale  = 128
     test_scale = 20
 
 
     ! FFT 
-    f_GRID = 256 !For FFT ops, the grid must be cubic.
+    f_GRID = 1024 !For FFT ops, the grid must be cubic.
     center = (0.5d0 * f_GRID) + 1.d0
     dx = 2.d0*pi/dble(i_GRID) !Only for JHU data. Change for others.    
 

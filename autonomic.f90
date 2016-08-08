@@ -77,9 +77,9 @@ program autonomic
   call setEnv()
   call printParams('display')
   print*, 'Dataset: ', dataset, '\n'
+  !print*, n_u, n_uu
+  !stop
 
-stop
-!print*, n_u, n_uu
 
   ! TEST DATA:
   if (useTestData) then
@@ -249,6 +249,7 @@ stop
 
 
      ! EXTEND DOMAIN:
+     print*,'Extend domain:'
      call extendDomain(u_f)
      call extendDomain(u_t)
      call extendDomain(T_ij) 

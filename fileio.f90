@@ -312,9 +312,9 @@ contains
         if (n_files.le.10)then
            allocate(u(n_u, i_GRID,j_GRID, 96*n_files))
         end if
-        else
-           allocate(u(n_u, i_GRID, j_GRID, k_GRID))
-        end if
+     else
+        allocate(u(n_u, i_GRID, j_GRID, k_GRID))
+     end if
 
         ! HDF5_INIT
         call h5open_f(error)  
@@ -327,7 +327,7 @@ contains
            else if (fCount.eq.2) then
               write(L_Index,'(i2)') lowerIndex
               write(U_Index,'(i3)') upperIndex
-           else if(fCount.ge.3.and.fCount.lt.10) then
+           else if(fCount.ge.3.and.fCount.le.10) then
               write(L_Index,'(i3)') lowerIndex
               write(U_Index,'(i3)') upperIndex
            else
@@ -354,7 +354,7 @@ contains
 
            lowerIndex = lowerIndex + 96
            upperIndex = upperIndex + 96
-
+           if (fCount == 10) upperIndex = 1023
         end do
 
         ! HDF5_FINALIZE

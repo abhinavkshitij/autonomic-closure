@@ -471,9 +471,9 @@ contains
     
     ! USE PERIODIC CONDITIONS ON GHOST CELLS:
     if (scheme.eq.'global') then
-       n_extendedLayers = 2
+       n_extendedLayers = Delta_test
     else
-        n_extendedLayers = boxLower + 2
+        n_extendedLayers = boxLower + Delta_test
     end if
     
     do k = 1, n_extendedLayers

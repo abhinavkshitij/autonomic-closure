@@ -80,7 +80,7 @@ module global
 
               
   character(8) :: machine        = trim (l_machine(1) % name)
-  character(8) :: dataset        = trim (l_dataset(3) % name)        ! [...,JHU, HST,...]
+  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0
 
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
@@ -248,7 +248,7 @@ module global
 
   !
   !    ..CASE NAME ..
-  character(*), parameter :: CASE_NAME = 'scratch-noncol'
+  character(*), parameter :: CASE_NAME = 'scratch-col'
 
   !----------------------------------------------------------------
   !
@@ -310,13 +310,13 @@ contains
     P = 6
 
     ! SCALE
-    LES_scale  = 20
-    test_scale = 10
+    LES_scale  = 40
+    test_scale = 20
     Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
     Delta_test = floor(real(Freq_Nyq) / real(test_scale))
     
     ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
-    lambda_0 = 1.d+01 * [1,3]
+    lambda_0 = 1.d-01 * [1,3]
     n_lambda = 1
     
 
@@ -383,8 +383,8 @@ contains
        boxLast   = i_GRID       ! Assuming the domain is equal in all directions
 
        boxCenterSkip = 1
-       extLower = 1  - boxLower - 2 
-       extUpper = i_GRID + boxLower + 2 ! Should be i_GRID + boxUpper + 2 [optimal but makes code complex]
+       extLower = 1  - boxLower - Delta_test
+       extUpper = i_GRID + boxLower + Delta_test ! Should be i_GRID + boxUpper + 2 [optimal but makes code complex]
        
        optLower = 0
        optUpper = 0
@@ -393,8 +393,8 @@ contains
        boxLast   = bigHalf(box(1)) + i_GRID - box(1)
 
        boxCenterSkip = box(1)
-       extLower = 1  -  2 
-       extUpper = i_GRID + 2  
+       extLower = 1  -  Delta_test 
+       extUpper = i_GRID + Delta_test  
 
        optLower = boxLower
        optUpper = boxUpper
@@ -472,7 +472,7 @@ contains
      
      write(fileID, * ), 'boxCenterSkip:       ', boxCenterSkip
      write(fileID, * ), 'trainingPointSkip:   ', trainingPointSkip
-     write(fileID, '(a22,ES8.1)' ), 'lambda_0:               ', lambda_0(1)
+     write(fileID, '(a22,ES8.1)' ), 'lambda_0:              ', lambda_0(1)
 
      
      write(fileID, * ), 'extendedDomain:      ', extLower, '\t', extUpper ,'\n'     

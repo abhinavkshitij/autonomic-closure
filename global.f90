@@ -189,6 +189,7 @@ module global
   !   .. EXTENDED DOMAIN..
   integer :: extLower           ! Lower index of extended domain using ghost cells
   integer :: extUpper           ! Upper index                "
+  integer :: n_extendedLayers   ! Ghost cells size on each side
 
   !    ..OPT..
   integer :: optLower
@@ -367,7 +368,7 @@ contains
                * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
                * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
        elseif (trainingPoints.eq.'random') then ! COLOCATED, RANDOM
-          M = 8 * N
+          M = 4 * N
           box  = ceiling(M**(1./3.)) * trainingPointSkip * box
           boxSize   = product(box/trainingPointSkip)
           maskSize  = boxSize - M ! 512-Training points(243) = 269
@@ -381,20 +382,22 @@ contains
     if (scheme.eq.'local') then
        boxFirst  = 1
        boxLast   = i_GRID       ! Assuming the domain is equal in all directions
-
        boxCenterSkip = 1
-       extLower = 1  - boxLower - Delta_test
+
+       extLower = 1 - boxLower - Delta_test
        extUpper = i_GRID + boxLower + Delta_test ! Should be i_GRID + boxUpper + 2 [optimal but makes code complex]
+       n_extendedLayers = boxLower + Delta_test
        
        optLower = 0
        optUpper = 0
-    else if (scheme.eq.'global') then  ! GLOBAL
+    else if (scheme.eq.'global') then  
        boxFirst  = bigHalf(box(1))  
        boxLast   = bigHalf(box(1)) + i_GRID - box(1)
-
        boxCenterSkip = box(1)
-       extLower = 1  -  Delta_test 
+
+       extLower = 1 - Delta_test 
        extUpper = i_GRID + Delta_test  
+       n_extendedLayers = Delta_test
 
        optLower = boxLower
        optUpper = boxUpper

@@ -78,7 +78,7 @@ program autonomic
   call printParams('display')
   print*, 'Dataset: ', dataset, '\n'
   !print*, n_u, n_uu
-  !stop
+  stop
 
 
   ! TEST DATA:
@@ -197,6 +197,7 @@ program autonomic
      end if
      if (plot_Stress)                                            call plotOriginalStress('All')
 
+!** DOWNSIZE Sij_f, Sij_t to a single plane. How to change the indices? 1 or z_plane?
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,k_GRID))
      if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,k_GRID))
@@ -211,6 +212,8 @@ program autonomic
         call computeSij(u_t, Sij_t)
         ! ++ CHECK S_ij
         
+
+!** DOWNSIZE Pij_f, Pij_t to a single plane. How to change the indices? 1 or z_plane?
 
         if(allocated(Pij_f).eqv..false.)          allocate (Pij_f (i_GRID, j_GRID, k_GRID))
         if(allocated(Pij_t).eqv..false.)          allocate (Pij_t (i_GRID, j_GRID, k_GRID))

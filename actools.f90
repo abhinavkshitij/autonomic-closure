@@ -456,7 +456,6 @@ contains
     !
     !   .. LOCAL VARS..
     real(8), dimension(:,:,:,:), allocatable :: temp
-    integer :: n_extendedLayers
     integer :: tempDim(4)
     integer :: i,j,k
 
@@ -470,12 +469,6 @@ contains
     array(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
     
     ! USE PERIODIC CONDITIONS ON GHOST CELLS:
-    if (scheme.eq.'global') then
-       n_extendedLayers = Delta_test
-    else
-        n_extendedLayers = boxLower + Delta_test
-    end if
-    
     do k = 1, n_extendedLayers
        do j = 1, n_extendedLayers
           do i = 1, n_extendedLayers

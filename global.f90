@@ -76,6 +76,8 @@ module global
 
   type(str16), parameter :: l_scheme(2) = [str16 ('local'),     &
                                            str16 ('global')]
+  type(str16), parameter :: l_compDomain(2) = [str16 ('all'),     &
+                                           str16 ('plane')]
 
 
               
@@ -90,7 +92,9 @@ module global
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-
+  character(8) :: compDomain     = trim (l_scheme(1) % name)         ! [all, plane]
+  
+  
   !----------------------------------------------------------------
   !
   !****************************************************************
@@ -108,7 +112,7 @@ module global
 
   logical :: plot_Stress          =  1
   logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  1
+  logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
 
 
@@ -188,8 +192,16 @@ module global
 
   !   .. EXTENDED DOMAIN..
   integer :: extLower           ! Lower index of extended domain using ghost cells
-  integer :: extUpper           ! Upper index                "
+  integer :: extUpper           ! Upper index
   integer :: n_extendedLayers   ! Ghost cells size on each side
+
+  !   .. BLOCK Z-DIR ..         ! FOR EXTENDED VARS - u_f, u_t, T_ij
+  integer :: z_extLower         ! Block below z_plane
+  integer :: z_extUpper         ! Block above z_plane
+  
+  !   .. PLANE Z-DIR ..         ! FOR NON-EXTENDED VARS - tau_ij. Sij_f, Sij_t, Pij_f, Pij_t, tau_ijOpt, T_ijOpt, Pij_fOpt, Pij_tOpt
+  integer :: zLower             ![ALL] (1:k_GRID) OR [PLANE](z_plane:z_plane) 
+  integer :: zUpper             ![ALL] (1:k_GRID) OR [PLANE](z_plane:z_plane) 
 
   !    ..OPT..
   integer :: optLower
@@ -313,8 +325,8 @@ contains
     ! SCALE
     LES_scale  = 40
     test_scale = 20
-    Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
-    Delta_test = floor(real(Freq_Nyq) / real(test_scale))
+    Delta_LES = 1!floor(real(Freq_Nyq) / real(LES_scale))
+    Delta_test = 2!floor(real(Freq_Nyq) / real(test_scale))
     
     ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
     lambda_0 = 1.d-01 * [1,3]
@@ -403,6 +415,18 @@ contains
        optUpper = boxUpper
     end if
 
+    if (compDomain.eq.'all') then
+       zLower = 1
+       zUpper = k_GRID
+       z_extLower = extLower
+       z_extUpper = extUpper
+    else if (compDomain.eq.'plane') then
+       zLower = z_plane
+       zUpper = z_plane
+       z_extLower = z_plane - boxLower - Delta_test
+       z_extUpper = z_plane + boxUpper + Delta_test
+    end if
+
     ! Statistics parameters:
     n_bins = 250
     N_cr = 3   !(11x11x11)
@@ -453,6 +477,8 @@ contains
      if (dataset.eq.'hst') then
         write(fileID, * ), 'HST set:          ', hst_set, '\n'
      end if
+
+     write(fileID, * ), 'Computation domain:  ', compDomain
 
      write(fileID, * ), 'Scheme:              ', scheme
      write(fileID, * ), 'Formulation:         ', formulation

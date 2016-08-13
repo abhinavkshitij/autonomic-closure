@@ -78,7 +78,7 @@ program autonomic
   call printParams('display')
   print*, 'Dataset: ', dataset, '\n'
   !print*, n_u, n_uu
-  stop
+  !stop
 
 
   ! TEST DATA:
@@ -197,7 +197,11 @@ program autonomic
      end if
      if (plot_Stress)                                            call plotOriginalStress('All')
 
-!** DOWNSIZE Sij_f, Sij_t to a single plane. How to change the indices? 1 or z_plane?
+!** DOWNSIZE Sij_f, Sij_t to a single plane. How to change the indices? Specify (...,z_plane:z_plane) if Sij is 3D
+!** DOWNSIZE u, u_f and u_t to the bounding box+stencil size limits in z-plane.
+     ! that is [z_plane-extLower:z_plane+extUpper]
+     ! All dummy vars should take the right indices, else it will start with 1: when the array is passed
+     ! on to the procudures.
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,k_GRID))
      if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,k_GRID))
@@ -211,7 +215,19 @@ program autonomic
         call computeSij(u_f, Sij_f)
         call computeSij(u_t, Sij_t)
         ! ++ CHECK S_ij
-        
+        print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,z_plane)
+        print*, 'Sij_t(2,15,24,129)', Sij_t(2,15,24,z_plane), '\n'
+        print*, 'tau_ij(2,15,24,129)', tau_ij(2,15,24,z_plane)
+        print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,z_plane) 
+        print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
+        print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
+        print*, 'u_f(2,15,24,129)', u_f(2,15,24,z_plane)
+        print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
+        print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
+        print*, 'u_t(2,15,24,129)', u_t(2,15,24,z_plane)
+        print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
+        print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
+
 
 !** DOWNSIZE Pij_f, Pij_t to a single plane. How to change the indices? 1 or z_plane?
 
@@ -220,6 +236,9 @@ program autonomic
         call productionTerm(Pij_f, tau_ij, Sij_f)
         call productionTerm(Pij_t, T_ij,   Sij_t)
         ! +++  CHECK P_ij
+        print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
+        print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
+
 
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
@@ -255,13 +274,30 @@ program autonomic
      print*,'Extend domain:'
      call extendDomain(u_f)
      call extendDomain(u_t)
-     call extendDomain(T_ij) 
+     call extendDomain(T_ij)    ! For 'b' vector
 
+     print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,z_plane) 
+     print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
+     print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
+     print*, 'u_f(2,15,24,129)', u_f(2,15,24,z_plane)
+     print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
+     print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
+     print*, 'u_t(2,15,24,129)', u_t(2,15,24,z_plane)
+     print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
+     print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
+
+     
      print*, 'Autonomic closure ... '
      open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
      open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
 ! $$$
      call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+
+     print*, 'tau_ijOpt(2,15,24,129)', tau_ijOpt(2,15,24,z_plane)
+     print*, 'T_ijOpt(2,15,24,129)', T_ijOpt(2,15,24,z_plane)
+     print*, 'Pij_fOpt(15,24,129)', Pij_fOpt(15,24,z_plane)
+     print*, 'Pij_tOpt(15,24,129)', Pij_tOpt(15,24,z_plane)
+
 
      close(cross_csv_T_ij)
      close(cross_csv_tau_ij)

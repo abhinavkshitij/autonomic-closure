@@ -82,17 +82,17 @@ module global
 
               
   character(8) :: machine        = trim (l_machine(1) % name)
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
+  character(8) :: dataset        = trim (l_dataset(3) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0
 
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set        = 'S3'                              ! [S1, S3, S6]
+  character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-  character(8) :: compDomain     = trim (l_scheme(1) % name)         ! [all, plane]
+  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   
   
   !----------------------------------------------------------------
@@ -112,7 +112,7 @@ module global
 
   logical :: plot_Stress          =  1
   logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  0
+  logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
 
@@ -323,13 +323,13 @@ contains
     P = 6
 
     ! SCALE
-    LES_scale  = 40
-    test_scale = 20
-    Delta_LES = 1!floor(real(Freq_Nyq) / real(LES_scale))
-    Delta_test = 2!floor(real(Freq_Nyq) / real(test_scale))
+    LES_scale  = 20
+    test_scale = 10
+    Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
+    Delta_test = floor(real(Freq_Nyq) / real(test_scale))
     
     ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
-    lambda_0 = 1.d-01 * [1,3]
+    lambda_0 = 1.d+01 * [1,3]
     n_lambda = 1
     
 
@@ -360,7 +360,7 @@ contains
                * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
                * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  !17576 
        elseif (trainingPoints.eq.'random') then ! NON-COLOCATED, RANDOM
-          M = 5 * N
+          M = 4 * N
           box = ceiling(M**(1./3.)) * trainingPointSkip * box
           boxSize   = product(box/trainingPointSkip)
           maskSize  = boxSize - M 
@@ -498,7 +498,13 @@ contains
 
      write(fileID, * ), 'boxFirst:            ', boxFirst
      write(fileID, * ), 'boxLast:             ', boxLast, '\n'
+
+     write(fileID, * ), 'extLower:            ', extLower
+     write(fileID, * ), 'extUpper:            ', extUpper, '\n'
+     write(fileID, * ), 'z_extLower:          ', z_extLower
+     write(fileID, * ), 'z_extUpper:          ', z_extUpper, '\n'
      
+
      write(fileID, * ), 'boxCenterSkip:       ', boxCenterSkip
      write(fileID, * ), 'trainingPointSkip:   ', trainingPointSkip
      write(fileID, '(a22,ES8.1)' ), 'lambda_0:              ', lambda_0(1)

@@ -118,7 +118,7 @@ contains
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:,:,:),  intent(in) :: u
-    real(8), dimension(:,:,:,:),intent(out) :: Sij 
+    real(8), dimension(1:,1:,1:,zLower:),intent(out) :: Sij 
     !
     !    ..WORK ARRAYS..
     real(8), allocatable, dimension(:,:,:,:,:)  :: A
@@ -127,17 +127,19 @@ contains
     !    ..INDICES..
     integer :: i,j,k !DO NOT REMOVE THIS LINE. i IS PASSED INTO gradient() AND ITS VALUE IS MODIFIED.
 
-    allocate (A(3,3,i_GRID,j_GRID,k_GRID))
-    allocate (grad_u(3,i_GRID,j_GRID,k_GRID))
+    allocate (A(3,3,i_GRID,j_GRID,zLower:zUpper))
+    allocate (grad_u(3,i_GRID,j_GRID,zLower:zUpper))
 
     !
     ! COMPUTE VELOCITY GRADIENTS:
     do i=1,3
        call gradient(u(i,:,:,:),grad_u)
-       A(i,:,:,:,:) = grad_u        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
+       A(i,:,:,:,zLower:zUpper) = grad_u(:,:,:,zLower:zUpper)        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
     end do
     deallocate(grad_u)
 
+!    print*, A(:,:,15,24,zLower)
+ 
     !
     ! COMPUTE S_ij:
     k = 0
@@ -146,12 +148,16 @@ contains
 
           if (i.ge.j) then
              k = k + 1
-             Sij(k,:,:,:) = 0.5d0 * (A(i,j,:,:,:) + A(j,i,:,:,:))
+             Sij(k,:,:,zLower:zUpper) = 0.5d0 * (A(i,j,:,:,zLower:zUpper) + A(j,i,:,:,zLower:zUpper))
           end if
 
        end do
     end do
     deallocate (A)
+    
+!    print*, 'Sij(2,15,24,zLower), Sij(2,15,24,z_plane), Sij(2,15,24,zUpper)'
+!    print*, Sij(2,15,24,zLower), Sij(2,15,24,z_plane), Sij(2,15,24,zUpper)
+!    stop
 
   end subroutine computeSij
 
@@ -184,7 +190,7 @@ contains
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension (:,:,:), intent(in) ::  f
-    real(8), dimension (:,:,:,:),intent(out) :: grad_f
+    real(8), dimension (1:,1:,1:,zLower:),intent(out) :: grad_f
     !
     !    ..LOCAL ARRAY..
     real(8), allocatable,dimension (:,:,:) :: u
@@ -198,18 +204,30 @@ contains
 
     !
     ! LOAD f ON WORK ARRAY u WITH EXTENDED DOMAIN TO CONTAIN GHOST CELLS
-    allocate(u (0:i_GRID+1, 0:j_GRID+1, 0:k_GRID+1))
-    u(1:i_GRID,1:j_GRID,1:k_GRID) = f
+    allocate(u (0:i_GRID+1, 0:j_GRID+1, zLower-1:zUpper+1))
 
-    ! CREATE GHOST CELLS: (BASED ON PERIODIC BC)
-    ! NEED AT 6 FACES:
-    u(0,:,:) = u(i_GRID,:,:) ; u(i_GRID+1,:,:) = u(1,:,:)
-    u(:,0,:) = u(:,j_GRID,:) ; u(:,j_GRID+1,:) = u(:,1,:)
-    u(:,:,0) = u(:,:,k_GRID) ; u(:,:,k_GRID+1) = u(:,:,1)
+    if (compDomain.eq.'all') then
+       ! COPY INTERIOR CELLS IN X-, Y-, Z-DIRS:
+       u(1:i_GRID, 1:j_GRID, 1:k_GRID) = f(1:i_GRID, 1:j_GRID, 1:k_GRID)
+
+       ! CREATE GHOST CELLS: (BASED ON PERIODIC BC) AT 6 FACES:
+       u(0,:,:) = u(i_GRID,:,:) ; u(i_GRID+1,:,:) = u(1,:,:)
+       u(:,0,:) = u(:,j_GRID,:) ; u(:,j_GRID+1,:) = u(:,1,:)
+       u(:,:,0) = u(:,:,k_GRID) ; u(:,:,k_GRID+1) = u(:,:,1) ! [ALL] Apply Periodic BC in z-dir
+
+    else if (compDomain.eq.'plane') then
+       ! COPY INTERIOR CELLS IN X- AND Y-DIRS: Retain ONE plane above and below z_plane
+       u(1:i_GRID, 1:j_GRID, zLower-1:zUpper+1) = f(1:i_GRID, 1:j_GRID, zLower-1:zUpper+1)
+
+       ! CREATE GHOST CELLS: (BASED ON PERIODIC BC) AT 4 FACES:
+       u(0,:,:) = u(i_GRID,:,:) ; u(i_GRID+1,:,:) = u(1,:,:)
+       u(:,0,:) = u(:,j_GRID,:) ; u(:,j_GRID+1,:) = u(:,1,:)
+
+    end if
 
     !
     ! APPLY 3D CENTRAL DIFFERENCING SCHEME AT INTERIOR POINTS:
-    do k=1,k_GRID
+    do k=zLower, zUpper
     do j=1,j_GRID
     do i=1,i_GRID
        grad_f(1,i,j,k) = dx_inv * (  u(i+1,j,k) - u(i-1,j,k) )
@@ -218,6 +236,9 @@ contains
     end do
     end do
     end do
+
+!    print*, grad_f(:,15,24,zLower)
+
   end subroutine gradient
 
 
@@ -249,9 +270,9 @@ contains
   subroutine productionTerm(P, tau_ij, S_ij)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(:,:,:,:), intent(in) :: tau_ij
-    real(8), dimension(:,:,:,:), intent(in) :: S_ij
-    real(8), dimension(:,:,:), intent(out) :: P
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: tau_ij
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: S_ij
+    real(8), dimension(1:,1:,zLower:), intent(out) :: P
     !
     !   .. LOCAL VARS..
     integer :: count 
@@ -264,9 +285,11 @@ contains
           if(i.ge.j) then
              count = count + 1
              if (i.eq.j) then
-                P(:,:,:) = P(:,:,:) + tau_ij(count,:,:,:) * S_ij (count,:,:,:) 
+                P(:,:,zLower:zUpper) = P(:,:,zLower:zUpper) + &
+                     tau_ij(count,:,:,zLower:zUpper) * S_ij (count,:,:,zLower:zUpper) 
              else
-                P(:,:,:) = P(:,:,:) + 2.d0 * (tau_ij(count,:,:,:) * S_ij(count,:,:,:))
+                P(:,:,zLower:zUpper) = P(:,:,zLower:zUpper) + &
+                     2.d0 * (tau_ij(count,:,:,zLower:zUpper) * S_ij(count,:,:,zLower:zUpper))
              end if
           end if
        end do
@@ -288,8 +311,8 @@ contains
   !       
   !
   ! BEHAVIOR: 
-  !           
-  !           
+  !           This is whole domain computation. Applies only when 
+  !           compDomain is [ALL]
   !           
   !           
   !          
@@ -403,8 +426,8 @@ contains
   subroutine secondOrderProducts(uiuj,ui)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: ui
-    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(out) :: uiuj
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: ui
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(out) :: uiuj
     !
     !   .. LOCAL VARS..
     integer :: count 
@@ -414,7 +437,9 @@ contains
        do i = 1, n_u
           if(i.ge.j) then
              count = count + 1
+!             uiuj(count,:,:,z_extLower:z_extUpper) = ui(i,:,:,z_extLower:z_extUpper) * ui(j,:,:,z_extLower:z_extUpper)
              uiuj(count,:,:,:) = ui(i,:,:,:) * ui(j,:,:,:)
+
           end if
        end do
     end do
@@ -460,14 +485,25 @@ contains
     integer :: i,j,k
 
     tempDim = shape(array)
-    allocate (temp (tempDim(1), tempDim(2), tempDim(3), tempDim(4)))
 
-    ! REALLOCATE ARRAY SIZE
-    temp = array
-    deallocate(array)
-    allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, extLower:extUpper))
-    array(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
+
+    ! REALLOCATE ARRAY SIZE AND COPY INTERIOR DOMAIN
+    if(compDomain.eq.'all') then
+       allocate (temp (tempDim(1), tempDim(2), tempDim(3), tempDim(4)))
+       temp = array
+       deallocate(array)
+       allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, z_extLower:z_extUpper))
+       array(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
+    else if (compDomain.eq.'plane') then
+       allocate (temp (tempDim(1), tempDim(2), tempDim(3), z_extLower:z_extUpper))
+       temp(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper) = array(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper)
+       deallocate(array)
+       allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, z_extLower:z_extUpper))
+       array(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper) = temp(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper)
+    end if
+
     
+    if(compDomain.eq.'all') then
     ! USE PERIODIC CONDITIONS ON GHOST CELLS:
     do k = 1, n_extendedLayers
        do j = 1, n_extendedLayers
@@ -482,6 +518,18 @@ contains
           end do
        end do
     end do
+    else if (compDomain.eq.'plane')then
+          do j = 1, n_extendedLayers
+             do i = 1, n_extendedLayers
+                array(:, 1-i, :, :) = array(:, i_GRID-i+1, :, :) ! x-plane 
+                array(:, :, 1-j, :) = array(:, :, j_GRID-j+1, :) ! y-plane 
+
+                array(:, i_GRID+i, :, :) = array(:, i, :, :)     ! x-plane 
+                array(:, :, j_GRID+j, :) = array(:, :, j, :)     ! y-plane 
+
+             end do
+          end do
+       end if
 
   end subroutine extendDomain
 

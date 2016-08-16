@@ -203,8 +203,8 @@ program autonomic
      ! All dummy vars should take the right indices, else it will start with 1: when the array is passed
      ! on to the procudures.
 
-     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,k_GRID))
-     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,k_GRID))
+     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
+     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
 
 
      ! 5] ORIGINAL PRODUCTION FIELD 
@@ -215,26 +215,29 @@ program autonomic
         call computeSij(u_f, Sij_f)
         call computeSij(u_t, Sij_t)
         ! ++ CHECK S_ij
-        print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,z_plane)
+        print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,z_plane)!, Sij_f(2,15,24,zLower), Sij_t(2,15,24,zUpper)
         print*, 'Sij_t(2,15,24,129)', Sij_t(2,15,24,z_plane), '\n'
         print*, 'tau_ij(2,15,24,129)', tau_ij(2,15,24,z_plane)
         print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,z_plane) 
-        print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
-        print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
+!        print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
+!        print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
         print*, 'u_f(2,15,24,129)', u_f(2,15,24,z_plane)
-        print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
-        print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
+!        print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
+!        print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
         print*, 'u_t(2,15,24,129)', u_t(2,15,24,z_plane)
-        print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
-        print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
+!        print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
+!        print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
 
 
 !** DOWNSIZE Pij_f, Pij_t to a single plane. How to change the indices? 1 or z_plane?
 
-        if(allocated(Pij_f).eqv..false.)          allocate (Pij_f (i_GRID, j_GRID, k_GRID))
-        if(allocated(Pij_t).eqv..false.)          allocate (Pij_t (i_GRID, j_GRID, k_GRID))
-        call productionTerm(Pij_f, tau_ij, Sij_f)
-        call productionTerm(Pij_t, T_ij,   Sij_t)
+        if(allocated(Pij_f).eqv..false.)          allocate (Pij_f (i_GRID, j_GRID, zLower:zUpper))
+        if(allocated(Pij_t).eqv..false.)          allocate (Pij_t (i_GRID, j_GRID, zLower:zUpper))
+!        call productionTerm(Pij_f(:,:,zLower:zUpper), tau_ij(:,:,:,zLower:zUpper), Sij_f(:,:,:,zLower:zUpper))
+!        call productionTerm(Pij_t(:,:,zLower:zUpper), T_ij(:,:,:,zLower:zUpper),   Sij_t(:,:,:,zLower:zUpper))
+        call productionTerm(Pij_f, tau_ij(:,:,:,zLower:zUpper), Sij_f)
+        call productionTerm(Pij_t, T_ij(:,:,:,zLower:zUpper),   Sij_t)
+
         ! +++  CHECK P_ij
         print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
         print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
@@ -260,13 +263,13 @@ program autonomic
 
 
      ! 6] AUTONOMICALLY TUNED LAMBDA
-     if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (6,i_GRID,j_GRID,k_GRID))
-     if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (6,i_GRID,j_GRID,k_GRID))
+     if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (6,i_GRID,j_GRID,zLower:zUpper))
+     if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (6,i_GRID,j_GRID,zLower:zUpper))
      if(allocated(h_ij).eqv..false.)               allocate (h_ij      (N,P))
 
      if (production_Term) then
-        if(allocated(Pij_fOpt).eqv..false.)        allocate (Pij_fOpt  (i_GRID, j_GRID, k_GRID))
-        if(allocated(Pij_tOpt).eqv..false.)        allocate (Pij_tOpt  (i_GRID, j_GRID, k_GRID))
+        if(allocated(Pij_fOpt).eqv..false.)        allocate (Pij_fOpt  (i_GRID, j_GRID, zLower:zUpper))
+        if(allocated(Pij_tOpt).eqv..false.)        allocate (Pij_tOpt  (i_GRID, j_GRID, zLower:zUpper))
      end if
 
 
@@ -276,15 +279,15 @@ program autonomic
      call extendDomain(u_t)
      call extendDomain(T_ij)    ! For 'b' vector
 
-     print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,z_plane) 
-     print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
-     print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
-     print*, 'u_f(2,15,24,129)', u_f(2,15,24,z_plane)
-     print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
-     print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
-     print*, 'u_t(2,15,24,129)', u_t(2,15,24,z_plane)
-     print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
-     print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
+     print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,zLower) 
+ !    print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
+ !    print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
+     print*, 'u_f(2,15,24,129)', u_f(2,15,24,zLower)
+ !    print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
+ !    print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
+     print*, 'u_t(2,15,24,129)', u_t(2,15,24,zLower)
+ !    print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
+ !    print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
 
      
      print*, 'Autonomic closure ... '

@@ -284,16 +284,16 @@ contains
   subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_f
-    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_t
-    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: T_ij
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_f
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: T_ij
 !    real(8), dimension(:,:,:,:), intent(in) :: T_ij
 
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
 
     real(8), dimension(:,:),     intent(out):: h_ij
-    real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt
-    real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
+    real(8), dimension(1:,1:,1:,zLower:), intent(out):: tau_ijOpt
+    real(8), dimension(1:,1:,1:,zLower:), intent(out):: T_ijOpt
     !
     !    ..LOCAL ARRAYS..
     real(8), dimension(:,:),     allocatable :: V  
@@ -309,7 +309,7 @@ contains
     !
     !    ..INDICES..
     integer :: i_train,     j_train,     k_train  
-    integer :: i_stencil, j_stencil, k_stencil 
+    integer :: i_stencil,   j_stencil,   k_stencil 
     integer :: row_index, col_index, row, col 
     integer :: u_comp, uu_comp 
 
@@ -336,8 +336,8 @@ contains
        ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
        ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
        if (order == 2) then
-          allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,extLower:extUpper))
-          allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,extLower:extUpper))
+          allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+          allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
           call secondOrderProducts(uu_t, u_t)
           call secondOrderProducts(uu_f, u_f)
        end if
@@ -446,8 +446,8 @@ contains
        ! PLOT STRESS AND PRODUCTION TERMS:
        if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
        if (production_Term) then
-          call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
-          call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+          call productionTerm(Pij_fOpt(:,:,zLower:zUpper), tau_ijOpt(:,:,:,zLower:zUpper), Sij_f(:,:,:,zLower:zUpper))
+          call productionTerm(Pij_tOpt(:,:,zLower:zUpper), T_ijOpt(:,:,:,zLower:zUpper),   Sij_t(:,:,:,zLower:zUpper))
           if (save_ProductionTerm)                             call plotProductionTerm(lambda)
        end if
        
@@ -628,11 +628,11 @@ contains
   subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_f
-    real(8), dimension(1:,extLower:,extLower:,extLower:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_f
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_t
     real(8), dimension(:,:),     intent(in) :: h_ij
-    real(8), dimension(:,:,:,:), intent(out):: T_ijOpt
-    real(8), dimension(:,:,:,:), intent(out):: tau_ijOpt 
+    real(8), dimension(1:,1:,1:,zLower:), intent(out):: T_ijOpt
+    real(8), dimension(1:,1:,1:,zLower:), intent(out):: tau_ijOpt 
     !
     !    ..LOCAL VARS..
     integer                :: col_index

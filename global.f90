@@ -76,21 +76,25 @@ module global
 
   type(str16), parameter :: l_scheme(2) = [str16 ('local'),     &
                                            str16 ('global')]
+  type(str16), parameter :: l_compDomain(2) = [str16 ('all'),     &
+                                           str16 ('plane')]
 
 
               
   character(8) :: machine        = trim (l_machine(1) % name)
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
+  character(8) :: dataset        = trim (l_dataset(3) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0
 
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set        = 'S3'                              ! [S1, S3, S6]
+  character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev, abs]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-
+  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
+  
+  
   !----------------------------------------------------------------
   !
   !****************************************************************
@@ -188,7 +192,16 @@ module global
 
   !   .. EXTENDED DOMAIN..
   integer :: extLower           ! Lower index of extended domain using ghost cells
-  integer :: extUpper           ! Upper index                "
+  integer :: extUpper           ! Upper index
+  integer :: n_extendedLayers   ! Ghost cells size on each side
+
+  !   .. BLOCK Z-DIR ..         ! FOR EXTENDED VARS - u_f, u_t, T_ij
+  integer :: z_extLower         ! Block below z_plane
+  integer :: z_extUpper         ! Block above z_plane
+  
+  !   .. PLANE Z-DIR ..         ! FOR NON-EXTENDED VARS - tau_ij. Sij_f, Sij_t, Pij_f, Pij_t, tau_ijOpt, T_ijOpt, Pij_fOpt, Pij_tOpt
+  integer :: zLower             ![ALL] (1:k_GRID) OR [PLANE](z_plane:z_plane) 
+  integer :: zUpper             ![ALL] (1:k_GRID) OR [PLANE](z_plane:z_plane) 
 
   !    ..OPT..
   integer :: optLower
@@ -313,13 +326,13 @@ contains
     P = 6
 
     ! SCALE
-    LES_scale  = 40
-    test_scale = 20
+    LES_scale  = 20
+    test_scale = 10
     Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
     Delta_test = floor(real(Freq_Nyq) / real(test_scale))
     
     ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
-    lambda_0 = 1.d-01 * [1,3]
+    lambda_0 = 1.d+01 * [1,3]
     n_lambda = 1
     
 
@@ -350,7 +363,7 @@ contains
                * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
                * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  !17576 
        elseif (trainingPoints.eq.'random') then ! NON-COLOCATED, RANDOM
-          M = 5 * N
+          M = 4 * N
           box = ceiling(M**(1./3.)) * trainingPointSkip * box
           boxSize   = product(box/trainingPointSkip)
           maskSize  = boxSize - M 
@@ -370,7 +383,7 @@ contains
                * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
                * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
        elseif (trainingPoints.eq.'random') then ! COLOCATED, RANDOM
-          M = 8 * N
+          M = 4 * N
           box  = ceiling(M**(1./3.)) * trainingPointSkip * box
           boxSize   = product(box/trainingPointSkip)
           maskSize  = boxSize - M ! 512-Training points(243) = 269
@@ -384,23 +397,37 @@ contains
     if (scheme.eq.'local') then
        boxFirst  = 1
        boxLast   = i_GRID       ! Assuming the domain is equal in all directions
-
        boxCenterSkip = 1
-       extLower = 1  - boxLower - Delta_test
+
+       extLower = 1 - boxLower - Delta_test
        extUpper = i_GRID + boxLower + Delta_test ! Should be i_GRID + boxUpper + 2 [optimal but makes code complex]
+       n_extendedLayers = boxLower + Delta_test
        
        optLower = 0
        optUpper = 0
-    else if (scheme.eq.'global') then  ! GLOBAL
+    else if (scheme.eq.'global') then  
        boxFirst  = bigHalf(box(1))  
        boxLast   = bigHalf(box(1)) + i_GRID - box(1)
-
        boxCenterSkip = box(1)
-       extLower = 1  -  Delta_test 
+
+       extLower = 1 - Delta_test 
        extUpper = i_GRID + Delta_test  
+       n_extendedLayers = Delta_test
 
        optLower = boxLower
        optUpper = boxUpper
+    end if
+
+    if (compDomain.eq.'all') then
+       zLower = 1
+       zUpper = k_GRID
+       z_extLower = extLower
+       z_extUpper = extUpper
+    else if (compDomain.eq.'plane') then
+       zLower = z_plane
+       zUpper = z_plane
+       z_extLower = z_plane - boxLower - Delta_test
+       z_extUpper = z_plane + boxUpper + Delta_test
     end if
 
     ! Statistics parameters:
@@ -454,6 +481,8 @@ contains
         write(fileID, * ), 'HST set:          ', hst_set, '\n'
      end if
 
+     write(fileID, * ), 'Computation domain:  ', compDomain
+
      write(fileID, * ), 'Scheme:              ', scheme
      write(fileID, * ), 'Formulation:         ', formulation
      write(fileID, * ), 'Pressure Term:       ', withPressure
@@ -472,7 +501,13 @@ contains
 
      write(fileID, * ), 'boxFirst:            ', boxFirst
      write(fileID, * ), 'boxLast:             ', boxLast, '\n'
+
+     write(fileID, * ), 'extLower:            ', extLower
+     write(fileID, * ), 'extUpper:            ', extUpper, '\n'
+     write(fileID, * ), 'z_extLower:          ', z_extLower
+     write(fileID, * ), 'z_extUpper:          ', z_extUpper, '\n'
      
+
      write(fileID, * ), 'boxCenterSkip:       ', boxCenterSkip
      write(fileID, * ), 'trainingPointSkip:   ', trainingPointSkip
      write(fileID, '(a22,ES8.1)' ), 'lambda_0:              ', lambda_0(1)

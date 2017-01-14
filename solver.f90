@@ -277,8 +277,41 @@ contains
   ! segmentation fault. Thus the index of the strided elements
   ! that are used to form T_ijOpt and tau_ijOpt arrays should be
   ! mapped with _boxCenter indices to give a contiguous array (17,17,17)
+  !  
+  ! $
+  ! PRINT H_IJ
+  ! if (check_h_ij) then
+  !    print*, 'size(h_ij):', size(h_ij)
+  !    do i = 1, size(h_ij,dim=1)
+  !       print*, i, h_ij(i,:)
+  !    end do
+  !    check_h_ij = 0
+  ! end if
   !
-  !     
+  !  $$
+  !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
+  !      call trainingError(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
+  !      call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
+  !
+  !
+  !   ^^ CHECK V,T with results from MATLAB code [BOULDER]
+  !            if (stress.eq.'dev') then
+  !              if (withPressure.eqv..false.) then          
+  !                 if (dataset.eq.'jhu256') then
+  !                    if (V(1500,2000).ne.2.0009431419772586d-2) then
+  !                       print*, "Error! Check sorting order in  V matrix!"
+  !                       print*, 'V(1500,2000)', V(1500,2000)
+  !
+  !                       if (T(3,1).ne.8.7759832493259110d-2)then
+  !                          print*, "Error! Check sorting order in  T vector!"
+  !                          print*, T(3,1)
+  !                       end if
+  !                    end if
+  !                 end if
+  !              end if
+  !           end if
+  !
+  !
   !----------------------------------------------------------------
   
   subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
@@ -287,8 +320,6 @@ contains
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_f
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_t
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: T_ij
-!    real(8), dimension(:,:,:,:), intent(in) :: T_ij
-
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
 
     real(8), dimension(:,:),     intent(out):: h_ij
@@ -319,11 +350,6 @@ contains
     logical :: printval
     logical :: check_h_ij = 1
 
-    ! To determine stresses at coarse and fine stencil,
-    ! velocities and their products must be known at LES
-    ! scale. Though on the test scale it will skip every other point (coarse stencil)
-    ! the fine stencil will require LES scale values to compute tau_ijOpt
-
 ! ##
     allocate (V (M, N) )
     allocate (T (M, P) )
@@ -336,17 +362,19 @@ contains
        ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
        ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
        if (order == 2) then
-          allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
-          allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+          if (allocated(uu_t).eqv..false.)allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+          if (allocated(uu_f).eqv..false.)allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
           call secondOrderProducts(uu_t, u_t)
           call secondOrderProducts(uu_f, u_f)
        end if
+
 
        ! Z-MIDPLANE COMPUTATION: 
        do k_boxCenter = z_plane, z_plane
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
+!print*, i_boxCenter, j_boxCenter, k_boxCenter
           if (trainingPoints.eq.'random') then
              call randTrainingSet(randMask)
              rand_count = 0
@@ -363,9 +391,12 @@ contains
                    if (any(randMask.eq.rand_count)) cycle
                 end if
 
+!print*, row_index, i_train, j_train, k_train
+
                 col_index = 0 
                 row_index = row_index + 1
-       
+
+
                 ! ZERO ORDER TERMS:
                 col_index = col_index + 1
                 V(row_index, col_index) = 1.d0
@@ -402,9 +433,8 @@ contains
 
              !
              ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
-             do iter = 1, n_lambda
-                lambda = lambda_0(1) * 10**(iter-1)
-
+!             do iter = 1, n_lambda
+!                lambda = lambda_0(1) * 10**(iter-1)
 
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
@@ -416,33 +446,16 @@ contains
                    stop
                 end if
 
-! PRINT H_IJ
-! if (check_h_ij) then
-!    print*, 'size(h_ij):', size(h_ij)
-!    do i = 1, size(h_ij,dim=1)
-!       print*, i, h_ij(i,:)
-!    end do
-!    check_h_ij = 0
-! end if
-
-
-                ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+!$
                 call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-
-
-                !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
-!                call trainingError(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
-!                call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
-
-             end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX       
+! $$
+!             end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX       
 ! &&&     
 
        end do
        end do
        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
-
- 
        ! PLOT STRESS AND PRODUCTION TERMS:
        if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
        if (production_Term) then
@@ -451,6 +464,7 @@ contains
           if (save_ProductionTerm)                             call plotProductionTerm(lambda)
        end if
        
+    
     else
 
        ! NON-COLOCATED FORMULATION WITH ORDERED TRAINING POINTS:
@@ -516,34 +530,14 @@ contains
           end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
           
-          ! CHECK V:
-          if (withPressure.eqv..false.) then
-          if (dataset.eq.'jhu256'.and.V(1500,2000).ne.2.0009431419772586d-2) then
-             print*, "Error! Check sorting order in  V matrix!"
-             print*, 'V(1500,2000)', V(1500,2000)
- !            stop
-          else 
-             print*,'V matrix check ... Passed'
-          end if
-          end if
-
-          !CHECK T:
-          if (withPressure.eqv..false. .and. stress.eq.'dev') then
-             if (dataset.eq.'jhu256'.and.T(3,1).ne.8.7759832493259110d-2)then
-                print*, "Error! Check sorting order in  T vector!"
-                print*, T(3,1)
-                !             stop
-             else 
-                print*,'T vector check ... Passed'
-             end if
-          end if
+          ! CHECK V,T: ^^
 
           !
           ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
-          do iter = 1, n_lambda
+!          do iter = 1, n_lambda
 !             lambda = lambda_0(1) * 10**(iter-1)
-             lambda = lambda_0(iter)
-             print('(a8,ES10.2)'), 'lambda ',lambda
+!             lambda = lambda_0(iter)
+!             print('(a8,ES10.2)'), 'lambda ',lambda
              
              !
              ! CALL SOLVER: LATER SPLIT IT INTO 1) FACTORIZATION STEP (OUT OF LOOP)
@@ -579,14 +573,16 @@ contains
              end if
 
              !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
-             call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
-             call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
+!             call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
+!             call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
 
-          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
+!          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
 
        end do
        end do
        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
+
+
 
     end if
 

@@ -13,13 +13,15 @@
 !       subroutine computeS_ij         [FILTER]
 !       subroutine gradient            [FILTER]    
 !       subroutine productionTerm      [FILTER]
+!       subroutine vorticity           [FILTER]
 !       subroutine dissipationRate     
 !       function   turbulentKE         
 !       subroutine secondOrderProducts [FILTER]
 !       subroutine extendDomain        [FILTER]
 !       subroutine createPDF           [FILTER]
 !       subroutine trainingError
-!       
+!       subroutine bandPassFilter      [FILTER]
+!       subroutine rotateX             [FILTER]
 ! BEHAVIOR: 
 !           
 !           
@@ -133,8 +135,8 @@ contains
     !
     ! COMPUTE VELOCITY GRADIENTS:
     do i=1,3
-       call gradient(u(i,:,:,:),grad_u)
-       A(i,:,:,:,zLower:zUpper) = grad_u(:,:,:,zLower:zUpper)        ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
+       call gradient(u(i,:,:,:),grad_u) ! Returns dudx, dudy, dudz for each ui
+       A(i,:,:,:,zLower:zUpper) = grad_u(:,:,:,zLower:zUpper)  ! A(1),A(2),A(3) -> grad_u_x, grad_u_y, grad_u_z
     end do
     deallocate(grad_u)
 
@@ -296,6 +298,88 @@ contains
     end do
 
   end subroutine productionTerm
+
+  
+  !****************************************************************
+  !                              VORTICITY
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE:  Calculates CURL using central order differencing
+  !       Returns vorticity, omega as curl of velocity
+  !                 
+  !  
+  !
+  ! FORM: subroutine vorticity(f, curl_f)
+  !       
+  !
+  ! BEHAVIOR: Uses ghost cells
+  !           
+  !           
+  !           
+  !          
+  !
+  ! STATUS : Extend this capability to all possible BC
+  ! 
+  !----------------------------------------------------------------
+
+  subroutine vorticity(f, curl_f)
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension (:,:,:,:), intent(in) ::  f
+    real(8), dimension (1:,1:,1:,zLower:), intent(out) :: curl_f
+    !
+    !    ..LOCAL ARRAY..
+    real(8), allocatable,dimension (:,:,:,:) :: u
+    !
+    !    ..LOCAL SCALARS..
+    real(8) :: dx_inv
+
+    !
+    ! FIND 1/dx FOR CENTRAL DIFFERENCING
+    dx_inv = 1.d0/(2.d0*dx)
+
+    !
+    ! LOAD f ON WORK ARRAY u WITH EXTENDED DOMAIN TO CONTAIN GHOST CELLS
+    allocate(u (1:3,0:i_GRID+1, 0:j_GRID+1, zLower-1:zUpper+1))
+
+    if (compDomain.eq.'all') then
+       ! COPY INTERIOR CELLS IN X-, Y-, Z-DIRS:
+       u(:,1:i_GRID, 1:j_GRID, 1:k_GRID) = f(:,1:i_GRID, 1:j_GRID, 1:k_GRID)
+
+       ! CREATE GHOST CELLS: (BASED ON PERIODIC BC) AT 6 FACES:
+       u(:,0,:,:) = u(:,i_GRID,:,:) ; u(:,i_GRID+1,:,:) = u(:,1,:,:)
+       u(:,:,0,:) = u(:,:,j_GRID,:) ; u(:,:,j_GRID+1,:) = u(:,:,1,:)
+       u(:,:,:,0) = u(:,:,:,k_GRID) ; u(:,:,:,k_GRID+1) = u(:,:,:,1) ! [ALL] Apply Periodic BC in z-dir
+
+    else if (compDomain.eq.'plane') then
+       ! COPY INTERIOR CELLS IN X- AND Y-DIRS: Retain ONE plane above and below z_plane
+       u(:,1:i_GRID, 1:j_GRID, zLower-1:zUpper+1) = f(:,1:i_GRID, 1:j_GRID, zLower-1:zUpper+1)
+
+       ! CREATE GHOST CELLS: (BASED ON PERIODIC BC) AT 4 FACES:
+       u(:,0,:,:) = u(:,i_GRID,:,:) ; u(:,i_GRID+1,:,:) = u(:,1,:,:)
+       u(:,:,0,:) = u(:,:,j_GRID,:) ; u(:,:,j_GRID+1,:) = u(:,:,1,:)
+
+    end if
+
+    !
+    ! APPLY 3D CENTRAL DIFFERENCING SCHEME AT INTERIOR POINTS:
+    do k=zLower, zUpper
+    do j=1,j_GRID
+    do i=1,i_GRID
+       curl_f(1,i,j,k) = dx_inv * ( ( u(3,i,j+1,k) - u(3,i,j-1,k) ) - ( u(2,i,j,k+1) - u(2,i,j,k-1) ) )
+       curl_f(2,i,j,k) = dx_inv * ( ( u(1,i,j,k+1) - u(1,i,j,k-1) ) - ( u(3,i+1,j,k) - u(3,i-1,j,k) ) )
+       curl_f(3,i,j,k) = dx_inv * ( ( u(2,i+1,j,k) - u(2,i-1,j,k) ) - ( u(1,i,j+1,k) - u(1,i,j-1,k) ) )
+    end do
+    end do
+    end do
+
+!    print*, grad_f(:,15,24,zLower)
+ 
+  end subroutine vorticity
+  
+
+
 
   
   !****************************************************************
@@ -502,6 +586,7 @@ contains
        array(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper) = temp(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper)
     end if
 
+!print*, shape(temp), shape(array)
     
     if(compDomain.eq.'all') then
     ! USE PERIODIC CONDITIONS ON GHOST CELLS:
@@ -530,7 +615,7 @@ contains
              end do
           end do
        end if
-
+!print*, shape(temp), shape(array)
   end subroutine extendDomain
 
   
@@ -702,6 +787,95 @@ contains
      end if
 
   end subroutine trainingError
+
+
+  !****************************************************************
+  !                        ROTATE X                               !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Performs +90 deg rotation on a rank-4 array along x-axis (i-dir)       
+  !       
+  !
+  ! FORM: subroutine rotateX(a)
+  !       
+  !
+  ! BEHAVIOR: The original y-axis now becomes z-axis running from
+  !           right to left. Old indices (2,15,24,129) -> New (2,15,128,24) 
+  !           
+  !           
+  !           
+  ! STATUS :  
+  !
+  !
+  !----------------------------------------------------------------
+  
+  subroutine rotateX(a)
+
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(inout):: a
+    !
+    !   ..LOCAL VARIABLES..
+    real(8), dimension(:,:,:,:), allocatable :: temp
+    integer :: j,k
+    integer :: dims(4)
+
+    dims = shape(a)
+    allocate(temp(dims(1),dims(2), dims(3), dims(4)))
+    
+    do k = 1, size(a,dim=4)
+       do j = 1, size(a,dim=3)
+          temp (:,:,j_GRID-j+1,k) = a(:,:,k,j)
+       end do
+    end do
+    a = temp
+  end subroutine rotateX
+
+  
+  !****************************************************************
+  !                        ROTATE Y                               !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Performs +90 deg rotation on a rank-4 array along y-axis (j-dir)       
+  !       
+  !
+  ! FORM: subroutine rotateY(a)
+  !       
+  !
+  ! BEHAVIOR: The original y-axis now becomes z-axis running from
+  !           right to left. Old indices (2,15,24,129) -> New (2,15,128,24) 
+  !           
+  !           
+  !           
+  ! STATUS :  
+  !
+  !
+  !----------------------------------------------------------------
+  
+  subroutine rotateY(a)
+
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(:,:,:,:), intent(inout):: a
+    !
+    !   ..LOCAL VARIABLES..
+    real(8), dimension(:,:,:,:), allocatable :: temp
+    integer :: i,k
+    integer :: dims(4)
+
+    dims = shape(a)
+    allocate(temp(dims(1),dims(2), dims(3), dims(4)))
+
+    do k = 1, size(a,dim=4)
+       do i = 1, size(a,dim=2)
+          temp (:,i,:,k_GRID-k+1) = a(:,k,:,i)
+       end do
+    end do
+
+    a = temp
+  end subroutine rotateY
 
 
 end module actools

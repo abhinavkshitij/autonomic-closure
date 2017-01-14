@@ -242,7 +242,7 @@ contains
   ! Notes  : 
   !         1) dfftw_execute(plan) takes 2 secs
   !         2) Uses FFTW libraries.
-  !         3) Makes no diff if I use C_DOUBLE or real(8)
+  !         3) Use C_DOUBLE, C_INT, etc for C-compatibility on any platform.
   !         4) Can use ABS(in_cmplx) but residual imaginary values 
   !            are not exactly 0.d0.
   !         5) Normalization depends in total number of points
@@ -270,7 +270,7 @@ contains
     in_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:j_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
 
 
-    ! FFT:
+    ! FT:
     call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
     call dfftw_execute(plan)    
     call dfftw_destroy_plan(plan)

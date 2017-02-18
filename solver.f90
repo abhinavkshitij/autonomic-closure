@@ -449,6 +449,7 @@ contains
 !$
                 call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
 ! $$
+
 !             end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX       
 ! &&&     
 
@@ -476,10 +477,10 @@ contains
        ! WHOLE DOMAIN COMPUTATION: 
 
 !       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
-       do k_boxCenter = z_plane, z_plane
+       do k_boxCenter = z_plane, z_plane                    
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
-                    
+
           if (trainingPoints.eq.'random') then
              call randTrainingSet(randMask)
              rand_count = 0
@@ -487,7 +488,6 @@ contains
           row_index  = 0 
 
            ! VISIT TRAINING POINT: C-ORDER
-
           do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip       
           do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
           do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip       
@@ -538,6 +538,8 @@ contains
           
           
           ! CHECK V,T: ^^
+print*, 'V(1500,2000) ',V(1500,2000)
+print*, 'T(3,1) ', T(3,1)
 
           !
           ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
@@ -751,8 +753,8 @@ contains
           ! do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper 
 ! Cross-validation points [Preferred]:
        do k_opt = k_boxCenter-3*smallHalf(N_cr), k_boxCenter+3*smallHalf(N_cr), 3
-       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
+       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
 
           col_index = 0 
          

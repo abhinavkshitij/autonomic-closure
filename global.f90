@@ -103,7 +103,7 @@ module global
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [deviatoric, absolute]
-  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
+  character(16):: formulation    = trim (l_formulation(2) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]

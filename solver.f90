@@ -515,7 +515,8 @@ contains
           end do
           end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
-          
+print*, 'V(1500,2000)', V(1500,2000)
+print*, 'T(3,1)', T(3,1)          
           ! CHECK V:
           if (withPressure.eqv..false.) then
           if (dataset.eq.'jhu256'.and.V(1500,2000).ne.2.0009431419772586d-2) then
@@ -540,9 +541,10 @@ contains
 
           !
           ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
-          do iter = 1, n_lambda
+!          do iter = 1, n_lambda
 !             lambda = lambda_0(1) * 10**(iter-1)
-             lambda = lambda_0(iter)
+!             lambda = lambda_0(iter)
+             lambda = 1.d-03
              print('(a8,ES10.2)'), 'lambda ',lambda
              
              !
@@ -556,7 +558,7 @@ contains
                 print*, 'Choose correct solver: LU, SVD'
                 stop
              end if
-
+print*,'h_ij(350,1)',h_ij(350,1)
              ! CHECK h_ij:
              if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
                 if (h_ij(350,1).ne.-4.5121154730201521d-2)then
@@ -582,7 +584,7 @@ contains
              call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
              call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
 
-          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
+!          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
 
        end do
        end do

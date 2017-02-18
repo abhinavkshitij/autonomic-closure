@@ -47,57 +47,74 @@ module global
      character (16) :: name
   end type str16
 
-  type(str16), parameter :: l_machine(2) = [str16 ('local'),     &
+
+  ! MACHINE TYPE 
+  type(str16), parameter :: l_machine(2) = [str16 ('local'),             &
                                             str16 ('remote')]
 
-  type(str16), parameter :: var(2) = [str16 ('Velocity'),      &
+  ! BASE VARIABLES - VELOCITY, PRESSURE
+  type(str16), parameter :: var(2) = [str16 ('Velocity'),                &
                                       str16 ('Pressure')]
 
-  type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),     & 
-                                            str16 ('jhu256'),  & ! jhu256
-                                            str16 ('hst'),     &
-                                            str16 ('sin3D'),   &
+  ! DATASET
+  type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),               & 
+                                            str16 ('jhu256'),            & ! jhu256
+                                            str16 ('hst'),               &
+                                            str16 ('sin3D'),             &
                                             str16 ('jhu1024')]
 
-  type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),     &
-                                          str16 ('u_t'),     &
-                                          str16 ('tau_ij'),  &
+  ! FILTERED VARIABLES 
+  type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),                 &
+                                          str16 ('u_t'),                 &
+                                          str16 ('tau_ij'),              &
                                           str16 ('T_ij')]  
                                       
-
+  ! SOLUTION METHOD
   type(str16), parameter :: l_solutionMethod(2) = [str16 ('LU'),         &
                                                    str16 ('SVD')]
 
+  ! TRAINING POINTS
   type(str16), parameter :: l_trainingPoints(2) = [str16 ('ordered'),    &
                                                    str16 ('random')] 
 
+  ! FORMULATION - COLOCATED OR NONCOLOCATED 
   type(str16), parameter :: l_formulation(2) = [str16 ('colocated'),     &
                                                 str16 ('noncolocated')]
 
-  type(str16), parameter :: l_scheme(2) = [str16 ('local'),     &
+  ! SCHEME - LOCAL[OVERLAP] OR GLOBAL[NO OVERLAP] 
+  type(str16), parameter :: l_scheme(2) = [str16 ('local'),              &
                                            str16 ('global')]
-  type(str16), parameter :: l_compDomain(2) = [str16 ('all'),     &
-                                           str16 ('plane')]
 
-  type(str16), parameter :: l_rotationAxis(3) = [str16('none'), str16('X'), str16('Y')]
+  ! COMPUTING DOMAIN
+  type(str16), parameter :: l_compDomain(2) = [str16 ('all'),            &
+                                               str16 ('plane')]
+
+  ! ROTATION AXIS 
+  type(str16), parameter :: l_rotationAxis(3) = [str16('none'),          &
+                                                 str16('X'),             &
+                                                 str16('Y')]
 
   !*****************************************************************
               
-  character(8) :: machine        = trim (l_machine(1) % name)
+  character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
   character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
-  logical      :: withPressure   = 0
+  logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
-  character(3) :: stress         = 'abs'                             ! [dev, abs]
+  character(3) :: stress         = 'abs'                             ! [deviatoric, absolute]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
-  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none, X, Y]
+  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
-  real(8), parameter :: lambda_0(1) =  [1.d-03]!, 1.d-03, 1.d-01]!,  1.d+01]
+
+
+  real(8), parameter :: lambda_0(1) =  1.d-03
+!  real(8), parameter :: lambda_0(4) =  [1.d-07, 1.d-03, 1.d-01,  1.d+01]
+
 
   character(*), parameter :: CASE_NAME = 'scratch-col'
   
@@ -113,10 +130,10 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  1 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
-  logical :: compute_vorticity    =  1
+  logical :: compute_vorticity    =  0
   logical :: plot_Stress          =  1
   logical :: production_Term      =  1
   logical :: save_ProductionTerm  =  1
@@ -286,6 +303,27 @@ module global
   end interface
 
 contains
+
+
+  !****************************************************************
+  !                          SET ENVIRONMENT                      !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Set global environment based on the initial settings
+  !      
+  !      
+  ! FORM: subroutine setEnv()
+  ! 
+  !      
+  ! BEHAVIOR: 
+  !           
+  !
+  ! STATUS : 
+  !          
+  !
+  !----------------------------------------------------------------
+
   
   subroutine setEnv()
 
@@ -297,7 +335,7 @@ contains
     i_GRID = 256;    j_GRID = 256;    k_GRID = 256
     
     Freq_Nyq = i_GRID/2
-    z_plane = bigHalf(k_GRID)
+    z_plane = 129!bigHalf(k_GRID)
 
     ! SPACING:[EQUIDISTANT IN X,Y,Z-DIR]
     dx = 2.d0*PI/dble(i_GRID) 
@@ -369,12 +407,14 @@ contains
 
     ! BOUNDING BOX: Set trainingPointSkip, box, M [ordered/random]
     box = [1, 1, 1]             
+    ! ORDERED
     if (trainingPoints.eq.'ordered') then 
        box = 256 * box
        trainingPointSkip = 10   
        M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
+    ! RANDOM
     elseif (trainingPoints.eq.'random') then 
        M = M_N_ratio * N
        trainingPointSkip = Delta_test
@@ -439,7 +479,7 @@ contains
     
     ! STATISTICS:
     n_bins = 250
-    N_cr = 3   !(11x11x11)
+    N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
   end subroutine setEnv
 
@@ -500,7 +540,7 @@ contains
      write(fileID, * ), 'Pressure Term:       ', withPressure
 
      write(fileID, * ), 'Order:               ', order
-     write(fileID, '(a24,f4.2)' ), 'M:N                  ', real(M)/real(N)
+     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)
      write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
      write(fileID, * ), 'Features(N):         ', N, '\n'
      write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
@@ -928,19 +968,5 @@ contains
   end subroutine progressBar
 
 
-  !----------------------------------------------------------------
-  !                          PROGRESS BAR
-  !----------------------------------------------------------------
-  ! USE:  
-  !     Displays progress bar at every 10th percentage point
-  !     
-  ! FORM:
-  ! 
-  !         
-  ! BEHAVIOR: 
-  ! 
-  !  
-  !----------------------------------------------------------------
-  
  
 end module global

@@ -412,7 +412,7 @@ contains
        if (value.ne.0.41232076287269592d0) then
           print*, 'Error reading data!'
           print*, value
-          stop
+!          stop
        end if
 
     end if

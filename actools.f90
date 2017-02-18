@@ -257,9 +257,8 @@ contains
   ! FORM: subroutine productionTerm(P, tau_ij, S_ij)
   !       
   !
-  ! BEHAVIOR: 
-  !           
-  !           
+  ! BEHAVIOR: While passing an array section, ensure that 
+  !           zLower maps to zLower. 
   !           
   !           
   !          
@@ -281,7 +280,7 @@ contains
     
     count = 0
     P = 0
-
+    
     do j = 1,3
        do i = 1,3
           if(i.ge.j) then
@@ -498,13 +497,12 @@ contains
   ! BEHAVIOR: 
   !           
   !           
-  !           
-  !           
-  !          
-  !          
   !
-  ! STATUS : 
+  ! STATUS :
+  ! 
   !          
+  !  STASH:
+  !       uiuj(count,:,:,z_extLower:z_extUpper) = ui(i,:,:,z_extLower:z_extUpper) * ui(j,:,:,z_extLower:z_extUpper)
   !----------------------------------------------------------------
 
   subroutine secondOrderProducts(uiuj,ui)
@@ -521,9 +519,7 @@ contains
        do i = 1, n_u
           if(i.ge.j) then
              count = count + 1
-!             uiuj(count,:,:,z_extLower:z_extUpper) = ui(i,:,:,z_extLower:z_extUpper) * ui(j,:,:,z_extLower:z_extUpper)
              uiuj(count,:,:,:) = ui(i,:,:,:) * ui(j,:,:,:)
-
           end if
        end do
     end do
@@ -536,22 +532,35 @@ contains
   !****************************************************************
   
   !----------------------------------------------------------------
-  ! USE: Use ghost cells to extend domain 
-  !       
+  ! USE: Use ghost cells to extend domain. Implements cyclic  
+  !       padding for periodic BC.
   !       
   !
   ! FORM: subroutine extendDomain()
   !       
   !
   ! BEHAVIOR: 
-  !           
-  !           
-  !           
-  !           
-  !          
+  !           1. Copies interior cells to a temp array
+  !           2. If ALL, then pads in x,y,z direction
+  !           3. If PLANE, then pads in x,y direction
+  !           or z-direction if needed.
+  !           4. n_extendedLayers is determined right 
+  !              in the beginning [global.f90] 
   !          
   !
-  ! STATUS : 
+  ! STATUS : 1. Adding capability for other planes.
+  !          2. Generalizing ALL/PLANE case.
+  !
+  ! STASH :
+  ! *
+  !     allocate (temp (tempDim(1), extLower:extUpper, &
+  !    extLower:extupper, &
+  !    min(1,z_extLower):max(k_GRID,z_extUpper)))
+  ! **
+  !   temp(:, extLower:0,:,:) = array(:, i_GRID+extLower:i_GRID,:,:)
+  !   temp(:, i_GRID+1:extUpper,:,:) = array(:,1:extUpper-i_GRID,:,:)
+  !   temp(:, :, extLower:0,:) = array(:, :, j_GRID+extLower:j_GRID,:)
+  !   temp(:, :,j_GRID+1:extUpper,:) = array(:,:,1:extUpper-j_GRID,:)
   !          
   !----------------------------------------------------------------
 
@@ -566,56 +575,35 @@ contains
     !   .. LOCAL VARS..
     real(8), dimension(:,:,:,:), allocatable :: temp
     integer :: tempDim(4)
-    integer :: i,j,k
+    integer :: i,j
 
-    tempDim = shape(array)
+    tempDim = shape(array) !*
+    allocate (temp (tempDim(1), 1-n_extendedLayers:i_GRID+n_extendedLayers, &
+                                1-n_extendedLayers:j_GRID+n_extendedLayers, &
+                                min(1,z_extLower):max(k_GRID,z_extUpper)))
 
+    temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = array(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
+    deallocate(array)
 
-    ! REALLOCATE ARRAY SIZE AND COPY INTERIOR DOMAIN
-    if(compDomain.eq.'all') then
-       allocate (temp (tempDim(1), tempDim(2), tempDim(3), tempDim(4)))
-       temp = array
-       deallocate(array)
-       allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, z_extLower:z_extUpper))
-       array(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
-    else if (compDomain.eq.'plane') then
-       allocate (temp (tempDim(1), tempDim(2), tempDim(3), z_extLower:z_extUpper))
-       temp(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper) = array(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper)
-       deallocate(array)
-       allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, z_extLower:z_extUpper))
-       array(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper) = temp(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper)
-    end if
+    ! TEMP: CYCLIC PADDING
+    ! 1) X,Y DIRECTION **
+    do j = 1, n_extendedLayers
+       do i = 1, n_extendedLayers
+          temp(:, 1-i, :, :) = temp(:, i_GRID-i+1, :, :) ! x-plane 
+          temp(:, :, 1-j, :) = temp(:, :, j_GRID-j+1, :) ! y-plane 
 
-!print*, shape(temp), shape(array)
-    
-    if(compDomain.eq.'all') then
-    ! USE PERIODIC CONDITIONS ON GHOST CELLS:
-    do k = 1, n_extendedLayers
-       do j = 1, n_extendedLayers
-          do i = 1, n_extendedLayers
-             array(:, 1-i, :, :) = array(:, i_GRID-i+1, :, :) ! x-plane 
-             array(:, :, 1-j, :) = array(:, :, j_GRID-j+1, :) ! y-plane 
-             array(:, :, :, 1-k) = array(:, :, :, k_GRID-k+1) ! z-plane 
-
-             array(:, i_GRID+i, :, :) = array(:, i, :, :)     ! x-plane 
-             array(:, :, j_GRID+j, :) = array(:, :, j, :)     ! y-plane 
-             array(:, :, :, k_GRID+k) = array(:, :, :, k)     ! z-plane 
-          end do
+          temp(:, i_GRID+i, :, :) = temp(:, i, :, :)     ! x-plane 
+          temp(:, :, j_GRID+j, :) = temp(:, :, j, :)     ! y-plane 
        end do
     end do
-    else if (compDomain.eq.'plane')then
-          do j = 1, n_extendedLayers
-             do i = 1, n_extendedLayers
-                array(:, 1-i, :, :) = array(:, i_GRID-i+1, :, :) ! x-plane 
-                array(:, :, 1-j, :) = array(:, :, j_GRID-j+1, :) ! y-plane 
+    
+    ! 2) Z-DIRECTION
+    if (z_extLower < 1)        temp (:,:,:,z_extLower:0) = temp(:,:,:,k_GRID+z_extLower:k_GRID)
+    if (z_extUpper > k_GRID)   temp (:,:,:,k_GRID+1:z_extUpper) = temp(:,:,:,1:z_extUpper-k_GRID)
 
-                array(:, i_GRID+i, :, :) = array(:, i, :, :)     ! x-plane 
-                array(:, :, j_GRID+j, :) = array(:, :, j, :)     ! y-plane 
+    allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, z_extLower:z_extUpper))
+    array(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper) = temp(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper)
 
-             end do
-          end do
-       end if
-!print*, shape(temp), shape(array)
   end subroutine extendDomain
 
   

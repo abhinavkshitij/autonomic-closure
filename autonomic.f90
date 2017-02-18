@@ -65,7 +65,7 @@ program autonomic
 
   integer :: time_index
   real(8) :: u_rms, epsilon, TKE
-
+  character(1) :: idx
 
   if (computeFFT_data.eqv..false.) then
      useTestData      = 0
@@ -88,16 +88,17 @@ program autonomic
      print*, 'Debug mode for velocity components... \n'
   end if
 
-  time_iter: do time_index = time_init, time_final, time_incr
+  time_loop: do time_index = time_init, time_final, time_incr
 
      ! SET TIME PARAMS:
      write(time,'(i0)') time_index !num2str
      if ((len(trim(time))-1).lt.2) time = trim('0')//trim(time)
 
      ! 1] LOAD DATASET:
-     if(allocated(u).eqv..false.)        allocate(u(n_u,i_GRID,j_GRID,k_GRID))
+!     if(allocated(u).eqv..false.)        allocate(u(n_u,i_GRID,j_GRID,k_GRID))
      if(readFile)                        call readData(DIM = n_u)
      if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
+
 
      ! + GET STATISTICS OF INITIAL VELOCITY:
 
@@ -115,6 +116,16 @@ program autonomic
      write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
+
+  !    ! PLOT VELOCITY Z-MIDPLANE:
+!      do i = 1,3
+!         write(idx, '(i0)') i
+!         open(20,file = trim(RES_PATH)//'u_'//trim(idx)//'.dat')
+!         write(20,*) u(i,:,:,z_plane)
+!         close(20)
+!      end do
+     
+
 
      ! TURBULENT FIELD STATISTICS:
      if (turbulentStats) then
@@ -214,6 +225,8 @@ program autonomic
         call rotateY(T_ij)
      end if
 
+
+     ! SAVE FFT DATA ONLY FOR Z-MIDPLANE. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data()
      !->>
 
@@ -236,11 +249,14 @@ program autonomic
         if(allocated(Pij_f).eqv..false.)          allocate (Pij_f (i_GRID, j_GRID, zLower:zUpper))
         if(allocated(Pij_t).eqv..false.)          allocate (Pij_t (i_GRID, j_GRID, zLower:zUpper))
 
+        ! tau_ij and T_ij are declared with their limits from 1 to i_GRID. 
+        ! If passed without specifying indices, it will map 1 to 129 instead
+        ! 129 to 129.
         call productionTerm(Pij_f, tau_ij(:,:,:,zLower:zUpper), Sij_f)
         call productionTerm(Pij_t, T_ij  (:,:,:,zLower:zUpper), Sij_t)
 
         ! +++  CHECK P_ij
-        !call check_beforeExtension()
+        call check_beforeExtension()
 
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
@@ -271,19 +287,26 @@ program autonomic
      call extendDomain(u_f)
      call extendDomain(u_t)
      call extendDomain(T_ij)   
-     
+ 
+     call cpu_time(tic)
+
      ! AUTONOMIC CLOSURE:
-     lambda_iter: do iter = 1,size(lambda_0)
+     lambda_loop: do iter = 1, size(lambda_0)
         lambda = lambda_0(iter)
         print('(a32,ES8.1)'), 'Autonomic closure, lambda = ', lambda, '\n'
         ! $$
         ! $$$ 
         call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-        !call check_afterExtension()
-     end do lambda_iter
+        call check_afterExtension()
+     end do lambda_loop
+
+
+     call cpu_time(toc)
+     print*,'Elapsed time', toc-tic
      
      ! %%
-  end do time_iter
+  end do time_loop
+  
   close (path_txt)
 
 contains 
@@ -306,8 +329,8 @@ contains
     !    print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
     !    print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
 
-    !print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
-    !print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
+    print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
+    print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
 
   end subroutine check_beforeExtension
 
@@ -326,8 +349,10 @@ contains
 
     print*, 'tau_ijOpt(2,15,24,129)', tau_ijOpt(2,15,24,z_plane)
     print*, 'T_ijOpt(2,15,24,129)', T_ijOpt(2,15,24,z_plane)
-    !print*, 'Pij_fOpt(15,24,129)', Pij_fOpt(15,24,z_plane)
-    !print*, 'Pij_tOpt(15,24,129)', Pij_tOpt(15,24,z_plane)
+
+
+    print*, 'Pij_fOpt(15,24,129)', Pij_fOpt(15,24,z_plane)
+    print*, 'Pij_tOpt(15,24,129)', Pij_tOpt(15,24,z_plane)
 
   end subroutine check_afterExtension
   

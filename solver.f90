@@ -370,7 +370,7 @@ contains
 
 
        ! Z-MIDPLANE COMPUTATION: 
-       do k_boxCenter = z_plane, z_plane
+       do k_boxCenter = zLower, zUpper
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
@@ -456,13 +456,15 @@ contains
        end do
        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
-       ! PLOT STRESS AND PRODUCTION TERMS:
-       if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
-       if (production_Term) then
-          call productionTerm(Pij_fOpt(:,:,zLower:zUpper), tau_ijOpt(:,:,:,zLower:zUpper), Sij_f(:,:,:,zLower:zUpper))
-          call productionTerm(Pij_tOpt(:,:,zLower:zUpper), T_ijOpt(:,:,:,zLower:zUpper),   Sij_t(:,:,:,zLower:zUpper))
-          if (save_ProductionTerm)                             call plotProductionTerm(lambda)
-       end if
+       
+       ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+        if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+        if (production_Term) then
+           call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+           call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+           if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+        end if
+
        
     
     else
@@ -472,21 +474,23 @@ contains
        allocate (u_n(stencil_size))
 
        ! WHOLE DOMAIN COMPUTATION: 
-       do i_boxCenter = boxFirst, boxLast, boxCenterSkip
+
+!       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
+       do k_boxCenter = z_plane, z_plane
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
-       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
+       do i_boxCenter = boxFirst, boxLast, boxCenterSkip
                     
           if (trainingPoints.eq.'random') then
              call randTrainingSet(randMask)
              rand_count = 0
           end if
-
           row_index  = 0 
 
            ! VISIT TRAINING POINT: C-ORDER
-           do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip
-           do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
-           do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
+
+          do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip       
+          do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
+          do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip       
 
               
               if (trainingPoints.eq.'random') then
@@ -497,17 +501,18 @@ contains
              ! Replace this loop with subroutine build_V()
              col_index = 0 
              row_index = row_index + 1
+!print*, row_index, i_train, j_train, k_train
+
+
+             ! ZERO ORDER TERMS: 80 C 0
+             col_index = col_index + 1
+             V(row_index, col_index) = 1.d0
 
 
              ! ENTER 3x3x3 STENCIL: C-ORDER
              u_n = reshape(u_t (:, i_train-Delta_test : i_train+Delta_test : Delta_test, & 
                                    j_train-Delta_test : j_train+Delta_test : Delta_test, &
                                    k_train-Delta_test : k_train+Delta_test : Delta_test), [stencil_size])
-
-             ! ZERO ORDER TERMS: 80 C 0
-             col_index = col_index + 1
-             V(row_index, col_index) = 1.d0
-
 
              ! FIRST ORDER TERMS: 81 C 1      
              do non_col_1 = 1,stencil_size 
@@ -516,12 +521,14 @@ contains
              end do
 
              ! SECOND ORDER TERMS: 82 C 2
+             if(order == 2) then
              do non_col_1 = 1, stencil_size
              do non_col_2 = non_col_1, stencil_size
                 col_index = col_index + 1
                 V(row_index,col_index) = u_n(non_col_1) * u_n(non_col_2)
              end do
              end do
+             end if
 
              T(row_index,:) = T_ij(:,i_train,j_train,k_train) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
 
@@ -562,15 +569,16 @@ contains
                 end if
              end if
 
-             ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
-             call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-             if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+!              ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+              call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+
+              ! KEEP IT FOR THE LAMBDA LOOP:
              
-             if (production_Term) then
-                call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
-                call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
-                if (save_ProductionTerm)                             call plotProductionTerm(lambda)
-             end if
+!              if (production_Term) then
+!                 call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+!                 call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+!                 if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+!              end if
 
              !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
 !             call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
@@ -582,6 +590,16 @@ contains
        end do
        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
+
+
+       
+       ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+        if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+        if (production_Term) then
+           call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+           call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+           if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+        end if
 
 
     end if
@@ -644,8 +662,10 @@ contains
     integer :: non_col_1, non_col_2
 
     if (formulation.eq.'colocated') then
-
-       do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper
+! Whole domain:
+!       do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper
+! Cross-validation points [Preferred]:
+       do k_opt = k_boxCenter-3*smallHalf(N_cr), k_boxCenter+3*smallHalf(N_cr), 3
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
          
@@ -727,12 +747,12 @@ contains
        ! NON-COLOCATED
 
        ! ENTER STENCIL-CENTER POINTS: C-ORDER
-       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
-       do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
 ! Whole domain:
           ! do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper 
 ! Cross-validation points [Preferred]:
        do k_opt = k_boxCenter-3*smallHalf(N_cr), k_boxCenter+3*smallHalf(N_cr), 3
+       do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
+       do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
 
           col_index = 0 
          
@@ -764,7 +784,8 @@ contains
                                           (u_f_stencil(non_col_1) * h_ij(col_index,:))
           end do
 
-          ! SECOND ORDER TERMS: 
+          ! SECOND ORDER TERMS:
+          if (order == 2) then
           do non_col_1 = 1, stencil_size
           do non_col_2 = non_col_1, stencil_size
              col_index = col_index+1
@@ -778,7 +799,7 @@ contains
                                             (u_f_stencil(non_col_1) * u_f_stencil(non_col_2) * h_ij(col_index,:))
           end do
           end do
-
+          end if
        end do
        end do
        end do ! DONE COMPUTING STRESSES USING NON-COLOCATED FORM

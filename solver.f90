@@ -568,6 +568,10 @@ contains
                 end if
              end if
 
+print*, 'V(1500,2000)', V(1500,2000)
+print*, 'T(3,1)' , T(3,1)
+print*, 'h_ij(350,1)', h_ij(350,1)
+
              ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
              call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
              if (plot_Stress)                                        call plotComputedStress(lambda,'All')     

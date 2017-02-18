@@ -78,7 +78,7 @@ program autonomic
   call printParams('display')
   print*, 'Dataset: ', dataset, '\n'
   !print*, n_u, n_uu
-  stop
+  !stop
 
 
   ! TEST DATA:
@@ -250,6 +250,11 @@ program autonomic
         if(allocated(Pij_tOpt).eqv..false.)        allocate (Pij_tOpt  (i_GRID, j_GRID, k_GRID))
      end if
 
+print*
+print*, 'Check before extension'
+print*, 'u_f(2,15,24,129)', u_f(2,15,24,129)
+print*, 'u_t(2,15,24,129)', u_t(2,15,24,129)
+print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,129)
 
      ! EXTEND DOMAIN:
      print*,'Extend domain:'
@@ -257,11 +262,27 @@ program autonomic
      call extendDomain(u_t)
      call extendDomain(T_ij) 
 
+print*
+print*, 'Check after extension'
+print*, 'u_f(2,15,24,129)', u_f(2,15,24,129)
+print*, 'u_t(2,15,24,129)', u_t(2,15,24,129)
+print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,129)
+
+
      print*, 'Autonomic closure ... '
      open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
      open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
 ! $$$
      call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+
+print*
+print*, 'Check after extension'
+print*, 'u_f(2,15,24,129)', u_f(2,15,24,129)
+print*, 'u_t(2,15,24,129)', u_t(2,15,24,129)
+print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,129)
+print*
+print*, 'tau_ijOpt(2,15,24,129)', tau_ijOpt(2,15,24,129)
+print*, 'T_ijOpt(2,15,24,129)',T_ijOpt(2,15,24,129)
 
      close(cross_csv_T_ij)
      close(cross_csv_tau_ij)

@@ -86,9 +86,9 @@ module global
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S3'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev, abs]
-  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
+  character(16):: formulation    = trim (l_formulation(2) % name)    ! [colocated, non-colocated]
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
 
   !----------------------------------------------------------------
@@ -107,8 +107,8 @@ module global
   logical :: save_FFT_data        =  1
 
   logical :: plot_Stress          =  1
-  logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  1
+  logical :: production_Term      =  0
+  logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
 
 
@@ -316,7 +316,8 @@ contains
     Delta_test = floor(real(Freq_Nyq) / real(test_scale))
     
     ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
-    lambda_0 = 1.d-01 * [1,3]
+    lambda_0 = 1.d-03
+!    lambda_0 = 1.d-03 * [1,3]
     n_lambda = 1
     
 

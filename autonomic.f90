@@ -332,6 +332,9 @@ contains
     print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
     print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
 
+    print*, count(u_t == 0), count(u_f == 0), count(T_ij == 0)
+
+
   end subroutine check_beforeExtension
 
   subroutine check_afterExtension()

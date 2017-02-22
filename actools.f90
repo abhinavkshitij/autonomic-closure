@@ -578,8 +578,8 @@ contains
     integer :: i,j
 
     tempDim = shape(array) !*
-    allocate (temp (tempDim(1), 1-n_extendedLayers:i_GRID+n_extendedLayers, &
-                                1-n_extendedLayers:j_GRID+n_extendedLayers, &
+    allocate (temp (tempDim(1), extLower:extUpper, &
+                                extLower:extUpper, &
                                 min(1,z_extLower):max(k_GRID,z_extUpper)))
 
     temp(:, 1:i_GRID, 1:j_GRID, 1:k_GRID) = array(:, 1:i_GRID, 1:j_GRID, 1:k_GRID)
@@ -587,22 +587,21 @@ contains
 
     ! TEMP: CYCLIC PADDING
     ! 1) X,Y DIRECTION **
-    do j = 1, n_extendedLayers
-       do i = 1, n_extendedLayers
-          temp(:, 1-i, :, :) = temp(:, i_GRID-i+1, :, :) ! x-plane 
-          temp(:, :, 1-j, :) = temp(:, :, j_GRID-j+1, :) ! y-plane 
+    ! X:
+    temp (:,extLower:0,:,:) = temp(:,i_GRID+extLower:i_GRID,:,:)
+    temp (:,i_GRID+1:z_extUpper,:,:) = temp(:,1:z_extUpper-i_GRID,:,:)
 
-          temp(:, i_GRID+i, :, :) = temp(:, i, :, :)     ! x-plane 
-          temp(:, :, j_GRID+j, :) = temp(:, :, j, :)     ! y-plane 
-       end do
-    end do
+    ! Y:
+    temp (:,:,extLower:0,:) = temp(:,:,j_GRID+extLower:j_GRID,:)
+    temp (:,:,j_GRID+1:z_extUpper,:) = temp(:,:,1:z_extUpper-j_GRID,:)
     
     ! 2) Z-DIRECTION
     if (z_extLower < 1)        temp (:,:,:,z_extLower:0) = temp(:,:,:,k_GRID+z_extLower:k_GRID)
     if (z_extUpper > k_GRID)   temp (:,:,:,k_GRID+1:z_extUpper) = temp(:,:,:,1:z_extUpper-k_GRID)
 
+    ! REALLOCATE ARRAY WITH PADDED ELEMENTS:
     allocate(array(tempDim(1), extLower:extUpper, extLower:extUpper, z_extLower:z_extUpper))
-    array(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper) = temp(:, 1:i_GRID, 1:j_GRID, z_extLower:z_extUpper)
+    array(:,:,:,z_extLower:z_extUpper) = temp(:,:,:, z_extLower:z_extUpper)
 
   end subroutine extendDomain
 

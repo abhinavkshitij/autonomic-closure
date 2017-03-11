@@ -419,7 +419,7 @@ contains
        if (value.ne.0.41232076287269592d0) then
           print*, 'Error reading data!'
           print*, value
-          stop
+!          stop
        end if
 
     end if
@@ -513,6 +513,49 @@ end subroutine plotVelocities
      close(32)
 
    end subroutine plotPressure
+
+
+   !****************************************************************
+   !                            PLOT VORTICITY
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM:    subroutine plotVorticity()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !      
+   !   
+   !----------------------------------------------------------------
+   
+   subroutine plotVorticity()
+     implicit none
+     !
+     !   ..COUNTER..
+     integer :: i
+     !
+     ! SAVE VORTICITY:
+     print*
+     print*,'Saving vorticity(omega) in', RES_PATH
+    
+
+     open(30,file=trim(RES_PATH)//'omega1.dat')
+     open(31,file=trim(RES_PATH)//'omega2.dat')
+     open(32,file=trim(RES_PATH)//'omega3.dat')
+
+     write(30,*) omega (1,:,:,z_plane)
+     write(31,*) omega (2,:,:,z_plane)
+     write(32,*) omega (3,:,:,z_plane)
+
+     close(30)
+     close(31)
+     close(32)
+   end subroutine plotVorticity
+   
 
 
 

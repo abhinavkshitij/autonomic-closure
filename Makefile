@@ -34,7 +34,6 @@ main :  $(OBJECTS_MAIN)
 	$(build-exe)
 
 
-
 #
 # OPTIMIZE : runs the optimization problem on the cutout data.
 OBJECTS_OPTIMIZE = global.o fileio.o solver.o optimize.o
@@ -51,7 +50,7 @@ dealias_jhu1024 : $(OBJECTS_JHU1024)
 
 
 #
-# TESTCUT : test run for colocated formuation.
+# TESTCUT : test run for colocated formulation.
 OBJECT_TESTCUT = global.o fileio.o solver.o testCut.o
 testCut : $(OBJECTS_TESTCUT)
 	$(build-exe)

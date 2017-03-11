@@ -47,53 +47,76 @@ module global
      character (16) :: name
   end type str16
 
-  type(str16), parameter :: l_machine(2) = [str16 ('local'),     &
+
+  ! MACHINE TYPE 
+  type(str16), parameter :: l_machine(2) = [str16 ('local'),             &
                                             str16 ('remote')]
 
-  type(str16), parameter :: var(2) = [str16 ('Velocity'),      &
+  ! BASE VARIABLES - VELOCITY, PRESSURE
+  type(str16), parameter :: var(2) = [str16 ('Velocity'),                &
                                       str16 ('Pressure')]
 
-  type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),     & 
-                                            str16 ('jhu256'),  & ! jhu256
-                                            str16 ('hst'),     &
-                                            str16 ('sin3D'),   &
+  ! DATASET
+  type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),               & 
+                                            str16 ('jhu256'),            & ! jhu256
+                                            str16 ('hst'),               &
+                                            str16 ('sin3D'),             &
                                             str16 ('jhu1024')]
 
-  type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),     &
-                                          str16 ('u_t'),     &
-                                          str16 ('tau_ij'),  &
+  ! FILTERED VARIABLES 
+  type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),                 &
+                                          str16 ('u_t'),                 &
+                                          str16 ('tau_ij'),              &
                                           str16 ('T_ij')]  
                                       
-
+  ! SOLUTION METHOD
   type(str16), parameter :: l_solutionMethod(2) = [str16 ('LU'),         &
                                                    str16 ('SVD')]
 
+  ! TRAINING POINTS
   type(str16), parameter :: l_trainingPoints(2) = [str16 ('ordered'),    &
                                                    str16 ('random')] 
 
+  ! FORMULATION - COLOCATED OR NONCOLOCATED 
   type(str16), parameter :: l_formulation(2) = [str16 ('colocated'),     &
                                                 str16 ('noncolocated')]
 
-  type(str16), parameter :: l_scheme(2) = [str16 ('local'),     &
+  ! SCHEME - LOCAL[OVERLAP] OR GLOBAL[NO OVERLAP] 
+  type(str16), parameter :: l_scheme(2) = [str16 ('local'),              &
                                            str16 ('global')]
-  type(str16), parameter :: l_compDomain(2) = [str16 ('all'),     &
-                                           str16 ('plane')]
 
+  ! COMPUTING DOMAIN
+  type(str16), parameter :: l_compDomain(2) = [str16 ('all'),            &
+                                               str16 ('plane')]
 
+  ! ROTATION AXIS 
+  type(str16), parameter :: l_rotationAxis(3) = [str16('none'),          &
+                                                 str16('X'),             &
+                                                 str16('Y')]
+
+  !*****************************************************************
               
-  character(8) :: machine        = trim (l_machine(1) % name)
-  character(8) :: dataset        = trim (l_dataset(3) % name)        ! [...,JHU, HST,...]
-  logical      :: withPressure   = 0
+  character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
+  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
+  logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
-  character(3) :: stress         = 'abs'                             ! [dev, abs]
-  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
+  character(3) :: stress         = 'abs'                             ! [deviatoric, absolute]
+  character(16):: formulation    = trim (l_formulation(2) % name)    ! [colocated, non-colocated]
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
-  
+  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
+  integer      :: M_N_ratio      = 4
+
+
+  real(8), parameter :: lambda_0(1) =  1.d-03
+!  real(8), parameter :: lambda_0(4) =  [1.d-07, 1.d-03, 1.d-01,  1.d+01]
+
+
+  character(*), parameter :: CASE_NAME = 'scratch-col'
   
   !----------------------------------------------------------------
   !
@@ -110,6 +133,7 @@ module global
   logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
+  logical :: compute_vorticity    =  0
   logical :: plot_Stress          =  1
   logical :: production_Term      =  1
   logical :: save_ProductionTerm  =  1
@@ -128,6 +152,9 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: u
   real(8), dimension(:,:,:,:), allocatable :: u_f 
   real(8), dimension(:,:,:,:), allocatable :: u_t
+  !
+  !    ..VORTICITY..
+  real(8), dimension(:,:,:,:), allocatable :: omega
   !
   !    ..STRESSES..
   real(8), dimension(:,:,:,:), allocatable :: tau_ij
@@ -177,7 +204,7 @@ module global
   integer :: trainingPointSkip   ! 1 for RANDOMLY sampled training points; Some fixed value for ORDERED [REGULARIZED]set
   integer :: X                   ! Number of realizations
   integer :: n_lambda            ! Number of lambdas
-  real(8) :: lambda, lambda_0(2) !lambda_0(2)
+  real(8) :: lambda
  
   !   ..BOUNDING BOX..
   integer :: box(3) 
@@ -255,13 +282,11 @@ module global
   integer  :: fileID = 6
   integer  :: n_u 
   integer  :: n_uu 
-  integer  :: i, j, k  
+  integer  :: i, j, k, l
   integer  :: iter
   real(8)  :: tic, toc
 
-  !
-  !    ..CASE NAME ..
-  character(*), parameter :: CASE_NAME = 'scratch-col'
+
 
   !----------------------------------------------------------------
   !
@@ -278,17 +303,42 @@ module global
   end interface
 
 contains
+
+
+  !****************************************************************
+  !                          SET ENVIRONMENT                      !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Set global environment based on the initial settings
+  !      
+  !      
+  ! FORM: subroutine setEnv()
+  ! 
+  !      
+  ! BEHAVIOR: 
+  !           
+  !
+  ! STATUS : 
+  !          
+  !
+  !----------------------------------------------------------------
+
   
   subroutine setEnv()
+
+    ! SET PATH:
     
     RES_PATH = RES_DIR
 
-    ! GRID
-    i_GRID = 256
-    j_GRID = 256
-    k_GRID = 256
+    ! GRID:
+    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
+    
     Freq_Nyq = i_GRID/2
-    z_plane = bigHalf(k_GRID)
+    z_plane = 129!bigHalf(k_GRID)
+
+    ! SPACING:[EQUIDISTANT IN X,Y,Z-DIR]
+    dx = 2.d0*PI/dble(i_GRID) 
     
     ! TIMESTEPS:
     if (dataset.eq.'jhu256') then
@@ -307,13 +357,13 @@ contains
           time = '015'; time_init = 15; time_incr = 1; time_final = 24
        end if
        if (hst_set.eq.'S6') then
-          time = '070'; time_init = 70; time_incr = 5; time_final = 100
+          time = '100'; time_init = 100; time_incr = 5; time_final = 100
        end if
     end if
     read(time,*) time_init
     if (machine.eq.'local') time_final = time_init
     
-
+    ! VELOCITY [PRESSURE] COMPONENTS: 
     n_u = 3 
     if (withPressure) n_u = n_u + 1
    
@@ -326,50 +376,31 @@ contains
     P = 6
 
     ! SCALE
-    LES_scale  = 20
-    test_scale = 10
+    if (dataset.eq.'jhu256') then
+       LES_scale  = 40;    test_scale = 20
+    else if (dataset.eq.'hst'.and.hst_set.eq.'S6') then
+       LES_scale  = 20;    test_scale = 10
+    else if (dataset.eq.'hst'.and.hst_set.eq.'S1') then
+       LES_scale  = 16;    test_scale = 8
+    end if
+
     Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
     Delta_test = floor(real(Freq_Nyq) / real(test_scale))
     
-    ! LAMBDA: !   [1.d-03, 1.d-01, 1.d+00, 1.d+01]
-    lambda_0 = 1.d+01 * [1,3]
-    n_lambda = 1
-    
+
 
     ! FFT 
-    f_GRID = 1024 !For FFT ops, the grid must be cubic.
+    ! FFT GRID: Set f_GRID[CUBIC]
+    f_GRID = 256 
     center = (0.5d0 * f_GRID) + 1.d0
-    dx = 2.d0*PI/dble(i_GRID) !Only for JHU data. Check for others.    
 
     
-
-    if (trainingPoints.eq.'ordered') then
-       trainingPointSkip = 10   ! ORDERED 
-    else                    
-       trainingPointSkip = Delta_test    ! RANDOM   
-    end if
-    
-
-    ! Bounding Box parameters:  YES ITS VERBOSE AND LOOKS DUMB BUT IT IS A NEAT LAYOUT [FOR THE TIME BEING]
-    box = [1, 1, 1]             ! Initialize bounding box size
+    ! STENCIL: Set N  [noncolocated/colocated]
     if (formulation.eq.'noncolocated') then 
        stencil_size = n_u * (3*3*3) 
        do i = 0, order
           N = N + nCk(stencil_size - 1 + i, i) 
        end do
-       if (trainingPoints.eq.'ordered') then ! NON-COLOCATED, ORDERED
-          box = 256 * box
-          M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
-               * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
-               * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  !17576 
-       elseif (trainingPoints.eq.'random') then ! NON-COLOCATED, RANDOM
-          M = 4 * N
-          box = ceiling(M**(1./3.)) * trainingPointSkip * box
-          boxSize   = product(box/trainingPointSkip)
-          maskSize  = boxSize - M 
-          X = 1     
-       end if
-       
     elseif  (formulation.eq.'colocated') then
        if (order == 2) then
           do i = 1, order
@@ -377,26 +408,40 @@ contains
           end do
        end if
        N = 1 + ((n_u + n_uu) * (3*3*3))
-       if (trainingPoints.eq.'ordered') then ! COLOCATED, ORDERED
-          box = 256 * box
-          M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
-               * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
-               * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
-       elseif (trainingPoints.eq.'random') then ! COLOCATED, RANDOM
-          M = 4 * N
-          box  = ceiling(M**(1./3.)) * trainingPointSkip * box
-          boxSize   = product(box/trainingPointSkip)
-          maskSize  = boxSize - M ! 512-Training points(243) = 269
-          X = 1     
-       end if
+    end if
+
+    ! BOUNDING BOX: Set trainingPointSkip, box, M [ordered/random]
+    box = [1, 1, 1]             
+    ! ORDERED
+    if (trainingPoints.eq.'ordered') then 
+       box = 256 * box
+       trainingPointSkip = 10   
+       M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
+            * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
+            * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
+    ! RANDOM
+    elseif (trainingPoints.eq.'random') then 
+       M = M_N_ratio * N
+       trainingPointSkip = Delta_test
+       if (scheme.eq.'global') then
+          box = 256 * box 
+          elseif (scheme.eq.'local') then
+             box = ceiling(M**(1./3.)) * trainingPointSkip * box
+          end if         
+       boxSize   = product(box/trainingPointSkip)
+       maskSize  = boxSize - M 
+       X = 1     
     end if
     
     boxLower  = bigHalf(box(1)) - 1
     boxUpper  = box(1) - bigHalf(box(1))
 
+    ! BOUNDING BOX:         Set boxCenterSkip 
+    ! EXTENDED DOMAIN[X,Y]: Set extUpper, extLower 
+    ! COMPUTED STRESS:      Set optLower, optUpper  [local/global]
     if (scheme.eq.'local') then
        boxFirst  = 1
-       boxLast   = i_GRID       ! Assuming the domain is equal in all directions
+       boxLast   = i_GRID ! Domain equal in X,Y,Z-dir
        boxCenterSkip = 1
 
        extLower = 1 - boxLower - Delta_test
@@ -418,6 +463,7 @@ contains
        optUpper = boxUpper
     end if
 
+    ! EXTENDED DOMAIN[Z]: Set z_extUpper, z_extLower 
     if (compDomain.eq.'all') then
        zLower = 1
        zUpper = k_GRID
@@ -430,9 +476,15 @@ contains
        z_extUpper = z_plane + boxUpper + Delta_test
     end if
 
-    ! Statistics parameters:
+    ! LAMBDA: 
+    !   Cross-validation points:
+    !    lambda_0 = 1.d-03 * [1,3]
+    !    lambda = lambda_0(1)
+    !   n_lambda = 1! size(lambda_0)
+    
+    ! STATISTICS:
     n_bins = 250
-    N_cr = 3   !(11x11x11)
+    N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
   end subroutine setEnv
 
@@ -475,19 +527,25 @@ contains
     close(params_txt)
 
     if (displayOption.eq.'display') then
-     write(fileID, * ), 'Dataset:             ', dataset, '\n'
+       write(fileID, *) , '\n\n\n\n'
+       write(fileID, *) , '****************************************************************','\n'
+       
+       call system ('date')
+       write(fileID, * ), 'Dataset:             ', dataset
      
      if (dataset.eq.'hst') then
-        write(fileID, * ), 'HST set:          ', hst_set, '\n'
+        write(fileID, * ), 'HST set:             ', hst_set
      end if
-
+     write(fileID, * ), 'Time step:           ', time, '\n'
      write(fileID, * ), 'Computation domain:  ', compDomain
+     write(fileID, * ), 'Rotation axis:       ', rotationAxis
 
      write(fileID, * ), 'Scheme:              ', scheme
      write(fileID, * ), 'Formulation:         ', formulation
      write(fileID, * ), 'Pressure Term:       ', withPressure
 
      write(fileID, * ), 'Order:               ', order
+     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)
      write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
      write(fileID, * ), 'Features(N):         ', N, '\n'
      write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
@@ -510,11 +568,12 @@ contains
 
      write(fileID, * ), 'boxCenterSkip:       ', boxCenterSkip
      write(fileID, * ), 'trainingPointSkip:   ', trainingPointSkip
-     write(fileID, '(a22,ES8.1)' ), 'lambda_0:              ', lambda_0(1)
+     write(fileID, '(a24,ES8.1)' ), 'lambda_0:              ', lambda
 
      
-     write(fileID, * ), 'extendedDomain:      ', extLower, '\t', extUpper ,'\n'     
-     write(fileID, * ), 'Number of bins:      ', n_bins
+     write(fileID, * ), 'extendedDomain:      ', extLower, '\t', extUpper ,'\n'      
+     write(fileID, * ), 'Number of bins:      ', n_bins, '\n'
+     write(fileID, *) , '****************************************************************','\n'
   end if
   end subroutine printParams
 
@@ -914,19 +973,5 @@ contains
   end subroutine progressBar
 
 
-  !----------------------------------------------------------------
-  !                          PROGRESS BAR
-  !----------------------------------------------------------------
-  ! USE:  
-  !     Displays progress bar at every 10th percentage point
-  !     
-  ! FORM:
-  ! 
-  !         
-  ! BEHAVIOR: 
-  ! 
-  !  
-  !----------------------------------------------------------------
-  
  
 end module global

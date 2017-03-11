@@ -33,6 +33,10 @@
 !     
 ! ### Speed up this part -- Bottleneck  
 ! 
+!  $$ Create files for cross-validation
+!     open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
+!     open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
+! 
 ! $$$ lambda (coarse points vs fine points)
 !         if (mod(iter,2).eq.1) then
 !            lambda = lambda_0(1) * 10**((iter-1)/2)
@@ -61,7 +65,7 @@ program autonomic
 
   integer :: time_index
   real(8) :: u_rms, epsilon, TKE
-
+  character(1) :: idx
 
   if (computeFFT_data.eqv..false.) then
      useTestData      = 0
@@ -72,22 +76,17 @@ program autonomic
   end if
 
   !    ..INIT POSTPROCESSING..
-  open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
 
+  open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
   call setEnv()
   call printParams('display')
-  print*, 'Dataset: ', dataset, '\n'
-  !print*, n_u, n_uu
-  !stop
-
-
+!  print*, boxSize, maskSize
+!stop
   ! TEST DATA:
   if (useTestData) then
-     n_u = 1
-     n_uu = 3
+     n_u = 1;   n_uu = 3
      print*, 'Debug mode for velocity components... \n'
   end if
-
 
   time_loop: do time_index = time_init, time_final, time_incr
 
@@ -96,14 +95,13 @@ program autonomic
      if ((len(trim(time))-1).lt.2) time = trim('0')//trim(time)
 
      ! 1] LOAD DATASET:
-     if(allocated(u).eqv..false.)        allocate(u(n_u,i_GRID,j_GRID,k_GRID))
+!     if(allocated(u).eqv..false.)        allocate(u(n_u,i_GRID,j_GRID,k_GRID))
      if(readFile)                        call readData(DIM = n_u)
-     if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:)
+     if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
 
 
      ! + GET STATISTICS OF INITIAL VELOCITY:
 
-     
      ! ************** LEVEL 1 ****************!
      !
      ! ADD PATH DEPTH: DATASET
@@ -119,6 +117,16 @@ program autonomic
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
+  !    ! PLOT VELOCITY Z-MIDPLANE:
+!      do i = 1,3
+!         write(idx, '(i0)') i
+!         open(20,file = trim(RES_PATH)//'u_'//trim(idx)//'.dat')
+!         write(20,*) u(i,:,:,z_plane)
+!         close(20)
+!      end do
+     
+
+
      ! TURBULENT FIELD STATISTICS:
      if (turbulentStats) then
      ! ## PLOT Energy spectra
@@ -133,7 +141,14 @@ program autonomic
          print*, 'Dissipation rate (epsilon) = ', epsilon
      end if
 
-!stop
+     ! VORTICITY:
+     if(compute_vorticity) then
+        allocate (omega (n_u, i_GRID, j_GRID, zLower:zUpper))
+        call vorticity(u, omega)
+        call plotVorticity()
+        print*, omega(1,15,24,zLower)
+     end if
+
      ! ************** LEVEL 2 ****************!
      !
      ! ADD PATH DEPTH : SCALE
@@ -173,7 +188,6 @@ program autonomic
         end if
      end if
 
-!stop
 
      ! BREAKPOINT 1:
      if (useTestData) stop
@@ -184,24 +198,40 @@ program autonomic
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
 
 
-     ! COMPUTE ORIGINAL STRESS [SAVE]
+     ! COMPUTE ORIGINAL STRESS [ROTATE][SAVE]
      if(computeFFT_data) then
         print*,'Compute original stress:',stress
         call computeStress(u, u_f, u_t, tau_ij, T_ij, LES, test)
         deallocate(LES,test)
-        if (save_FFT_DATA) call saveFFT_data()
+        !->>     
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
         call loadFFT_data()
         call checkFFT_data()
      end if
+     
+     !->>
+     if (rotationAxis == 'X') then
+        print*, 'Rotate array along x-axis'
+        call rotateX(u_f) 
+        call rotateX(u_t) 
+        call rotateX(tau_ij) 
+        call rotateX(T_ij)
+     else if (rotationAxis == 'Y') then
+        print*, 'Rotate array along y-axis'
+        call rotateY(u_f) 
+        call rotateY(u_t) 
+        call rotateY(tau_ij) 
+        call rotateY(T_ij)
+     end if
+
+
+     ! SAVE FFT DATA ONLY FOR Z-MIDPLANE. THEN LOAD AND ROTATE IT. 
+     if (save_FFT_DATA) call saveFFT_data()
+     !->>
+
      if (plot_Stress)                                            call plotOriginalStress('All')
 
-!** DOWNSIZE Sij_f, Sij_t to a single plane. How to change the indices? Specify (...,z_plane:z_plane) if Sij is 3D
-!** DOWNSIZE u, u_f and u_t to the bounding box+stencil size limits in z-plane.
-     ! that is [z_plane-extLower:z_plane+extUpper]
-     ! All dummy vars should take the right indices, else it will start with 1: when the array is passed
-     ! on to the procudures.
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
      if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
@@ -214,51 +244,31 @@ program autonomic
         print*, 'Compute strain rate \n'
         call computeSij(u_f, Sij_f)
         call computeSij(u_t, Sij_t)
-        ! ++ CHECK S_ij
-        print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,z_plane)!, Sij_f(2,15,24,zLower), Sij_t(2,15,24,zUpper)
-        print*, 'Sij_t(2,15,24,129)', Sij_t(2,15,24,z_plane), '\n'
-        print*, 'tau_ij(2,15,24,129)', tau_ij(2,15,24,z_plane)
-        print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,z_plane) 
-!        print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
-!        print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
-        print*, 'u_f(2,15,24,129)', u_f(2,15,24,z_plane)
-!        print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
-!        print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
-        print*, 'u_t(2,15,24,129)', u_t(2,15,24,z_plane)
-!        print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
-!        print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
-
-
-!** DOWNSIZE Pij_f, Pij_t to a single plane. How to change the indices? 1 or z_plane?
-
+        
+        ! ++ 
         if(allocated(Pij_f).eqv..false.)          allocate (Pij_f (i_GRID, j_GRID, zLower:zUpper))
         if(allocated(Pij_t).eqv..false.)          allocate (Pij_t (i_GRID, j_GRID, zLower:zUpper))
-!        call productionTerm(Pij_f(:,:,zLower:zUpper), tau_ij(:,:,:,zLower:zUpper), Sij_f(:,:,:,zLower:zUpper))
-!        call productionTerm(Pij_t(:,:,zLower:zUpper), T_ij(:,:,:,zLower:zUpper),   Sij_t(:,:,:,zLower:zUpper))
+
+        ! tau_ij and T_ij are declared with their limits from 1 to i_GRID. 
+        ! If passed without specifying indices, it will map 1 to 129 instead
+        ! 129 to 129.
         call productionTerm(Pij_f, tau_ij(:,:,:,zLower:zUpper), Sij_f)
-        call productionTerm(Pij_t, T_ij(:,:,:,zLower:zUpper),   Sij_t)
+        call productionTerm(Pij_t, T_ij  (:,:,:,zLower:zUpper), Sij_t)
 
         ! +++  CHECK P_ij
-        print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
-        print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
-
+        call check_beforeExtension()
 
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
      end if
 
-
      ! ************** LEVEL 3 ****************!
      !
-     ! ADD PATH DEPTH : (METHOD) - LU or SVD
-!     TEMP_PATH = trim(TEMP_PATH)//trim(solutionMethod)//'/' 
-!     RES_PATH =  trim(RES_PATH)//trim(solutionMethod)//'/'  
+     ! ADD PATH DEPTH : CASE-NAME
      TEMP_PATH = trim(TEMP_PATH)//trim(CASE_NAME)//'/'
      RES_PATH =  trim(RES_PATH)//trim(CASE_NAME)//'/'
 
-
-     write(path_txt,*) RES_PATH
-!     call system ('mkdir -p '//trim(TEMP_PATH))
+     write(path_txt,*) trim(RES_PATH)
      call system ('mkdir -p '//trim(RES_PATH))
 
 
@@ -272,40 +282,84 @@ program autonomic
         if(allocated(Pij_tOpt).eqv..false.)        allocate (Pij_tOpt  (i_GRID, j_GRID, zLower:zUpper))
      end if
 
-
      ! EXTEND DOMAIN:
      print*,'Extend domain:'
      call extendDomain(u_f)
      call extendDomain(u_t)
-     call extendDomain(T_ij)    ! For 'b' vector
+     call extendDomain(T_ij)   
+ 
+     call cpu_time(tic)
 
-     print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,zLower) 
- !    print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
- !    print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
-     print*, 'u_f(2,15,24,129)', u_f(2,15,24,zLower)
- !    print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
- !    print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
-     print*, 'u_t(2,15,24,129)', u_t(2,15,24,zLower)
- !    print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
- !    print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
+     ! AUTONOMIC CLOSURE:
+     lambda_loop: do iter = 1, size(lambda_0)
+        lambda = lambda_0(iter)
+        print('(a32,ES8.1)'), 'Autonomic closure, lambda = ', lambda, '\n'
+        ! $$
+        ! $$$ 
+        call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+        call check_afterExtension()
+     end do lambda_loop
 
+
+     call cpu_time(toc)
+     print*,'Elapsed time', toc-tic
      
-     print*, 'Autonomic closure ... '
-     open(cross_csv_T_ij,   file=trim(RES_PATH)//trim('crossValidationError_T_ij')//trim(time)//trim('.csv'))
-     open(cross_csv_tau_ij, file=trim(RES_PATH)//trim('crossValidationError_tau_ij')//trim(time)//trim('.csv'))
-! $$$
-     call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-
-     print*, 'tau_ijOpt(2,15,24,129)', tau_ijOpt(2,15,24,z_plane)
-     print*, 'T_ijOpt(2,15,24,129)', T_ijOpt(2,15,24,z_plane)
-     print*, 'Pij_fOpt(15,24,129)', Pij_fOpt(15,24,z_plane)
-     print*, 'Pij_tOpt(15,24,129)', Pij_tOpt(15,24,z_plane)
-
-
-     close(cross_csv_T_ij)
-     close(cross_csv_tau_ij)
-! %%
+     ! %%
   end do time_loop
-
+  
   close (path_txt)
+
+contains 
+  
+  
+  
+  subroutine check_beforeExtension()
+    implicit none
+
+    print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,z_plane)!, Sij_f(2,15,24,zLower), Sij_t(2,15,24,zUpper)
+    print*, 'Sij_t(2,15,24,129)', Sij_t(2,15,24,z_plane), '\n'
+    print*, 'tau_ij(2,15,24,129)', tau_ij(2,15,24,z_plane)
+    print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,z_plane) 
+    !    print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
+    !    print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
+    print*, 'u_f(2,15,24,129)', u_f(2,15,24,z_plane)
+    !    print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
+    !    print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
+    print*, 'u_t(2,15,24,129)', u_t(2,15,24,z_plane)
+    !    print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
+    !    print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
+
+    print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
+    print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
+
+    print*, count(u_t == 0), count(u_f == 0), count(T_ij == 0)
+
+
+  end subroutine check_beforeExtension
+
+  subroutine check_afterExtension()
+    implicit none
+
+    print*, 'T_ij(2,15,24,129)', T_ij(2,15,24,zLower) 
+    !    print*, 'T_ij(2,15,24,z_plane-boxLower-Delta_test)',T_ij(2,15,24,z_plane-boxLower-Delta_test)
+    !    print*, 'T_ij(2,15,24,z_plane+boxUpper+Delta_test)',T_ij(2,15,24,z_plane+boxUpper+Delta_test)
+    print*, 'u_f(2,15,24,129)', u_f(2,15,24,zLower)
+    !    print*, 'u_f(2,15,24,z_plane-boxLower-Delta_test)',u_f(2,15,24,z_plane-boxLower-Delta_test)
+    !    print*, 'u_f(2,15,24,z_plane+boxUpper+Delta_test)',u_f(2,15,24,z_plane+boxUpper+Delta_test)
+    print*, 'u_t(2,15,24,129)', u_t(2,15,24,zLower)
+    !    print*, 'u_t(2,15,24,z_plane-boxLower-Delta_test)',u_t(2,15,24,z_plane-boxLower-Delta_test)
+    !    print*, 'u_t(2,15,24,z_plane+boxUpper+Delta_test)',u_t(2,15,24,z_plane+boxUpper+Delta_test)
+
+    print*, 'tau_ijOpt(2,15,24,129)', tau_ijOpt(2,15,24,z_plane)
+    print*, 'T_ijOpt(2,15,24,129)', T_ijOpt(2,15,24,z_plane)
+
+
+    print*, 'Pij_fOpt(15,24,129)', Pij_fOpt(15,24,z_plane)
+    print*, 'Pij_tOpt(15,24,129)', Pij_tOpt(15,24,z_plane)
+
+  end subroutine check_afterExtension
+  
 end program
+
+
+

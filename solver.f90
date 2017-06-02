@@ -155,7 +155,7 @@ contains
   !        randMask(i) = randomInt       
   !        if (i.gt.maskSize) exit   
   !     end do
-  
+  !
   !----------------------------------------------------------------
   
   subroutine randTrainingSet(randMask)
@@ -175,17 +175,33 @@ contains
     integer, save           :: debugCount ! To print this section only once 
     
     ! Create random mask: **
+
+!       allocate(randMask(maskSize))
+!       randMask=0; i=1          ! i starts at 1 because (M-1) points are randomly selected
+!       call init_random_seed()
+!       do
+!          call random_number(random_0_to_1) !returns a random value from 0 to 1
+!          randomInt = nint( (boxSize-1) * random_0_to_1 ) + 1 ! (511 * x) + 1
+!   !       if(any(randMask.eq.randomInt).or.(randomInt.eq.boxCenter)) cycle ! Enforce element uniqueness
+!          i = i + 1   
+!          randMask(i) = randomInt       
+!          if (i.ge.maskSize) exit   
+!       end do
+  
+
     allocate(randMask(maskSize))
-    randMask=0; i=0          ! i starts at 0 because (M) points are randomly selected
+    randMask=0; i=0          ! i starts at 1 because (M-1) points are randomly selected
     call init_random_seed()
     do
        call random_number(random_0_to_1) !returns a random value from 0 to 1
        randomInt = nint( (boxSize-1) * random_0_to_1 ) + 1 ! (511 * x) + 1
        if(any(randMask.eq.randomInt)) cycle ! Enforce element uniqueness
-       i = i+1   
-       randMask(i) = randomInt       
        if (i.ge.maskSize) exit   
+       i = i + 1   
+       !
+       randMask(i) = randomInt       
     end do
+    
     
     ! DEBUG:
     if (debugRandom.and.debugCount == 0) then
@@ -358,6 +374,8 @@ contains
     ! COLOCATED FORMULATION WITH RANDOMLY SELECTED TRANING POINTS:
     if (formulation.eq.'colocated') then
 
+!call cpu_time(tic)
+
        ! COMPUTE VELOCITY PRODUCTS: TAKE THIS STEP OUT - DON'T NEED TO SAVE EVERYTHING IN AN ARRAY
        ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
        ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
@@ -431,11 +449,14 @@ contains
              end do
              end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
 
+!call cpu_time(toc)
+!print*, 'Time to build V matrix, t1 = ', toc-tic          
+
              !
              ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
 !             do iter = 1, n_lambda
 !                lambda = lambda_0(1) * 10**(iter-1)
-
+!call cpu_time (tic)
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
                    call LU(V, T, h_ij)                       ! DAMPED LEAST SQUARES 
@@ -445,6 +466,9 @@ contains
                    print*, 'Choose correct solver: LU, SVD'
                    stop
                 end if
+
+!call cpu_time(toc)
+!print*, 'Time to invert, t2 = ', toc-tic
 
 !$
                 call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
@@ -475,7 +499,7 @@ contains
        allocate (u_n(stencil_size))
 
        ! WHOLE DOMAIN COMPUTATION: 
-
+!call cpu_time(tic)
 !       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
        do k_boxCenter = z_plane, z_plane                    
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
@@ -536,10 +560,12 @@ contains
           end do
           end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
-          
+!call cpu_time(toc)
+!print*, 'Time to build V matrix, t1 = ', toc-tic          
+
           ! CHECK V,T: ^^
-print*, 'V(1500,2000) ',V(1500,2000)
-print*, 'T(3,1) ', T(3,1)
+!print*, 'V(1500,2000) ',V(1500,2000)
+!print*, 'T(3,1) ', T(3,1)
 
           !
           ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
@@ -547,7 +573,7 @@ print*, 'T(3,1) ', T(3,1)
 !             lambda = lambda_0(1) * 10**(iter-1)
 !             lambda = lambda_0(iter)
 !             print('(a8,ES10.2)'), 'lambda ',lambda
-             
+!call cpu_time (tic)
              !
              ! CALL SOLVER: LATER SPLIT IT INTO 1) FACTORIZATION STEP (OUT OF LOOP)
              ! AND 2] SOLUTION USING LAMBDA (WITHIN LOOP)
@@ -559,12 +585,13 @@ print*, 'T(3,1) ', T(3,1)
                 print*, 'Choose correct solver: LU, SVD'
                 stop
              end if
-
+!call cpu_time(toc)
+!print*, 'Time to invert, t2 = ', toc-tic
              ! CHECK h_ij:
              if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
                 if (h_ij(350,1).ne.-4.5121154730201521d-2)then
                    print*, "Error! Check lambda, method or sorting order for h_ij computation:"
-                   print*,h_ij(350,1)
+                   print*, h_ij(350,1)
                    !stop
                 else 
                    print*,'SVD check ... Passed'
@@ -626,7 +653,7 @@ print*, 'T(3,1) ', T(3,1)
   !           ZERO ORDER terms are always 1.
   !           Indices are in C-order for direct comparison with MATLAB.
   !
-  !     * * * INDEX Nomenclature:
+  !      *** INDEX Nomenclature:
   !           _boxCenter: for a point in the TEST-scale field
   !           _opt: where same h_ij is being used for point(s)
   !           non_col_: for non-colocated combinations.
@@ -671,6 +698,8 @@ print*, 'T(3,1) ', T(3,1)
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
          
+!call cpu_time (tic)
+
           ! T_ij^F: Test scale
           col_index = 0 
           
@@ -735,6 +764,9 @@ print*, 'T(3,1) ', T(3,1)
                         (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
                 end do
              end if
+!call cpu_time(toc)
+!print*, 'Time to compute one cell, t3 = ', toc-tic
+!stop
 
           end do
           end do
@@ -756,6 +788,7 @@ print*, 'T(3,1) ', T(3,1)
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
 
+!call cpu_time (tic)
           col_index = 0 
          
           ! ENTER 3x3x3 STENCIL: C-ORDER                                      
@@ -802,6 +835,9 @@ print*, 'T(3,1) ', T(3,1)
           end do
           end do
           end if
+!call cpu_time(toc)
+!print*, 'Time to compute one cell, t3 = ', toc-tic
+!stop
        end do
        end do
        end do ! DONE COMPUTING STRESSES USING NON-COLOCATED FORM

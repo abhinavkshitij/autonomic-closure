@@ -646,33 +646,35 @@ end subroutine plotVelocities
    ! STATUS : 
    ! 
    !----------------------------------------------------------------
-
+   
    subroutine checkFFT_data()
      implicit none
-     
-     print*, 'check FFT_data'
-     if (withPressure) then
-        if (u_f(4,15,24,10).ne.0.12164158031779296d0) then
-           print*, 'ERROR READING DATA'
-           print*, u_f(4,15,24,10)
-           stop
-        end if
-     end if
 
-     if (dataset.eq.'jhu256') then
-        if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
-           print*, 'ERROR READING DATA'
-           print*, u_t(1,15,24,10)
-           stop
-        elseif( ( (stress.eq.'dev') .and. (T_ij(1,15,24,10).ne.-5.2544371578038401d-3))   &
-               .or. ( (stress.eq.'abs') .and. (T_ij(1,15,24,10).ne.-4.0152351790891661d-3) ) )then
-           print*, 'ERROR COMPUTING T_ij'
-           print*,'T_ij(1,15,24,10)',T_ij(1,15,24,10)
-           stop
-        else
-           print*, 'Read data saved from main.f90: Passed \n'
+     print*, 'check FFT_data'
+
+        if (withPressure) then
+           if (u_f(4,15,24,10).ne.0.12164158031779296d0) then
+              print*, 'ERROR READING DATA'
+              print*, u_f(4,15,24,10)
+              stop
+           end if
         end if
-     end if
+
+        if (dataset.eq.'jhu256') then
+           if (u_t(1,15,24,10).ne.-0.48241021987284982d0) then
+              print*, 'ERROR READING DATA'
+              print*, u_t(1,15,24,10)
+              stop
+           elseif( ( (stress.eq.'dev') .and. (T_ij(1,15,24,10).ne.-5.2544371578038401d-3))   &
+                .or. ( (stress.eq.'abs') .and. (T_ij(1,15,24,10).ne.-4.0152351790891661d-3) ) )then
+              print*, 'ERROR COMPUTING T_ij'
+              print*,'T_ij(1,15,24,10)',T_ij(1,15,24,10)
+              stop
+           else
+              print*, 'Read data saved from main.f90: Passed \n'
+           end if
+        end if
+
 
    end subroutine checkFFT_data
 
@@ -735,6 +737,82 @@ end subroutine plotVelocities
      end do
 
    end subroutine plotOriginalStress
+
+
+
+   
+   !****************************************************************
+   !                        PLOT DYNAMIC SMAG
+   !****************************************************************
+   
+   !----------------------------------------------------------------
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM:    subroutine plotDynSmag()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !   
+   !   
+   !----------------------------------------------------------------
+   subroutine plotDynSmag()
+     implicit none
+     !
+     !    ..LOCAL VARIABLES..
+     integer :: i, n_ij
+     character(1) :: ij
+
+     print*, 'Saving tau_DS in ', RES_PATH
+     ! SAVE tau_DS:
+     do i = 1,6
+        write(ij,'(i0)') i
+        open(87, file = trim(RES_PATH)//'tau_DS_dev'//trim(ij)//'.dat')
+        write(87,*), tau_DS(i,:,:,z_plane)
+        close(87)
+     end do
+
+   end subroutine plotDynSmag
+
+   
+   !****************************************************************
+   !                        PLOT BARDINA
+   !****************************************************************
+   
+   !----------------------------------------------------------------
+   ! USE : Saves [z-midplane] in RESULTS directory
+   !      
+   !
+   ! FORM:    subroutine plotBardina()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays.
+   !
+   ! STATUS :
+   !   
+   !   
+   !----------------------------------------------------------------
+   subroutine plotBardina()
+     implicit none
+     !
+     !    ..LOCAL VARIABLES..
+     integer :: i, n_ij
+     character(1) :: ij
+
+     print*, 'Saving tau_BD in ', RES_PATH
+     ! SAVE tau_BD:
+     do i = 1,6
+        write(ij,'(i0)') i
+        open(87, file = trim(RES_PATH)//'tau_a105_BD'//trim(ij)//'.dat')
+!        open(88, file = trim(RES_PATH)//'T_a105_BD'//trim(ij)//'.dat')
+        write(87,*), tau_BD(i,:,:,z_plane)
+!        write(88,*), T_ij(i,:,:,z_plane)
+        close(87)
+!        close(88)
+     end do
+
+   end subroutine plotBardina
+   
 
   
    !****************************************************************
@@ -851,7 +929,8 @@ end subroutine plotVelocities
   !
   ! FORM:    subroutine plotProductionTerm()
   !
-  ! BEHAVIOR: 
+  ! BEHAVIOR: Called from autonomic.f90 to plot original Pij
+  !           Called from solver.f90 to plot Pij_Opt for a given lambda
   !
   !
   ! STATUS : 

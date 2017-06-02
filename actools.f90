@@ -502,7 +502,8 @@ contains
   ! 
   !          
   !  STASH:
-  !       uiuj(count,:,:,z_extLower:z_extUpper) = ui(i,:,:,z_extLower:z_extUpper) * ui(j,:,:,z_extLower:z_extUpper)
+  !  uiuj(count,:,:,z_extLower:z_extUpper) = ui(i,:,:,z_extLower:z_extUpper)
+  !                                        * ui(j,:,:,z_extLower:z_extUpper)
   !----------------------------------------------------------------
 
   subroutine secondOrderProducts(uiuj,ui)
@@ -589,11 +590,11 @@ contains
     ! 1) X,Y DIRECTION **
     ! X:
     temp (:,extLower:0,:,:) = temp(:,i_GRID+extLower:i_GRID,:,:)
-    temp (:,i_GRID+1:z_extUpper,:,:) = temp(:,1:z_extUpper-i_GRID,:,:)
+    temp (:,i_GRID+1:extUpper,:,:) = temp(:,1:extUpper-i_GRID,:,:)
 
     ! Y:
     temp (:,:,extLower:0,:) = temp(:,:,j_GRID+extLower:j_GRID,:)
-    temp (:,:,j_GRID+1:z_extUpper,:) = temp(:,:,1:z_extUpper-j_GRID,:)
+    temp (:,:,j_GRID+1:extUpper,:) = temp(:,:,1:extUpper-j_GRID,:)
     
     ! 2) Z-DIRECTION
     if (z_extLower < 1)        temp (:,:,:,z_extLower:0) = temp(:,:,:,k_GRID+z_extLower:k_GRID)
@@ -605,7 +606,204 @@ contains
 
   end subroutine extendDomain
 
+
   
+  !****************************************************************
+  !                      PRECOMPUTE S_f_Sij_f_t                    !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Precompute S_f_Sij_f_t term 
+  !       
+  !       
+  !
+  ! FORM: subroutine computeS_f_Sij_f_t(Sij_f, test, S_f_Sij_f_t)
+  !       
+  !
+  ! BEHAVIOR: 1] Performs whole domain tau_DS and saves it
+  !          
+  ! 
+  ! 1) Multiply S_f(scalar) and Sij_f (vector)
+  ! 2) Needs whole domain computations for Sij_f - use computeSij_all ! NEW SUBROUTINE
+  ! 3) Filter at test scale -- requires a 3D sharp filter at test scale
+  ! 
+  !          
+  ! STATUS :  
+  !
+  !          
+  !----------------------------------------------------------------
+
+  subroutine computeS_f_Sij_f_t(Sij_f, test, S_f_Sij_f_t)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: Sij_f
+    real(8), dimension(   :,:,:)        , intent(in) :: test
+    real(8), dimension(1:,1:,1:,zLower:), intent(out) :: S_f_Sij_f_t
+    !
+    !    ..WORK ARRAY - SCALARS..
+    real(8), dimension(:,:,:), allocatable :: S_f
+    !
+    !   .. LOCAL VARS..
+    integer :: ij 
+     
+    ! Find S_f = sqrt(sum (Sij_f))
+    allocate (S_f(i_GRID,j_GRID,zLower:zUpper))
+    S_f = sqrt(2.d0 * sum_ij(Sij_f,Sij_f))
+
+    ! Compute S_f_Sij_f_t
+    do ij = 1,6
+       S_f_Sij_f_t(ij,:,:,:) = sharpFilter(S_f * Sij_f(ij,:,:,:),test)
+    end do
+ 
+  end subroutine computeS_f_Sij_f_t
+  
+  
+
+  
+  !****************************************************************
+  !                      DYNAMIC SMAGORINSKY                      !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Calculate Dynamic Smagorinsky stress (tau_DS)
+  !       
+  !       
+  !
+  ! FORM: subroutine dyn_Smag(tau_DS)
+  !       
+  !
+  ! BEHAVIOR: 1] Performs whole domain tau_DS and saves it
+  !          
+  ! 
+  !
+  ! STATUS :  
+  !          
+  !----------------------------------------------------------------
+
+  subroutine dyn_Smag(Sij_f, Sij_t, S_f_Sij_f_t, T_ij, tau_DS)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: T_ij
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: Sij_f
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: Sij_t
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: S_f_Sij_f_t
+    real(8), dimension(1:,1:,1:,zLower:), intent(out):: tau_DS
+    !
+    !    ..WORK ARRAY - SCALARS..
+    real(8), dimension(:,:,:), allocatable :: S_f
+    real(8), dimension(:,:,:), allocatable :: S_t
+    real(8), dimension(:,:,:,:), allocatable :: M_ij
+    real(8), dimension(:,:,:), allocatable :: Cs_2        ! DS CONSTANT
+
+    !
+    !   .. LOCAL VARS..
+    real(8) :: Delta_tilde ! LES GRID SPACING 
+    real(8) :: Delta_hat   ! TEST GRID SPACING
+    !
+    integer :: count 
+    
+    ! Find Delta_tilde, Delta_hat
+    ! dx is known in the beginning - global.f90
+!    Delta_tilde = 2.d0*PI/dble(LES_scale) * dx ![Delta_LES = 3]
+!    Delta_hat = 2.d0*PI/dble(test_scale) * dx ! [Delta_test = 6]
+
+    Delta_tilde = 2.d0*PI/dble(LES_scale)  ![Delta_LES = 3]
+    Delta_hat = 2.d0*PI/dble(test_scale)   ! [Delta_test = 6]
+
+    ! Find Sij_t:
+    ! Filter Sij_f at test scale
+    !
+    ! 1) Sij_t = filter(Sij_f, test_scale)
+    ! 
+    ! (Not required since the low pass sharp filter
+    ! at the test scale is smaller than the LES_scale) 
+
+
+    !
+    ! Find S_f = sqrt(sum (Sij_f))
+    !      S_t = sqrt(sum (Sij_t))            [S_f, S_t are scalars]
+    allocate (S_f(i_GRID,j_GRID,zLower:zUpper))
+    allocate (S_t(i_GRID,j_GRID,zLower:zUpper))
+
+    S_f = sqrt(2.d0 * sum_ij(Sij_f,Sij_f))
+    S_t = sqrt(2.d0 * sum_ij(Sij_t,Sij_t))
+
+!    print*, 'S_f(15,24,129)', S_f(15,24,129)
+!    print*, 'S_t(15,24,129)', S_t(15,24,129)
+
+    !
+    ! Find M_ij = 2*[ Delta_hat**2 * S_t * Sij_t - Delta_tilde**2 * S_f_Sij_f_t]
+    allocate (M_ij (6,i_GRID,j_GRID,zLower:zUpper))
+    do count = 1,6
+       M_ij(count,:,:,:) =  2.d0 * ( Delta_hat**2 * S_t * Sij_t(count,:,:,:) -  &
+                                   Delta_tilde**2 * S_f_Sij_f_t(count,:,:,:) )
+    end do
+!    print*, 'M_ij', M_ij(2,15,24,129)
+    
+    !
+    ! Find Cs_2(:,:,:) = sum(T_ij * M_ij) / sum(M_ij *  M_ij)
+    allocate (Cs_2 (i_GRID,j_GRID,zLower:zUpper))
+    Cs_2 =  sum_ij(M_ij,T_ij) / sum_ij(M_ij,M_ij)
+!    print*, 'Cs_2', Cs_2(15,24,129)
+
+    !
+    ! Find tau_DS = 2 * (Cs_2 * Delta_tilde)**2 * S_f * Sij_f
+    !      T_DS   = 2 * (Cs_2 * Delta_hat)**2   * S_t * Sij_t
+    do count = 1,6
+       tau_DS(count,:,:,:) = 2.d0 * & 
+                      Cs_2 * Delta_tilde ** 2 * S_f * Sij_f(count,:,:,:)
+     end do
+     print*, 'tau_DS(2,15,24,129) ',tau_DS(2,15,24,129)
+       
+
+  end subroutine dyn_Smag
+
+
+  !****************************************************************
+  !                        SUM IJ                                 !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Adds up all the elements of a symmetric matrix 
+  !       
+  !       
+  ! FORM: real(8) function sum_ij(matrix)
+  !       
+  !
+  ! BEHAVIOR: Multiplies off-diagonal elements by 2 due to symmetry 
+  !           
+  !          
+  !
+  ! STATUS :  
+  !
+  ! 
+  !          
+  !----------------------------------------------------------------
+
+  
+  function sum_ij(mat1, mat2)
+    !
+    !    ..ARRAY ARGUMENT..
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: mat1
+    real(8), dimension(1:,1:,1:,zLower:), intent(in) :: mat2
+    real(8), dimension(i_GRID,j_GRID,zLower:zUpper) :: sum_ij
+
+                  sum_ij = sum_ij           &
+                         +                  &
+         ( mat1(1,:,:,:) * mat2(1,:,:,:) +  &
+   2.d0 *  mat1(2,:,:,:) * mat2(2,:,:,:) +  &
+   2.d0 *  mat1(3,:,:,:) * mat2(3,:,:,:) +  &
+           mat1(4,:,:,:) * mat2(4,:,:,:) +  &
+   2.d0 *  mat1(5,:,:,:) * mat2(5,:,:,:) +  &
+           mat1(6,:,:,:) * mat2(6,:,:,:) )
+
+  end function sum_ij
+
+  
+  
+    
   !****************************************************************
   !                        CREATE PDF                             !
   !****************************************************************
@@ -620,10 +818,6 @@ contains
   !
   ! BEHAVIOR: 
   !           
-  !           
-  !           
-  !           
-  !          
   !          
   !
   ! STATUS :  

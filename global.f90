@@ -94,6 +94,12 @@ module global
                                                  str16('X'),             &
                                                  str16('Y')]
 
+
+  ! ROTATION PLANE NAME 
+  type(str16), parameter :: l_rotationPlane(3) = [str16('z_plane/'),          &
+                                                  str16('rotateX/'),             &
+                                                  str16('rotateY/')]
+
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
@@ -103,20 +109,25 @@ module global
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [deviatoric, absolute]
-  character(16):: formulation    = trim (l_formulation(2) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
+  character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
+  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
 
-  real(8), parameter :: lambda_0(1) =  1.d-03
-!  real(8), parameter :: lambda_0(4) =  [1.d-07, 1.d-03, 1.d-01,  1.d+01]
+!  real(8), parameter :: lambda_0(1) =  1.d-03
+  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
 
 
   character(*), parameter :: CASE_NAME = 'scratch-col'
+!  character(*), parameter :: CASE_NAME = 'z_plane/43/colocated_global'
+  character(16) :: z_plane_name
+
+
+
   
   !----------------------------------------------------------------
   !
@@ -130,9 +141,10 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0 ! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
+  logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
   logical :: plot_Stress          =  1
   logical :: production_Term      =  1
@@ -179,6 +191,16 @@ module global
   real(8), dimension(:,:,:), allocatable :: Pij_t
   real(8), dimension(:,:,:), allocatable :: Pij_fOpt
   real(8), dimension(:,:,:), allocatable :: Pij_tOpt
+  !
+  !     ..DYNAMIC SMAGORINSKY..
+  real(8), dimension(:,:,:,:), allocatable :: S_f_Sij_f_t
+  real(8), dimension(:,:,:,:), allocatable :: tau_DS
+  real(8), dimension(:,:,:), allocatable :: Pij_DS
+  !
+  !     ..BARDINA..
+  real(8), dimension(:,:,:,:), allocatable :: tau_BD
+  real(8), dimension(:,:,:), allocatable :: Pij_BD
+
  
 
   integer :: i_GRID 
@@ -216,6 +238,9 @@ module global
   integer :: boxFirst
   integer :: boxLast
   integer :: boxCenterSkip
+  
+  integer :: boxCenter
+
 
   !   .. EXTENDED DOMAIN..
   integer :: extLower           ! Lower index of extended domain using ghost cells
@@ -320,22 +345,39 @@ contains
   !           
   !
   ! STATUS : 
-  !          
+  !  **        
+  !  box must be set such that its cube(boxSize) > M
+  !
+  ! Also include a "DILATION FACTOR" to make boxSize 
+  ! larger than M by a factor f_D
+  ! E.g. M = 960, box = 60 will give boxSize = 1000
+  ! There are just enough points in the box available to fit in 960 
+  ! training points. f_D = 1000/960 = 1.04 (will ideally remain close to 1)  
+  ! Now I can set M = 960, box = 72, such that boxSize = 1728
+  ! and f_D = 1728/960 = 1.8. I have almost 2x more avaiable points in the 
+  ! bounding box. Information density(D_i) can be deifned the reciprocal of f_D.
+  ! M = 960, box = 60; boxSize = (60/6)^3 = 1000; f_D = 1.04; D_i = 0.96
+  ! M = 960, box = 72; boxSize = (72/6)^3 = 1728; f_D = 1.8;  D_i = 0.55
+  ! CL14'  - 436/512   = 0.85   CL14 - 328/343   = 0.956
+  ! CL18'  - 872/1000  = 0.872  CL18 - 656/729   = 0.899
+  ! CL24' - 1516/1728  = 0.877  CL24 - 976/1000  = 0.976
+  ! CL28' - 3032/3375  = 0.898  CL28 - 1952/2197 = 0.888
+  ! NG2'  - 17576/74088 = 0.23 =NG2  
   !
   !----------------------------------------------------------------
 
   
   subroutine setEnv()
 
-    ! SET PATH:
-    
+
+    ! SET PATH:    
     RES_PATH = RES_DIR
 
     ! GRID:
     i_GRID = 256;    j_GRID = 256;    k_GRID = 256
     
     Freq_Nyq = i_GRID/2
-    z_plane = 129!bigHalf(k_GRID)
+    z_plane = 212!bigHalf(k_GRID) [43, 129, 212]
 
     ! SPACING:[EQUIDISTANT IN X,Y,Z-DIR]
     dx = 2.d0*PI/dble(i_GRID) 
@@ -385,8 +427,7 @@ contains
     end if
 
     Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
-    Delta_test = floor(real(Freq_Nyq) / real(test_scale))
-    
+    Delta_test = floor(real(Freq_Nyq) / real(test_scale))    
 
 
     ! FFT 
@@ -394,7 +435,6 @@ contains
     f_GRID = 256 
     center = (0.5d0 * f_GRID) + 1.d0
 
-    
     ! STENCIL: Set N  [noncolocated/colocated]
     if (formulation.eq.'noncolocated') then 
        stencil_size = n_u * (3*3*3) 
@@ -414,25 +454,34 @@ contains
     box = [1, 1, 1]             
     ! ORDERED
     if (trainingPoints.eq.'ordered') then 
-       box = 256 * box
-       trainingPointSkip = 10   
+       box = 18 * box ! Default = 256 [Initial value]
+       trainingPointSkip = 6   ! Change here for CP2(3) like cases. Default=10 [M=17576]
        M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
     ! RANDOM
     elseif (trainingPoints.eq.'random') then 
-       M = M_N_ratio * N
+       M = M_N_ratio * N ! Default
+!       M = 27      ! without using the M/N ratio here.
        trainingPointSkip = Delta_test
+
        if (scheme.eq.'global') then
-          box = 256 * box 
-          elseif (scheme.eq.'local') then
-             box = ceiling(M**(1./3.)) * trainingPointSkip * box
-          end if         
-       boxSize   = product(box/trainingPointSkip)
-       maskSize  = boxSize - M 
+          box = 256 * box ! ** Initial value for box; change this part.
+          boxSize = product(box/trainingPointSkip+1)
+
+       elseif (scheme.eq.'local') then
+! (a) Box is either inflated by M training points  [RANDOM] - default
+          box = ceiling(M**(1./3.)) * trainingPointSkip * box
+! (b) Or given a predefined size (Used in CP2(3), ...  cases) [ORDERED]
+!     Specify trainingPointSkip under the ORDERED section.
+!          box = 3 * trainingPointSkip * box ! ADD DILATION FACTOR
+
+          boxSize   = product(box/trainingPointSkip)
+       end if
+       maskSize  = boxSize - M
        X = 1     
     end if
-    
+
     boxLower  = bigHalf(box(1)) - 1
     boxUpper  = box(1) - bigHalf(box(1))
 
@@ -462,6 +511,8 @@ contains
        optLower = boxLower
        optUpper = boxUpper
     end if
+!%%%%
+    boxCenter= smallHalf(box(1))*box(1)*(box(1)+1) + bigHalf(box(1))
 
     ! EXTENDED DOMAIN[Z]: Set z_extUpper, z_extLower 
     if (compDomain.eq.'all') then
@@ -485,6 +536,7 @@ contains
     ! STATISTICS:
     n_bins = 250
     N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
+
 
   end subroutine setEnv
 
@@ -537,7 +589,7 @@ contains
         write(fileID, * ), 'HST set:             ', hst_set
      end if
      write(fileID, * ), 'Time step:           ', time, '\n'
-     write(fileID, * ), 'Computation domain:  ', compDomain
+     write(fileID, * ), 'Computation domain:  ', compDomain, z_plane
      write(fileID, * ), 'Rotation axis:       ', rotationAxis
 
      write(fileID, * ), 'Scheme:              ', scheme
@@ -550,6 +602,8 @@ contains
      write(fileID, * ), 'Features(N):         ', N, '\n'
      write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
+     write(fileID, * ), 'Stress computation:  ', stress, '\n'
+
 
 
      write(fileID, * ), 'BOX PARAMETERS:      '
@@ -568,7 +622,7 @@ contains
 
      write(fileID, * ), 'boxCenterSkip:       ', boxCenterSkip
      write(fileID, * ), 'trainingPointSkip:   ', trainingPointSkip
-     write(fileID, '(a24,ES8.1)' ), 'lambda_0:              ', lambda
+     write(fileID, '(a24,ES8.1)' ), 'lambda:              ', lambda_0(1)
 
      
      write(fileID, * ), 'extendedDomain:      ', extLower, '\t', extUpper ,'\n'      
@@ -577,6 +631,61 @@ contains
   end if
   end subroutine printParams
 
+  subroutine memRequirement()
+    real :: form0 
+    real :: form1
+    real :: plane
+
+    real :: mem = 1.0
+    real :: mem_tau_ij, mem_T_ij, mem_u_f, mem_u_t
+    real :: mem_Sij_f, mem_Sij_t, mem_Pij_f, mem_Pij_t
+    real :: mem_Tij_Opt, mem_tau_ij_Opt, mem_Pij_f_Opt, mem_Pij_t_Opt
+    real :: mem_h_ij, mem_V, mem_T
+    real :: mem_uu_f, mem_uu_t
+    real :: mem_A, mem_b, mem_WORK, mem_IPIV
+    real, parameter  :: mem_real8 = 8.0
+    real, parameter  :: inMB = 1./real(1024**2)
+    real, parameter  :: inGB = 1./real(1024**3)
+
+    form0 = real(i_GRID * j_GRID * k_GRID) * mem_real8 * inMB
+    form1 = real(i_GRID * j_GRID * (extUpper - extLower + 1)) * mem_real8 * inMB
+    plane = real(i_GRID * j_GRID) * mem_real8 * inMB
+    
+    print*
+    print*, 'Memory requirements' 
+
+    ! Step 1: Load FFT data
+    mem_u_f       = 3.0 * form0 
+    mem_u_t       = 3.0 * form0 
+    mem_tau_ij    = 6.0 * form0 
+    mem_T_ij      = 6.0 * form0 
+
+    mem = mem + (mem_u_f + mem_u_t + mem_tau_ij + mem_T_ij)
+    print('(a24,f8.1,a4)'), 'Load FFT data:', mem, 'MB'
+
+    ! Step 2: Allocate planar arrays 
+    mem_Sij_f     = 6.0 * plane
+    mem_Sij_t     = 6.0 * plane
+    mem_Pij_f     = 6.0 * plane
+    mem_Pij_t     = 6.0 * plane
+    mem_Tij_Opt   = 6.0 * plane
+    mem_tau_ij_Opt = 6.0 * plane
+    mem_Pij_f_Opt = 6.0 * plane
+    mem_Pij_t_Opt = 6.0 * plane
+
+    mem_h_ij      = real(N*P) * mem_real8 * inMB
+
+    mem = mem + (mem_Sij_f + mem_Sij_t + mem_Pij_f + mem_Pij_t + &
+                 mem_Tij_Opt + mem_tau_ij_Opt + mem_Pij_f_Opt + mem_Pij_t_Opt + &
+                 mem_h_ij)
+
+    print('(a24,f8.1,a4)'), 'Allocate planar arrays:', mem, 'MB'
+
+    
+    
+    
+
+  end subroutine memRequirement
 
   !****************************************************************
   !                          PLANE3

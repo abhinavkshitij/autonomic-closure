@@ -28,6 +28,21 @@ autonomic : $(OBJECTS_AUTONOMIC)
 
 
 #
+# STRESS_DS : Validation case.
+OBJECTS_DS = global.o fileio.o fourier.o actools.o solver.o stressDS.o
+stressDS : $(OBJECTS_DS)
+	 $(build-exe)
+#	 $(plot-exe)
+
+#
+# STRESS_BD : Validation case.
+OBJECTS_BD = global.o fileio.o fourier.o actools.o solver.o stressBD.o
+stressBD : $(OBJECTS_BD)
+	 $(build-exe)
+#	 $(plot-exe)
+
+
+#
 # MAIN : takes in .bin files and gives cutout
 OBJECTS_MAIN = global.o fileio.o fourier.o actools.o solver.o main.o
 main :  $(OBJECTS_MAIN) 

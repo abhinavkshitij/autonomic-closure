@@ -63,7 +63,7 @@ program autonomic
   character(64) :: filename
   character(10) :: scale
 
-  integer :: time_index
+  integer :: time_index, p_idx
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
@@ -80,6 +80,8 @@ program autonomic
   open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
   call setEnv()
   call printParams('display')
+  call memRequirement()
+stop
 !  print*, boxSize, maskSize
 !stop
   ! TEST DATA:
@@ -181,7 +183,7 @@ program autonomic
         end do
         ! ###
         print*, 'Completed'
-        call check_FFT(u_t(1,15,24,10))  
+!        call check_FFT(u_t(1,15,24,10))  
         if (plot_Velocities) then
                                                                        call plotVelocities('All')
         if (withPressure)                                              call plotPressure()
@@ -207,9 +209,9 @@ program autonomic
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
         call loadFFT_data()
-        call checkFFT_data()
+!        call checkFFT_data()
      end if
-     
+
      !->>
      if (rotationAxis == 'X') then
         print*, 'Rotate array along x-axis'
@@ -226,17 +228,17 @@ program autonomic
      end if
 
 
-     ! SAVE FFT DATA ONLY FOR Z-MIDPLANE. THEN LOAD AND ROTATE IT. 
+     ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data()
      !->>
-
+!stop
      if (plot_Stress)                                            call plotOriginalStress('All')
 
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
      if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
 
-
+     
      ! 5] ORIGINAL PRODUCTION FIELD 
      if(production_Term) then
 
@@ -256,13 +258,22 @@ program autonomic
         call productionTerm(Pij_t, T_ij  (:,:,:,zLower:zUpper), Sij_t)
 
         ! +++  CHECK P_ij
-        call check_beforeExtension()
+!        call check_beforeExtension()
 
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
      end if
+     
 
-     ! ************** LEVEL 3 ****************!
+     !  DYNAMIC SMAGORINSKY : PERFORM PLANEWISE COMPUTATION
+!      if (computeDS) then
+!         allocate(S_f_Sij_f_t (6, i_GRID, j_GRID, zLower:zUpper))
+!         call loadPrecomputedStress(S_f_Sij_f_t)  ! LOAD PRECOMPUTED S_f_Sij_f_t: PLANE SLICE
+!         call dyn_Smag(Sij_f, Sij_t, S_f_Sij_f_t, T_ij, tau_DS)
+!      end if
+
+
+     ! ************** Level 3 ****************!
      !
      ! ADD PATH DEPTH : CASE-NAME
      TEMP_PATH = trim(TEMP_PATH)//trim(CASE_NAME)//'/'
@@ -297,12 +308,12 @@ program autonomic
         ! $$
         ! $$$ 
         call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
-        call check_afterExtension()
+ !       call check_afterExtension()
      end do lambda_loop
 
 
      call cpu_time(toc)
-     print*,'Elapsed time', toc-tic
+     print*,'Total Elapsed time', toc-tic
      
      ! %%
   end do time_loop
@@ -332,7 +343,7 @@ contains
     print*, 'Pij_f(15,24,129)', Pij_f(15,24,z_plane)
     print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
 
-    print*, count(u_t == 0), count(u_f == 0), count(T_ij == 0)
+    !print*, count(u_t == 0), count(u_f == 0), count(T_ij == 0)
 
 
   end subroutine check_beforeExtension

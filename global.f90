@@ -47,6 +47,34 @@ module global
      character (16) :: name
   end type str16
 
+  ! DEFINE LIST: KEY[CASE ID]-CASE-CASE NAME 
+  type list
+     character (8)  :: id
+     character (16) :: key
+     character (64) :: name
+  end type list
+
+  ! CASES
+  type(list), parameter :: l_case(19) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
+                                         list('1b','CL14''','colocated_local_O1_4N_P'),   & ! 2
+                                         list('2a','CL18',  'colocated_local_O1_8N'),     & ! 3
+                                         list('2b','CL18''','colocated_local_O1_8N_P'),   & ! 4
+                                         list('3a','CL24',  'colocated_local_O2_4N'),     & ! 5
+                                         list('3b','CL24''','colocated_local_O2_4N_P'),   & ! 6
+                                         list('4a','CL28',  'colocated_local_O2_8N'),     & ! 7
+                                         list('4b','CL28''','colocated_local_O2_8N_P'),   & ! 8
+                                         list('5a','NG2',   'noncolocated_global'),       & ! 9
+                                         list('5b','NG2''', 'noncolocated_global_P'),     & ! 10
+                                         list('6a','CG24',  'colocated_global_O2_4N'),    & ! 11
+                                         list('6b','CG28',  'colocated_global_O2_8N'),    & ! 12
+                                         list('7a','CL1(3)','colocated_point_O1_3'),      & ! 13
+                                         list('7b','CL2(3)','colocated_point_O2_3'),      & ! 14
+                                         list('8a','CL1(5)','colocated_point_O1_5'),      & ! 15
+                                         list('8b','CL2(5)','colocated_point_O2_5'),      & ! 16
+                                         list('9a','CL1(7)','colocated_point_O1_7'),      & ! 17
+                                         list('9b','CL2(7)','colocated_point_O2_7'),      & ! 18
+                                         list('3a(o)','CL24o','colocated_local_O2_4N_O')]   ! 19
+
 
   ! MACHINE TYPE 
   type(str16), parameter :: l_machine(2) = [str16 ('local'),             &
@@ -106,23 +134,25 @@ module global
   character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
+  integer      :: case_idx       = 19                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [deviatoric, absolute]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
-  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: rotationAxis   = trim(l_rotationAxis(2) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
 
-!  real(8), parameter :: lambda_0(1) =  1.d-03
-  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
+  real(8), parameter :: lambda_0(1) =  1.d-03
+!  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
 
 
-  character(*), parameter :: CASE_NAME = 'scratch-col'
+  character(48) :: CASE_NAME
+!  character(*), parameter :: CASE_NAME = 'scratch-col'
 !  character(*), parameter :: CASE_NAME = 'z_plane/43/colocated_global'
   character(16) :: z_plane_name
 
@@ -377,7 +407,10 @@ contains
     i_GRID = 256;    j_GRID = 256;    k_GRID = 256
     
     Freq_Nyq = i_GRID/2
-    z_plane = 212!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
+    write(z_plane_name,'(i0)'), z_plane
+    CASE_NAME = trim(l_rotationPlane(2)%name)//trim(z_plane_name)//'/'//trim(l_case(case_idx)%name)
+
 
     ! SPACING:[EQUIDISTANT IN X,Y,Z-DIR]
     dx = 2.d0*PI/dble(i_GRID) 
@@ -449,7 +482,7 @@ contains
     box = [1, 1, 1]             
     ! ORDERED
     if (trainingPoints.eq.'ordered') then 
-       box = 18 * box ! Default = 256 [Initial value]
+       box = 60 * box ! Default = 256 [Initial value]
        trainingPointSkip = 6   ! Change here for CP2(3) like cases. Default=10 [M=17576]
        M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
@@ -627,11 +660,14 @@ contains
   end subroutine printParams
 
   subroutine memRequirement()
-    real :: form0 
-    real :: form1
-    real :: plane
+    real :: form0 ! 256^3 domain 
+    real :: form1 ! resized in x,y,z-direction for temp var 
+    real :: form2 ! extended domain after resizing 
+    real :: plane ! planar slice (256^2)
 
-    real :: mem = 1.0
+    real :: mem = 0.0
+    real :: mem_1, mem_2
+    real :: mem_temp
     real :: mem_tau_ij, mem_T_ij, mem_u_f, mem_u_t
     real :: mem_Sij_f, mem_Sij_t, mem_Pij_f, mem_Pij_t
     real :: mem_Tij_Opt, mem_tau_ij_Opt, mem_Pij_f_Opt, mem_Pij_t_Opt
@@ -639,11 +675,14 @@ contains
     real :: mem_uu_f, mem_uu_t
     real :: mem_A, mem_b, mem_WORK, mem_IPIV
     real, parameter  :: mem_real8 = 8.0
+    real, parameter  :: inkB = 1./real(1024)
     real, parameter  :: inMB = 1./real(1024**2)
     real, parameter  :: inGB = 1./real(1024**3)
 
     form0 = real(i_GRID * j_GRID * k_GRID) * mem_real8 * inMB
-    form1 = real(i_GRID * j_GRID * (extUpper - extLower + 1)) * mem_real8 * inMB
+    form1 = real((extUpper - extLower + 1)**2 * (max(k_GRID,z_extUpper) - min(1,z_extLower) + 1)) &
+          & * mem_real8 * inMB
+    form2 = real((extUpper - extLower + 1)**2 * (z_extUpper - z_extLower + 1)) * mem_real8 * inMB
     plane = real(i_GRID * j_GRID) * mem_real8 * inMB
     
     print*
@@ -664,7 +703,7 @@ contains
     mem_Pij_f     = 6.0 * plane
     mem_Pij_t     = 6.0 * plane
     mem_Tij_Opt   = 6.0 * plane
-    mem_tau_ij_Opt = 6.0 * plane
+    mem_tau_ij_Opt= 6.0 * plane
     mem_Pij_f_Opt = 6.0 * plane
     mem_Pij_t_Opt = 6.0 * plane
 
@@ -676,9 +715,68 @@ contains
 
     print('(a24,f8.1,a4)'), 'Allocate planar arrays:', mem, 'MB'
 
-    
-    
-    
+    ! Step 3: Extend domain
+    mem_temp      = 6.0 * form1
+    mem           = mem + mem_temp
+    print('(a24,f8.1,a4)'), 'Extend domain(w/ temp):', mem, 'MB'
+
+    mem = mem - mem_T_ij - mem_u_t - mem_u_f - mem_temp
+    mem_T_ij      = 6.0 * form2
+    mem_u_t       = 3.0 * form2
+    mem_u_f       = 3.0 * form2
+    mem = mem + mem_T_ij + mem_u_t + mem_u_f
+    print('(a24,f8.1,a4)'), 'Extend domain:', mem, 'MB'
+
+    ! Step 4: With colocated formulation
+    if (formulation == 'colocated') then
+       mem_uu_f      = 3.0 * form2
+       mem_uu_t      = 3.0 * form2
+       mem = mem + mem_uu_f + mem_uu_t
+       print('(a24,f8.1,a4)'), 'Colocated vel-products:', mem, 'MB'
+    end if
+
+    ! Step 5: Autonomic Closure
+    ! a) Build V
+    mem_V         = real(M * N) * mem_real8 * inMB
+    mem_T         = real(N * P) * mem_real8 * inMB
+    mem_1 = mem_V + mem_T
+
+    print('(a36)'), '*******  AUTONOMIC CLOSURE  *******'
+    print('(a13)'), 'a) Build V,T:'
+    print('(a8,f8.1,a4)'), 'V:', mem_V, 'MB'
+    print('(a8,f8.1,a4)'), 'T:', mem_T * real(1024.0), 'kB'
+    print('(a9)'), '\t ---------'
+    print('(a8,f8.3,a4)'), 'a):', mem_1, 'MB'
+
+    mem = mem + mem_1
+    print('(a24,f8.1,a4)'), '', mem, 'MB'
+
+    ! b) Invert Linear System 
+    mem_A         = real(N * N) * mem_real8 * inMB
+    mem_b         = real(N * P) * mem_real8 * inMB
+    mem_WORK      = real(M * N) * mem_real8 * inMB
+    mem_IPIV      = real(N)     * mem_real8 * inMB
+
+    mem_2 = mem_A + mem_b + mem_WORK + mem_IPIV
+
+    print('(a24)'), 'b) Invert Linear System:'
+    print('(a8,f8.1,a4)'), 'A:',    mem_A    * real(1024.0), 'kB'
+    print('(a8,f8.1,a4)'), 'b:',    mem_b    * real(1024.0), 'kB'
+    print('(a8,f8.1,a4)'), 'WORK:', mem_WORK * real(1024.0), 'kB'
+    print('(a8,f8.1,a4)'), 'IPIV:', mem_IPIV * real(1024.0), 'kB'
+    print('(a12)'), '\t ---------'
+    print('(a8,f8.3,a4)'), 'b):', mem_2, 'MB'
+
+    mem = mem + mem_2
+    print('(a24,f8.1,a4)'), '', mem, 'MB'
+
+!    print*, l_case(case_idx)%id, l_case(case_idx)%key, l_case(case_idx)%name
+!    print*, CASE_NAME
+
+    ! Write to file:
+!    open(44,file = trim(RES_PATH)//'mem.dat',action='write',access='append',status='old')
+!    write(44,*) l_case(case_idx)%id, l_case(case_idx)%key, M,N,mem_1, mem_2
+!    close(44)
 
   end subroutine memRequirement
 

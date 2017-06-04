@@ -63,7 +63,8 @@ program autonomic
   character(64) :: filename
   character(10) :: scale
 
-  integer :: time_index, p_idx
+  integer :: time_index, plane_idx
+  integer :: p_levels(3) = [43, 129, 212]
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
@@ -80,10 +81,11 @@ program autonomic
   open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
   call setEnv()
   call printParams('display')
-  call memRequirement()
-stop
+!  print*, CASE_NAME
+!  call memRequirement()
 !  print*, boxSize, maskSize
-!stop
+
+
   ! TEST DATA:
   if (useTestData) then
      n_u = 1;   n_uu = 3
@@ -282,7 +284,7 @@ stop
      write(path_txt,*) trim(RES_PATH)
      call system ('mkdir -p '//trim(RES_PATH))
 
-
+!stop
      ! 6] AUTONOMICALLY TUNED LAMBDA
      if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (6,i_GRID,j_GRID,zLower:zUpper))
      if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (6,i_GRID,j_GRID,zLower:zUpper))
@@ -317,7 +319,7 @@ stop
      
      ! %%
   end do time_loop
-  
+
   close (path_txt)
 
 contains 

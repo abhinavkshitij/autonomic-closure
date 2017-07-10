@@ -43,6 +43,9 @@ program stressBD
   integer :: ij
   integer :: ferr
   character(1) :: idx
+  character(*), parameter :: BD_CASE = 'a1B' ! a1B[ox], a2G[auss]
+
+  real(8), parameter :: C_Bardina = 0.9d0
 
   logical :: save_tau_BD = 1
 
@@ -79,13 +82,43 @@ program stressBD
      write(scale,'(2(i0))') LES_scale, test_scale 
      TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
      RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
-
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
+
+
 
      ! 3] GET FFT_DATA:
      if(allocated(u_f).eqv..false.)        allocate (u_f    (n_u,i_GRID, j_GRID, k_GRID))
      if(allocated(u_t).eqv..false.)        allocate (u_t    (n_u,i_GRID, j_GRID, k_GRID))
+
+
+     ! Can load and filter velocities here or do the same with autonomic.f90. 
+
+     ! if (filterVelocities) then
+     !    write(*, '(a32)', ADVANCE='NO'), adjustl('        Filter velocities ... ')
+
+     !    ! CREATE FILTERS:
+     !    allocate(LES (f_GRID,f_GRID,f_GRID))
+     !    allocate(test(f_GRID,f_GRID,f_GRID))
+     !    call createFilter(LES,LES_scale)
+     !    call createFilter(test,LES_scale,'Gaussian')
+     !    call fftshift(LES)
+     !    call fftshift(test)
+
+     !    ! Apply filter in Fourier domain 
+     !    do i=1,n_u
+     !     u_f(i,:,:,:) = sharpFilter(u  (i,:,:,:),LES)
+     !     u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) 
+     !   end do
+     !   ! ###
+     !   print*, 'Completed'
+     !   !        call check_FFT(u_t(1,15,24,10))  
+     !   if (plot_Velocities) then
+     !                                                                  call plotVelocities('All')
+     !     if (withPressure)                                            call plotPressure()
+     !   end if
+     !  end if
+
      if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6,  i_GRID, j_GRID, k_GRID))
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6,  i_GRID, j_GRID, k_GRID))
 
@@ -117,16 +150,16 @@ program stressBD
      call computeSij(u_f, Sij_f) 
 !     call computeSij(u_t, Sij_t) 
 
-     print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,129)
+!     print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,129)
           
      !  BARDINA MODEL:
      print*, 'Compute SGS stress using Bardina model \n'
      allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
-     tau_BD = 0.9d0 * T_ij
+     tau_BD = C_Bardina * T_ij
 
 
      ! SAVE BARDINA STRESS:
-     if(save_tau_BD) call plotBardina()
+     if(save_tau_BD) call plotBardina(BD_CASE)
 
  
      ! COMPUTE Pij_BD:
@@ -136,7 +169,7 @@ program stressBD
 
      ! SAVE Pij_BD:
       print*,'Saving BD production field in', RES_PATH
-      open(53, file = trim(RES_PATH)//'Pij_a105_BD.dat', iostat=ferr)
+      open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD.dat', iostat=ferr)
       write(53,*) Pij_BD(:,:,z_plane)
       close(53)
 

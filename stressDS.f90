@@ -19,7 +19,7 @@
 !
 !           
 !
-! STATUS :
+! STATUS : + Change suffix from _dev to _GS, etc in line 169.
 !
 ! STASH :
 ! **
@@ -160,10 +160,10 @@ program stressDS
      allocate (Pij_DS (i_GRID, j_GRID, zLower:zUpper))
      call productionTerm(Pij_DS, tau_DS, Sij_f)
 
-     print*,'Pij_DS(15,24,129)', Pij_DS(15,24,129)
-     print*,'Pij_DS(max)', maxval(Pij_DS(:,:,129)), 'at', maxloc(Pij_DS(:,:,129))
-     print*,'Sij_f(max)', maxval(Sij_f(:,:,:,129)), 'at', maxloc(Sij_f(:,:,:,129))
-stop
+     ! print*,'Pij_DS(15,24,129)', Pij_DS(15,24,129)
+     ! print*,'Pij_DS(max)', maxval(Pij_DS(:,:,129)), 'at', maxloc(Pij_DS(:,:,129))
+     ! print*,'Sij_f(max)', maxval(Sij_f(:,:,:,129)), 'at', maxloc(Sij_f(:,:,:,129))
+!stop
      ! SAVE Pij_DS:
       print*,'Saving DS production field in', RES_PATH
       open(53, file=trim(RES_PATH)//'Pij_DS_dev.dat', iostat=ferr)

@@ -205,12 +205,12 @@ contains
     
     ! DEBUG:
     if (debugRandom.and.debugCount == 0) then
-       allocate (randomMatrix(box(1),box(2),box(3)))
+       allocate (randomMatrix(box_effective,box_effective,box_effective))
        count=0;randomMatrix=0
 
-       do k=1,box(3)
-       do j=1,box(2)
-       do i=1,box(1)
+       do k=1,box_effective
+       do j=1,box_effective
+       do i=1,box_effective
           count = count+1
           if(any(randMask.eq.count)) cycle
           randomMatrix(i,j,k) = count
@@ -219,8 +219,8 @@ contains
        enddo
 
        print*,'randomMatrix'        ! Print random training points indices:
-       do k=1,box(3)
-       do i=1,box(1)
+       do k=1,box_effective
+       do i=1,box_effective
           print*,randomMatrix(i,:,k)
        end do
        print*,''
@@ -448,6 +448,15 @@ contains
              call progressBar(j_boxCenter, boxLast)
              end do
              end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
+
+! DEBUG: Print V matrix 
+! if(i_boxCenter.eq.15.and.j_boxCenter.eq.24) then
+!   ! Save V matrix
+!   open(47,file='V.dat')
+!   write(47,*) V
+!   close(47)
+!  ! stop
+! end if
 
 !call cpu_time(toc)
 !print*, 'Time to build V matrix, t1 = ', toc-tic          

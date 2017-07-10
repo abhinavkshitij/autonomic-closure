@@ -792,8 +792,11 @@ end subroutine plotVelocities
    !   
    !   
    !----------------------------------------------------------------
-   subroutine plotBardina()
+   subroutine plotBardina(BD_CASE)
      implicit none
+     !
+     !    ..ARGUMENTS..
+     character(*), intent(in) :: BD_CASE
      !
      !    ..LOCAL VARIABLES..
      integer :: i, n_ij
@@ -803,7 +806,7 @@ end subroutine plotVelocities
      ! SAVE tau_BD:
      do i = 1,6
         write(ij,'(i0)') i
-        open(87, file = trim(RES_PATH)//'tau_a105_BD'//trim(ij)//'.dat')
+        open(87, file = trim(RES_PATH)//'tau_'//trim(BD_CASE)//'_BD'//trim(ij)//'.dat')
 !        open(88, file = trim(RES_PATH)//'T_a105_BD'//trim(ij)//'.dat')
         write(87,*), tau_BD(i,:,:,z_plane)
 !        write(88,*), T_ij(i,:,:,z_plane)

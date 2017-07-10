@@ -125,8 +125,13 @@ module global
 
   ! ROTATION PLANE NAME 
   type(str16), parameter :: l_rotationPlane(3) = [str16('z_plane/'),          &
-                                                  str16('rotateX/'),             &
+                                                  str16('rotateX/'),          &
                                                   str16('rotateY/')]
+
+  ! TEST SCALE FILTER TYPE    
+  type(str16), parameter :: l_filterType(3) = [str16('Sharp'),           &
+                                               str16('Gaussian'),        &
+                                               str16('Box')]                                           
 
   !*****************************************************************
               
@@ -134,18 +139,18 @@ module global
   character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 19                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 0                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
-  character(3) :: stress         = 'abs'                             ! [deviatoric, absolute]
+  character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
-  integer      :: order          = 2                                 ! [first, second]
+  integer      :: order          = 1                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
-  character(8) :: rotationAxis   = trim(l_rotationAxis(2) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
-
+  character(8) :: filterType     = trim(l_filterType(1) % name)      ! [Sharp,Gaussian,Box]
 
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
@@ -171,7 +176,7 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: computeDS            =  0
@@ -259,8 +264,9 @@ module global
   real(8) :: lambda
  
   !   ..BOUNDING BOX..
-  integer :: box(3) 
-  integer :: boxSize  
+  integer :: box(3)             ! Box size at DNS grid (256,30,...)
+  integer :: boxSize            ! Number of available trainingPoints (343,216,...)
+  integer :: box_effective      ! Box size on test grid
   integer :: maskSize  
  
   integer :: boxLower 
@@ -407,10 +413,15 @@ contains
     i_GRID = 256;    j_GRID = 256;    k_GRID = 256
     
     Freq_Nyq = i_GRID/2
+
+    ! CASE_NAME:
     z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
-    CASE_NAME = trim(l_rotationPlane(2)%name)//trim(z_plane_name)//'/'//trim(l_case(case_idx)%name)
-
+    if (case_idx == 0) then
+      CASE_NAME = 'scratch-col'
+    else
+    CASE_NAME = trim(l_rotationPlane(1)%name)//trim(z_plane_name)//'/'//trim(l_case(case_idx)%name)
+    end if
 
     ! SPACING:[EQUIDISTANT IN X,Y,Z-DIR]
     dx = 2.d0*PI/dble(i_GRID) 
@@ -482,15 +493,17 @@ contains
     box = [1, 1, 1]             
     ! ORDERED
     if (trainingPoints.eq.'ordered') then 
-       box = 60 * box ! Default = 256 [Initial value]
-       trainingPointSkip = 6   ! Change here for CP2(3) like cases. Default=10 [M=17576]
+       box = 256 * box ! Default = 256 [Initial value]
+              ! change here for CP(*)3,5,7 = 18,30,42 
+       trainingPointSkip = 10   ! Default=10 [M=17576]
+              ! Change here for CP(*)3,5,7 = 8,,10like cases
        M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
     ! RANDOM
     elseif (trainingPoints.eq.'random') then 
        M = M_N_ratio * N ! Default
-!       M = 27      ! without using the M/N ratio here.
+!       M = 27      ! change here for CP(*)3,5,7 = 27,64,125
        trainingPointSkip = Delta_test
 
        if (scheme.eq.'global') then
@@ -509,6 +522,8 @@ contains
        maskSize  = boxSize - M
        X = 1     
     end if
+
+    box_effective  = box(1)/trainingPointSkip
 
     boxLower  = bigHalf(box(1)) - 1
     boxUpper  = box(1) - bigHalf(box(1))
@@ -636,6 +651,7 @@ contains
 
      write(fileID, * ), 'BOX PARAMETERS:      '
      write(fileID, * ), 'Bounding box:        ', box
+     write(fileID, * ), 'Box size:            ', box_effective
      write(fileID, * ), 'boxLower:            ', boxLower
      write(fileID, * ), 'boxUpper:            ', boxUpper, '\n'
 
@@ -729,8 +745,8 @@ contains
 
     ! Step 4: With colocated formulation
     if (formulation == 'colocated') then
-       mem_uu_f      = 3.0 * form2
-       mem_uu_t      = 3.0 * form2
+       mem_uu_f      = 6.0 * form2
+       mem_uu_t      = 6.0 * form2
        mem = mem + mem_uu_f + mem_uu_t
        print('(a24,f8.1,a4)'), 'Colocated vel-products:', mem, 'MB'
     end if

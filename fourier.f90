@@ -67,40 +67,78 @@ contains
   !          3) Include options for other filters.   
   !----------------------------------------------------------------
   
-  subroutine createFilter(filter,scale)    
+  subroutine createFilter(filter,scale,filterOption)    
     implicit none
     !
     !    ..ARGUMENTS..
     real(8),dimension(:,:,:),intent(inout) :: filter
     integer, intent(in)                    :: scale
+    character(*), optional, intent(in)     :: filterOption
     !
     !    ..LOCAL VARS.. 
     real(8) :: distance
 
-    !  Create spectrally sharp filter:
-    do k = 1,f_GRID
-       do j = 1,f_GRID
-          do i = 1,f_GRID
 
-             distance = sqrt( dble((i - center)**2) &
-                  +           dble((j - center)**2) &
-                  +           dble((k - center)**2) )
-             if (distance.le.scale) filter(i,j,k) = 1.d0
+    if (present(filterOption).and.filterOption.eq.'Gaussian') then
+      !  Create Gaussian filter:
+      do k = 1,f_GRID
+         do j = 1,f_GRID
+            do i = 1,f_GRID
 
-          end do
-       end do
-    end do
+               distance = sqrt( dble((i - center)**2) &
+                    +           dble((j - center)**2) &
+                    +           dble((k - center)**2) )
 
-    ! Check spherical symmetry:
-    if ( (filter (center+scale+1,center,center) .eq. 0)      .and.  &
-         (filter (center,center-scale,center)   .eq. 1)      .and.  &
-         (filter (center+scale,center,center)   .eq. 1)      .and.  &
-         (filter (center,center,center+scale)   .eq. 1)      .and.  &
-         (filter (center,center-scale-1,center) .eq. 0) )    then
+               filter(i,j,k) = exp(-5.d-1 * (distance / scale)**2)
+
+            end do
+         end do
+      end do
+    elseif (present(filterOption).and.filterOption.eq.'Box') then
+      !  Create Box filter:
+      do k = 1,f_GRID
+         do j = 1,f_GRID
+            do i = 1,f_GRID
+
+               distance = sqrt( dble((i - center)**2) &
+                    +           dble((j - center)**2) &
+                    +           dble((k - center)**2) )
+
+               ! filter(i,j,k) = sin(1.d0 * PI * (distance+eps) / (scale+eps)) / &
+               ! &                  (1.d0 * PI * (distance+eps) / (scale+eps))
+
+                filter(i,j,k) = sin((distance+eps) / (scale+eps)) / &
+               &                   ((distance+eps) / (scale+eps))
+
+            end do
+         end do
+      end do
     else
-       print*, 'Failed creating spherically symmetric filter ... Aborting'
-       stop
-    end if
+      !  Create spectrally sharp filter:
+      do k = 1,f_GRID
+         do j = 1,f_GRID
+            do i = 1,f_GRID
+
+               distance = sqrt( dble((i - center)**2) &
+                    +           dble((j - center)**2) &
+                    +           dble((k - center)**2) )
+               if (distance.le.scale) filter(i,j,k) = 1.d0
+
+            end do
+         end do
+      end do
+
+      ! Check spherical symmetry:
+      if ( (filter (center+scale+1,center,center) .eq. 0)      .and.  &
+           (filter (center,center-scale,center)   .eq. 1)      .and.  &
+           (filter (center+scale,center,center)   .eq. 1)      .and.  &
+           (filter (center,center,center+scale)   .eq. 1)      .and.  &
+           (filter (center,center-scale-1,center) .eq. 0) )    then
+      else
+         print*, 'Failed creating spherically symmetric filter ... Aborting'
+         stop
+      end if
+    endif
 
     return
   end subroutine createFilter
@@ -309,7 +347,7 @@ contains
           print*, 'Precision test for FFT: Failed'
           print*, 'Check precision or data for testing is not JHU 256'
           print*, value
-          stop
+!          stop
        else
           print*, 'Precision test for FFT: Passed'
        end if
@@ -408,7 +446,7 @@ contains
             print*, 'Precision test for stress: Failed.'
             print*, 'Check precision or dataset is not JHU 256'
             print*, value
-            stop
+!            stop
          else
             print*, 'Precision test for stress: Passed'
          end if

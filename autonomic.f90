@@ -68,6 +68,8 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
+  logical :: debug_PrintFilters = 0
+
   if (computeFFT_data.eqv..false.) then
      useTestData      = 0
      readfile         = 0
@@ -81,7 +83,7 @@ program autonomic
   open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
   call setEnv()
   call printParams('display')
-!  print*, CASE_NAME
+  print*, "CASE_NAME:", CASE_NAME
 !  call memRequirement()
 !  print*, boxSize, maskSize
 
@@ -176,9 +178,15 @@ program autonomic
         allocate(test(f_GRID,f_GRID,f_GRID))
         call createFilter(LES,LES_scale)
         call createFilter(test,test_scale)
+
+        !DEBUG : Print filters 
+        if (debug_PrintFilters) call PrintFilters()
+           
+!stop
         call fftshift(LES)
         call fftshift(test)
 
+        ! Apply filter in Fourier domain (DEFAULT:sharp)
         do i=1,n_u
            u_f(i,:,:,:) = sharpFilter(u  (i,:,:,:),LES)
            u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) 
@@ -281,7 +289,7 @@ program autonomic
      TEMP_PATH = trim(TEMP_PATH)//trim(CASE_NAME)//'/'
      RES_PATH =  trim(RES_PATH)//trim(CASE_NAME)//'/'
 
-     write(path_txt,*) trim(RES_PATH)
+     write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(RES_PATH))
 
 !stop
@@ -323,8 +331,56 @@ program autonomic
   close (path_txt)
 
 contains 
+
+
+  !****************************************************************
+  !                        DEBUG: PRINT FILTERS                   !
+  !****************************************************************
   
+  !----------------------------------------------------------------
+  ! USE: Prints out a midplane slice (z=129) of the LES and test 
+  !     filter
+  !      
+  !      
+  ! FORM:   subroutine debug_PrintFilters()
+  !      
+  ! BEHAVIOR: 
+  !          
+  ! STATUS : Temporary utility procedure for debugging
+  !          
+  !
+  !----------------------------------------------------------------
   
+  subroutine PrintFilters()
+    implicit none
+
+    open(20,file=trim(RES_PATH)//'test_filter.dat',status='replace')
+    open(21,file=trim(RES_PATH)//'LES_filter.dat',status='replace')
+       
+    write(20,*) test (:,:,129)
+    write(21,*) LES  (:,:,129)
+       
+    close(20)
+    close(21)
+
+  end subroutine PrintFilters
+      
+  !****************************************************************
+  !                        CHECK: BEFORE EXTENSION                !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Dumps values at point P(15,24,129) before domain extension.
+  !      
+  !      
+  ! FORM:   subroutine check_beforeExtension()
+  !      
+  ! BEHAVIOR: 
+  !          
+  ! STATUS : Temporary utility procedure for debugging
+  !          
+  !
+  !----------------------------------------------------------------
   
   subroutine check_beforeExtension()
     implicit none
@@ -349,6 +405,24 @@ contains
 
 
   end subroutine check_beforeExtension
+
+
+  !****************************************************************
+  !                        CHECK: AFTER EXTENSION                !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Dumps values at point P(15,24,129) after domain extension.
+  !      
+  !      
+  ! FORM:   subroutine check_afterExtension()
+  !      
+  ! BEHAVIOR: 
+  !          
+  ! STATUS : Temporary utility procedure for debugging
+  !          
+  !
+  !----------------------------------------------------------------
 
   subroutine check_afterExtension()
     implicit none

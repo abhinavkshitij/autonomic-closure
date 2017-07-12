@@ -351,7 +351,7 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine PrintFilters()
+  subroutine printFilters()
     implicit none
 
     open(20,file=trim(RES_PATH)//'test_filter.dat',status='replace')
@@ -363,7 +363,7 @@ contains
     close(20)
     close(21)
 
-  end subroutine PrintFilters
+  end subroutine printFilters
       
   !****************************************************************
   !                        CHECK: BEFORE EXTENSION                !

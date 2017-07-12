@@ -568,17 +568,26 @@ end subroutine plotVelocities
    ! 
    !----------------------------------------------------------------
 
-  subroutine loadFFT_data()
+  subroutine loadFFT_data(LESFilterType,TestFilterType)
     implicit none
-     !
-     !    ..LOCAL VARIABLES..
-     character(64) :: filename
-     integer :: i
+    !
+    !    ..ARGUMENTS..
+    character(*),intent(in), optional :: LESFilterType
+    character(*),intent(in), optional :: TestFilterType
+    !
+    !    ..LOCAL VARIABLES..
+    character(64) :: filename
+    integer :: i
 
      print*
      print*,'Load filtered variables ... '
      do i = 1,size(var_FFT)
-        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+        if (i.eq.1. .or. i.eq.3) then
+          filename = trim(TEMP_PATH)//trim(LESFilterType)//trim(var_FFT(i)%name)//'.bin'
+        else
+          filename = trim(TEMP_PATH)//trim(TestFilterType)//trim(var_FFT(i)%name)//'.bin'
+        endif
+ !       filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) read(i) u_f
@@ -602,23 +611,33 @@ end subroutine plotVelocities
    !
    ! BEHAVIOR: Needs allocated, defined arrays.
    !
-   ! STATUS : 
+   ! STATUS : Save box/T_ij, gauss/T_ij and sharp/T_ij
    ! 
    !----------------------------------------------------------------
    
-   subroutine saveFFT_data()
+   subroutine saveFFT_data(LESFilterType,TestFilterType)
      implicit none
+     !
+     !    ..ARGUMENTS..
+     character(*),intent(in), optional :: LESFilterType
+     character(*),intent(in), optional :: TestFilterType
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename 
      integer :: i
+
 
      ! save FFT_DATA : Filtered velocities and stress files: 
      print*
      print*,'Write filtered variables ... '
  
      do i = 1, size(var_FFT)
-        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+        if (i.eq.1. .or. i.eq.3) then
+          filename = trim(TEMP_PATH)//trim(LESFilterType)//trim(var_FFT(i)%name)//'.bin'
+        else
+          filename = trim(TEMP_PATH)//trim(TestFilterType)//trim(var_FFT(i)%name)//'.bin'
+        endif
+!        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) write(i) u_f

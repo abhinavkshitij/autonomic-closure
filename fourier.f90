@@ -39,7 +39,7 @@ contains
   !----------------------------------------------------------------
   ! USE: Create an explicit filter.
   !      
-  ! FORM: subroutine createFilter(filter, scale)
+  ! FORM: subroutine createFilter(filter, scale,[filterOption-default:Sharp])
   !       
   ! BEHAVIOR: GRID must be cubic for spherical symmetry.
   !          
@@ -77,6 +77,7 @@ contains
     !
     !    ..LOCAL VARS.. 
     real(8) :: distance
+    real(8) :: slope
 
 
     if (present(filterOption).and.filterOption.eq.'Gaussian') then
@@ -104,15 +105,35 @@ contains
                     +           dble((j - center)**2) &
                     +           dble((k - center)**2) )
 
-               ! filter(i,j,k) = sin(1.d0 * PI * (distance+eps) / (scale+eps)) / &
-               ! &                  (1.d0 * PI * (distance+eps) / (scale+eps))
-
                 filter(i,j,k) = sin((distance+eps) / (scale+eps)) / &
                &                   ((distance+eps) / (scale+eps))
 
             end do
          end do
       end do
+    elseif (present(filterOption).and.filterOption.eq.'Custom') then
+      !  Create Custom filter:
+      do k = 1,f_GRID
+         do j = 1,f_GRID
+            do i = 1,f_GRID
+
+               distance = sqrt( dble((i - center)**2) &
+                    +           dble((j - center)**2) &
+                    +           dble((k - center)**2) )
+
+    
+               if (distance.ge.0.d0.and.distance.lt.test_scale) then
+                  slope = (0.75d0 - 1.d0) / real (test_scale)
+                  filter(i,j,k) = slope * distance + 1.d0
+               elseif (distance.ge.test_scale.and.distance.lt.LES_scale) then
+                  filter(i,j,k) = 0.75d0  
+               elseif (distance.ge.LES_scale.and.distance.lt.3*LES_scale)  then
+                  filter(i,j,k) = 0.33d0
+               endif        
+
+            end do
+         end do
+      end do  
     else
       !  Create spectrally sharp filter:
       do k = 1,f_GRID

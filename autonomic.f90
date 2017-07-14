@@ -168,6 +168,10 @@ program autonomic
      ! 2] FILTER VELOCITIES [AND PRESSURE]:
      if(allocated(u_f).eqv..false.)        allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
      if(allocated(u_t).eqv..false.)        allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
+     if (run3FilterStress) then
+        if(allocated(u_tB).eqv..false.)        allocate(u_tB (n_u, i_GRID,j_GRID,k_GRID))
+        if(allocated(u_tG).eqv..false.)        allocate(u_tG (n_u, i_GRID,j_GRID,k_GRID))
+     end if
 
 
      if (filterVelocities) then
@@ -176,11 +180,11 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
-        call createFilter(LES,LES_scale)
+        call createFilter(LES,LES_scale,'Custom')
         call createFilter(test,test_scale)
 
         !DEBUG : Print filters 
-        if (debug_PrintFilters) call PrintFilters()
+        if (debug_PrintFilters) call printFilters()
            
 !stop
         call fftshift(LES)
@@ -208,6 +212,10 @@ program autonomic
      ! 3] GET FFT_DATA:
      if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6, i_GRID, j_GRID, k_GRID))
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
+     if (run3FilterStress) then
+        if(allocated(T_ijB).eqv..false.)        allocate(T_ijB (6, i_GRID,j_GRID,k_GRID))
+        if(allocated(T_ijG).eqv..false.)        allocate(T_ijG (6, i_GRID,j_GRID,k_GRID))
+     end if
 
 
      ! COMPUTE ORIGINAL STRESS [ROTATE][SAVE]
@@ -218,10 +226,11 @@ program autonomic
         !->>     
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
-        call loadFFT_data()
+        call loadFFT_data3(run3FilterStress)
 !        call checkFFT_data()
      end if
 
+stop
      !->>
      if (rotationAxis == 'X') then
         print*, 'Rotate array along x-axis'

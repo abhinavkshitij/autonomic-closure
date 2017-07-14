@@ -568,12 +568,8 @@ end subroutine plotVelocities
    ! 
    !----------------------------------------------------------------
 
-  subroutine loadFFT_data(LESFilterType,TestFilterType)
+  subroutine loadFFT_data()
     implicit none
-    !
-    !    ..ARGUMENTS..
-    character(*),intent(in), optional :: LESFilterType
-    character(*),intent(in), optional :: TestFilterType
     !
     !    ..LOCAL VARIABLES..
     character(64) :: filename
@@ -581,13 +577,10 @@ end subroutine plotVelocities
 
      print*
      print*,'Load filtered variables ... '
-     do i = 1,size(var_FFT)
-        if (i.eq.1. .or. i.eq.3) then
-          filename = trim(TEMP_PATH)//trim(LESFilterType)//trim(var_FFT(i)%name)//'.bin'
-        else
-          filename = trim(TEMP_PATH)//trim(TestFilterType)//trim(var_FFT(i)%name)//'.bin'
-        endif
- !       filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+
+
+     do i = 1,size(var_FFT)      
+        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) read(i) u_f
@@ -598,6 +591,79 @@ end subroutine plotVelocities
      end do
 
    end subroutine loadFFT_data
+
+   !****************************************************************
+   !                     LOAD FFT DATA - 3 FILTER
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Loads u_f, tau_ij from LES/ dir and u_t, T_ij from test/ 
+   !      dir
+   !
+   ! FORM:   subroutine loadFFT_data3()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays. Is a brute force method 
+   !           of reading a file. 
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+  subroutine loadFFT_data3(run3FilterStress)
+    implicit none
+    !
+    !    ..ARGUMENTS..
+    logical,intent(in), optional :: run3FilterStress
+    !
+    !    ..LOCAL VARIABLES..
+    character(64) :: filename
+    integer :: i
+
+     print*
+     print*,'Load filtered variables ... '
+
+    
+     ! Read LES data from custom filter 
+     ! and test data from sharp filter
+     do i = 1,size(var_FFT)    
+        if (i.eq.1.or.i.eq.3) then  
+          filename = trim(TEMP_PATH)//trim('LES/Custom/')//trim(var_FFT(i)%name)//'.bin'
+        else
+          filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+        end if
+
+        print*, filename
+        open(i, file = filename,form='unformatted')
+        if (i.eq.1) read(i) u_f
+        if (i.eq.2) read(i) u_t
+        if (i.eq.3) read(i) tau_ij
+        if (i.eq.4) read(i) T_ij
+        close(i)
+     end do
+
+     ! Additionally read test filtered data from Box and Gaussian filter
+     if (present(run3FilterStress)) then
+          filename = trim(TEMP_PATH)//trim('Test/Box/')
+          print*, filename
+          open(1, file = trim(filename)//trim('u_t.bin'),form='unformatted')
+          open(2, file = trim(filename)//trim('T_ij.bin'),form='unformatted')
+          read(1) u_tB
+          read(2) T_ijB
+          close(1)
+          close(2)
+          
+          filename = trim(TEMP_PATH)//trim('Test/Gaussian/')
+          print*, filename
+          open(1, file = trim(filename)//trim('u_t.bin'),form='unformatted')
+          open(2, file = trim(filename)//trim('T_ij.bin'),form='unformatted')
+          read(1) u_tG
+          read(2) T_ijG
+          close(1)
+          close(2)            
+      endif
+
+   end subroutine loadFFT_data3
+
 
    !****************************************************************
    !                          SAVE FFT_DATA

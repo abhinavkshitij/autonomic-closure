@@ -129,9 +129,10 @@ module global
                                                   str16('rotateY/')]
 
   ! TEST SCALE FILTER TYPE    
-  type(str16), parameter :: l_filterType(3) = [str16('Sharp'),           &
-                                               str16('Gaussian'),        &
-                                               str16('Box')]                                           
+  type(str16), parameter :: l_filterType(4) = [str16('Sharp/'),           &
+                                               str16('Gaussian/'),        &
+                                               str16('Box/'),             &
+                                               str16('Custom/')]                                           
 
   !*****************************************************************
               
@@ -150,6 +151,7 @@ module global
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
+
   character(8) :: filterType     = trim(l_filterType(1) % name)      ! [Sharp,Gaussian,Box]
 
   real(8), parameter :: lambda_0(1) =  1.d-03
@@ -176,7 +178,7 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: computeDS            =  0
@@ -186,6 +188,7 @@ module global
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
+  logical :: run3FilterStress     =  1
 
 
   !----------------------------------------------------------------
@@ -199,6 +202,7 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: u
   real(8), dimension(:,:,:,:), allocatable :: u_f 
   real(8), dimension(:,:,:,:), allocatable :: u_t
+  
   !
   !    ..VORTICITY..
   real(8), dimension(:,:,:,:), allocatable :: omega
@@ -208,6 +212,13 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: T_ij
   real(8), dimension(:,:,:,:), allocatable :: T_ijOpt
   real(8), dimension(:,:,:,:), allocatable :: tau_ijOpt
+
+  !     ..3-FILTER MODIFICATION..
+  real(8), dimension(:,:,:,:), allocatable :: u_tB
+  real(8), dimension(:,:,:,:), allocatable :: T_ijB
+  real(8), dimension(:,:,:,:), allocatable :: u_tG
+  real(8), dimension(:,:,:,:), allocatable :: T_ijG
+
   !
   !    ..FILTERS..
   real(8), dimension(:,:,:), allocatable :: LES

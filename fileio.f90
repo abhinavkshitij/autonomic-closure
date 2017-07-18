@@ -609,11 +609,11 @@ end subroutine plotVelocities
    ! 
    !----------------------------------------------------------------
 
-  subroutine loadFFT_data3(run3FilterStress)
+  subroutine loadFFT_data3(LESFilterType)
     implicit none
     !
     !    ..ARGUMENTS..
-    logical,intent(in), optional :: run3FilterStress
+    character(*),intent(in), optional :: LESFilterType
     !
     !    ..LOCAL VARIABLES..
     character(64) :: filename
@@ -622,45 +622,58 @@ end subroutine plotVelocities
      print*
      print*,'Load filtered variables ... '
 
+     ! READ LES DATA - u_f, tau_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('u_f.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_f
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('tau_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) tau_ij
+    close(2)
+
+    ! READ TEST DATA - u_t, T_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Sharp/u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_t
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Sharp/T_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ij
+    close(2)
     
-     ! Read LES data from custom filter 
-     ! and test data from sharp filter
-     do i = 1,size(var_FFT)    
-        if (i.eq.1.or.i.eq.3) then  
-          filename = trim(TEMP_PATH)//trim('LES/Custom/')//trim(var_FFT(i)%name)//'.bin'
-        else
-          filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
-        end if
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Box/u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_tB
+    close(1)
 
-        print*, filename
-        open(i, file = filename,form='unformatted')
-        if (i.eq.1) read(i) u_f
-        if (i.eq.2) read(i) u_t
-        if (i.eq.3) read(i) tau_ij
-        if (i.eq.4) read(i) T_ij
-        close(i)
-     end do
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Box/T_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ijB
+    close(2)
+    
 
-     ! Additionally read test filtered data from Box and Gaussian filter
-     if (present(run3FilterStress)) then
-          filename = trim(TEMP_PATH)//trim('Test/Box/')
-          print*, filename
-          open(1, file = trim(filename)//trim('u_t.bin'),form='unformatted')
-          open(2, file = trim(filename)//trim('T_ij.bin'),form='unformatted')
-          read(1) u_tB
-          read(2) T_ijB
-          close(1)
-          close(2)
-          
-          filename = trim(TEMP_PATH)//trim('Test/Gaussian/')
-          print*, filename
-          open(1, file = trim(filename)//trim('u_t.bin'),form='unformatted')
-          open(2, file = trim(filename)//trim('T_ij.bin'),form='unformatted')
-          read(1) u_tG
-          read(2) T_ijG
-          close(1)
-          close(2)            
-      endif
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gaussian/u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_tG
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gaussian/T_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ijG
+    close(2)
+                  
+      
 
    end subroutine loadFFT_data3
 
@@ -675,9 +688,13 @@ end subroutine plotVelocities
    !
    ! FORM:    subroutine saveFFT_data()
    !
-   ! BEHAVIOR: Needs allocated, defined arrays.
+   ! BEHAVIOR: Saves only one set of LES and TEST filtered data at 
+   !            a time. 
    !
-   ! STATUS : Save box/T_ij, gauss/T_ij and sharp/T_ij
+   ! STATUS : 
+   !        On GIT BRANCH:
+   !          1) test/validation: no arguments required.
+   !          2) filter3: both arguments required. 
    ! 
    !----------------------------------------------------------------
    
@@ -701,7 +718,7 @@ end subroutine plotVelocities
         if (i.eq.1. .or. i.eq.3) then
           filename = trim(TEMP_PATH)//trim(LESFilterType)//trim(var_FFT(i)%name)//'.bin'
         else
-          filename = trim(TEMP_PATH)//trim(TestFilterType)//trim(var_FFT(i)%name)//'.bin'
+          filename = trim(TEMP_PATH)//trim(LESFilterType)//trim(TestFilterType)//trim(var_FFT(i)%name)//'.bin'
         endif
 !        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
         print*, filename

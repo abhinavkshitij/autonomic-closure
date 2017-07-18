@@ -147,13 +147,15 @@ module global
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
-  integer      :: order          = 1                                 ! [first, second]
+  integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
-  character(8) :: filterType     = trim(l_filterType(1) % name)      ! [Sharp,Gaussian,Box]
-
+  character(16) :: LESFilterType  = trim(l_filterType(4) % name)     ! [1-Sharp, 4-Custom]
+  character(16) :: TestFilterType = trim(l_filterType(1) % name)     ! [1-Sharp,2-Gaussian,3-Box,4-Custom]
+ 
+  
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
 
@@ -265,6 +267,7 @@ module global
   integer :: LES_scale 
   integer :: test_scale 
   integer :: Freq_Nyq
+  integer :: n_filter = 1       ! Number of filters
 
   !    ..STENCIL..
   integer :: Delta_LES          ! Grid spacing at LES scale = Nyquist frequ/LES_scale  (128/40 = 3)
@@ -591,6 +594,9 @@ contains
     n_bins = 250
     N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
+    ! 3-Filter MODIFICATION:
+    if (run3FilterStress) n_filter = 3
+    M = n_filter * M
 
   end subroutine setEnv
 
@@ -651,10 +657,11 @@ contains
      write(fileID, * ), 'Pressure Term:       ', withPressure
 
      write(fileID, * ), 'Order:               ', order
-     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)
-     write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
+     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)/real(n_filter)
+     write(fileID, * ), 'Training points(M):  ', M/n_filter, '\t', trainingPoints
      write(fileID, * ), 'Features(N):         ', N, '\n'
      write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
+     write(fileID, * ), 'Filter types:        ', LESFilterType, TestFilterType
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
      write(fileID, * ), 'Stress computation:  ', stress, '\n'
 

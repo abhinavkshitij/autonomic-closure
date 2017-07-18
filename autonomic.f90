@@ -119,7 +119,7 @@ program autonomic
         RES_PATH  = trim(RES_PATH)//trim(hst_set)//'/'
      end if
      write(path_txt,*) trim(DATA_PATH)
-     write(path_txt,*) RES_PATH
+     write(path_txt,*) trim(RES_PATH)
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
@@ -180,13 +180,13 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
-        call createFilter(LES,LES_scale,'Custom')
+        call createFilter(LES,LES_scale)
         call createFilter(test,test_scale)
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call printFilters()
            
-!stop
+stop
         call fftshift(LES)
         call fftshift(test)
 
@@ -226,11 +226,12 @@ program autonomic
         !->>     
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
-        call loadFFT_data3(run3FilterStress)
+        call loadFFT_data3(LESFilterType)
 !        call checkFFT_data()
+!        print*, T_ij(2,15,24,129)
      end if
 
-stop
+!stop
      !->>
      if (rotationAxis == 'X') then
         print*, 'Rotate array along x-axis'
@@ -238,12 +239,24 @@ stop
         call rotateX(u_t) 
         call rotateX(tau_ij) 
         call rotateX(T_ij)
+        if (run3FilterStress) then
+            call rotateX(u_tB) 
+            call rotateX(u_tG) 
+            call rotateX(T_ijB)
+            call rotateX(T_ijG)
+        endif 
      else if (rotationAxis == 'Y') then
         print*, 'Rotate array along y-axis'
         call rotateY(u_f) 
         call rotateY(u_t) 
         call rotateY(tau_ij) 
         call rotateY(T_ij)
+        if (run3FilterStress) then
+            call rotateY(u_tB) 
+            call rotateY(u_tG) 
+            call rotateY(T_ijB)
+            call rotateY(T_ijG)
+        endif 
      end if
 
 
@@ -317,6 +330,12 @@ stop
      call extendDomain(u_f)
      call extendDomain(u_t)
      call extendDomain(T_ij)   
+     if (run3FilterStress) then
+        call extendDomain(u_tB)
+        call extendDomain(u_tG)
+        call extendDomain(T_ijB) 
+        call extendDomain(T_ijG) 
+    endif 
  
      call cpu_time(tic)
 

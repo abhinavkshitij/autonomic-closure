@@ -578,7 +578,12 @@ end subroutine plotVelocities
      print*
      print*,'Load filtered variables ... '
      do i = 1,size(var_FFT)
-        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+        if (i.eq.1.or.i.eq.3) then
+        filename = trim(TEMP_PATH)//trim('Custom/')//trim(var_FFT(i)%name)//'.bin'
+      else
+        filename = trim(TEMP_PATH)//trim('Custom/')//trim('Gauss/')//trim(var_FFT(i)%name)//'.bin'
+      endif
+        
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) read(i) u_f

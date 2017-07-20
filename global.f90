@@ -130,7 +130,7 @@ module global
 
   ! TEST SCALE FILTER TYPE    
   type(str16), parameter :: l_filterType(3) = [str16('Sharp'),           &
-                                               str16('Gaussian'),        &
+                                               str16('Gauss'),        &
                                                str16('Box')]                                           
 
   !*****************************************************************
@@ -146,11 +146,11 @@ module global
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
-  integer      :: order          = 1                                 ! [first, second]
+  integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
-  character(8) :: filterType     = trim(l_filterType(1) % name)      ! [Sharp,Gaussian,Box]
+  character(8) :: filterType     = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box]
 
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]

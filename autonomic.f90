@@ -68,7 +68,7 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
-  logical :: debug_PrintFilters = 0
+  logical :: debug_PrintFilters = 1
 
   if (computeFFT_data.eqv..false.) then
      useTestData      = 0
@@ -177,12 +177,12 @@ program autonomic
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
         call createFilter(LES,LES_scale)
-        call createFilter(test,test_scale)
+        call createFilter(test,test_scale,'Gauss')
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call PrintFilters()
            
-!stop
+stop
         call fftshift(LES)
         call fftshift(test)
 

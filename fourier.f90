@@ -79,7 +79,7 @@ contains
     real(8) :: distance
 
 
-    if (present(filterOption).and.filterOption.eq.'Gaussian') then
+    if (present(filterOption).and.filterOption.eq.'Gauss') then
       !  Create Gaussian filter:
       do k = 1,f_GRID
          do j = 1,f_GRID

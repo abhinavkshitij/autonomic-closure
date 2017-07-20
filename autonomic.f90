@@ -181,12 +181,12 @@ program autonomic
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
         call createFilter(LES,LES_scale)
-        call createFilter(test,test_scale)
+        call createFilter(test,test_scale,filterOption = TestFilterType)
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call printFilters()
            
-stop
+!stop
         call fftshift(LES)
         call fftshift(test)
 
@@ -261,7 +261,7 @@ stop
 
 
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
-     if (save_FFT_DATA) call saveFFT_data()
+     if (save_FFT_DATA) call saveFFT_data(LESFilterType,TestFilterType)
      !->>
 !stop
      if (plot_Stress)                                            call plotOriginalStress('All')

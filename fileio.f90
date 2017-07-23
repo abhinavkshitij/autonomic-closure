@@ -661,13 +661,13 @@ end subroutine plotVelocities
     close(2)
     
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gaussian/u_t.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin')
     print*, filename
     open(1, file = filename,form='unformatted')
     read(1) u_tG
     close(1)
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gaussian/T_ij.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin')
     print*, filename
     open(2, file = filename,form='unformatted')
     read(2) T_ijG

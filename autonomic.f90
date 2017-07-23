@@ -180,7 +180,7 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
-        call createFilter(LES,LES_scale)
+        call createFilter(LES,LES_scale,filterOption = LESFilterType)
         call createFilter(test,test_scale,filterOption = TestFilterType)
 
         !DEBUG : Print filters 

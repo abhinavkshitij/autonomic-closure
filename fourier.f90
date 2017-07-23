@@ -80,8 +80,8 @@ contains
     real(8) :: slope
 
 
-    if (present(filterOption).and.filterOption.eq.'Gaussian') then
-      !  Create Gaussian filter:
+    if (present(filterOption).and.filterOption.eq.'Gauss') then
+      !  Create Gauss filter:
       do k = 1,f_GRID
          do j = 1,f_GRID
             do i = 1,f_GRID

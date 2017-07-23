@@ -130,7 +130,7 @@ module global
 
   ! TEST SCALE FILTER TYPE    
   type(str16), parameter :: l_filterType(4) = [str16('Sharp/'),           &
-                                               str16('Gaussian/'),        &
+                                               str16('Gauss/'),        &
                                                str16('Box/'),             &
                                                str16('Custom/')]                                           
 
@@ -153,7 +153,7 @@ module global
   integer      :: M_N_ratio      = 4
 
   character(16) :: LESFilterType  = trim(l_filterType(4) % name)     ! [1-Sharp, 4-Custom]
-  character(16) :: TestFilterType = trim(l_filterType(1) % name)     ! [1-Sharp,2-Gaussian,3-Box,4-Custom]
+  character(16) :: TestFilterType = trim(l_filterType(2) % name)     ! [1-Sharp,2-Gauss,3-Box,4-Custom]
  
   
   real(8), parameter :: lambda_0(1) =  1.d-03
@@ -180,7 +180,7 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: computeDS            =  0
@@ -190,7 +190,7 @@ module global
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
-  logical :: run3FilterStress     =  1
+  logical :: run3FilterStress     =  0
 
 
   !----------------------------------------------------------------

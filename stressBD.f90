@@ -101,7 +101,7 @@ program stressBD
      !    allocate(LES (f_GRID,f_GRID,f_GRID))
      !    allocate(test(f_GRID,f_GRID,f_GRID))
      !    call createFilter(LES,LES_scale)
-     !    call createFilter(test,LES_scale,'Gaussian')
+     !    call createFilter(test,LES_scale,'Gauss')
      !    call fftshift(LES)
      !    call fftshift(test)
 

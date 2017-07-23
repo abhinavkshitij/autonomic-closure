@@ -427,7 +427,8 @@ contains
 
                 ! ZERO ORDER TERMS:
                 col_index = col_index + 1
-                V(row_index:row_index+2, col_index) = 1.d0
+ !               V(row_index:row_index+2, col_index) = 1.d0
+                 V(row_index, col_index) = 1.d0
                
 
                 ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
@@ -439,8 +440,8 @@ contains
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
                       V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index+1,col_index) = u_tB(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index+2,col_index) = u_tG(u_comp,i_stencil,j_stencil,k_stencil)
+!                      V(row_index+1,col_index) = u_tB(u_comp,i_stencil,j_stencil,k_stencil)
+!                      V(row_index+2,col_index) = u_tG(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
@@ -448,8 +449,8 @@ contains
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
                          V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(row_index+1,col_index) = uu_tB(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(row_index+2,col_index) = uu_tG(uu_comp,i_stencil,j_stencil,k_stencil)
+ !                        V(row_index+1,col_index) = uu_tB(uu_comp,i_stencil,j_stencil,k_stencil)
+ !                        V(row_index+2,col_index) = uu_tG(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
 
@@ -458,8 +459,8 @@ contains
                 end do ! STENCIL
        
                 T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
-                T(row_index+1,:) = T_ijB(:,i_train,j_train,k_train) 
-                T(row_index+2,:) = T_ijG(:,i_train,j_train,k_train) 
+  !              T(row_index+1,:) = T_ijB(:,i_train,j_train,k_train) 
+  !              T(row_index+2,:) = T_ijG(:,i_train,j_train,k_train) 
 
              end do
              call progressBar(j_boxCenter, boxLast)

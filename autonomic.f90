@@ -176,13 +176,13 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
-        call createFilter(LES,LES_scale)
+        call createFilter(LES,LES_scale,'Box')
         call createFilter(test,test_scale,'Gauss')
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call PrintFilters()
            
-stop
+!stop
         call fftshift(LES)
         call fftshift(test)
 
@@ -240,6 +240,8 @@ stop
 
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data()
+     print*, 'tau_ij(2,15,24,129):', tau_ij(2,15,24,129)
+     print*, 'T_ij(2,15,24,129):', T_ij(2,15,24,129), '\n'
      !->>
 !stop
      if (plot_Stress)                                            call plotOriginalStress('All')

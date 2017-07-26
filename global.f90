@@ -152,7 +152,7 @@ module global
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
-  character(16) :: LESFilterType  = trim(l_filterType(4) % name)     ! [1-Sharp, 4-Custom]
+  character(16) :: LESFilterType  = trim(l_filterType(3) % name)     ! [1-Sharp, 4-Custom]
   character(16) :: TestFilterType = trim(l_filterType(2) % name)     ! [1-Sharp,2-Gauss,3-Box,4-Custom]
  
   
@@ -180,7 +180,7 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: computeDS            =  0
@@ -190,7 +190,7 @@ module global
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
-  logical :: run3FilterStress     =  0
+  logical :: run3FilterStress     =  1
 
 
   !----------------------------------------------------------------
@@ -595,7 +595,7 @@ contains
     N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
     ! 3-Filter MODIFICATION:
-    if (run3FilterStress) n_filter = 3
+    if (run3FilterStress) n_filter = 2
     M = n_filter * M
 
   end subroutine setEnv

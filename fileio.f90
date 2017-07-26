@@ -636,13 +636,13 @@ end subroutine plotVelocities
     close(2)
 
     ! READ TEST DATA - u_t, T_ij:
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Sharp/u_t.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin') ! Sharp
     print*, filename
     open(1, file = filename,form='unformatted')
     read(1) u_t
     close(1)
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Sharp/T_ij.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin') ! Sharp
     print*, filename
     open(2, file = filename,form='unformatted')
     read(2) T_ij
@@ -661,17 +661,17 @@ end subroutine plotVelocities
     close(2)
     
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin')
-    print*, filename
-    open(1, file = filename,form='unformatted')
-    read(1) u_tG
-    close(1)
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin')
+    ! print*, filename
+    ! open(1, file = filename,form='unformatted')
+    ! read(1) u_tG
+    ! close(1)
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin')
-    print*, filename
-    open(2, file = filename,form='unformatted')
-    read(2) T_ijG
-    close(2)
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin')
+    ! print*, filename
+    ! open(2, file = filename,form='unformatted')
+    ! read(2) T_ijG
+    ! close(2)
                   
       
 

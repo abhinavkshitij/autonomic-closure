@@ -390,9 +390,9 @@ contains
           call secondOrderProducts(uu_f, u_f)
           if (run3FilterStress) then
             if (allocated(uu_tB).eqv..false.)allocate(uu_tB(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
-            if (allocated(uu_tG).eqv..false.)allocate(uu_tG(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+  !          if (allocated(uu_tG).eqv..false.)allocate(uu_tG(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
                 call secondOrderProducts(uu_tB, u_tB)
-                call secondOrderProducts(uu_tG, u_tG)
+  !              call secondOrderProducts(uu_tG, u_tG)
           end if 
        end if
 
@@ -427,8 +427,8 @@ contains
 
                 ! ZERO ORDER TERMS:
                 col_index = col_index + 1
- !               V(row_index:row_index+2, col_index) = 1.d0
-                 V(row_index, col_index) = 1.d0
+                V(row_index:row_index+1, col_index) = 1.d0
+ !                V(row_index, col_index) = 1.d0
                
 
                 ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
@@ -440,7 +440,7 @@ contains
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
                       V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-!                      V(row_index+1,col_index) = u_tB(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index+1,col_index) = u_tB(u_comp,i_stencil,j_stencil,k_stencil)
 !                      V(row_index+2,col_index) = u_tG(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
@@ -449,7 +449,7 @@ contains
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
                          V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
- !                        V(row_index+1,col_index) = uu_tB(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index+1,col_index) = uu_tB(uu_comp,i_stencil,j_stencil,k_stencil)
  !                        V(row_index+2,col_index) = uu_tG(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
@@ -459,7 +459,7 @@ contains
                 end do ! STENCIL
        
                 T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
-  !              T(row_index+1,:) = T_ijB(:,i_train,j_train,k_train) 
+                T(row_index+1,:) = T_ijB(:,i_train,j_train,k_train) 
   !              T(row_index+2,:) = T_ijG(:,i_train,j_train,k_train) 
 
              end do

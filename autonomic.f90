@@ -170,7 +170,7 @@ program autonomic
      if(allocated(u_t).eqv..false.)        allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
      if (run3FilterStress) then
         if(allocated(u_tB).eqv..false.)        allocate(u_tB (n_u, i_GRID,j_GRID,k_GRID))
-        if(allocated(u_tG).eqv..false.)        allocate(u_tG (n_u, i_GRID,j_GRID,k_GRID))
+       ! if(allocated(u_tG).eqv..false.)        allocate(u_tG (n_u, i_GRID,j_GRID,k_GRID))
      end if
 
 
@@ -214,7 +214,7 @@ program autonomic
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
      if (run3FilterStress) then
         if(allocated(T_ijB).eqv..false.)        allocate(T_ijB (6, i_GRID,j_GRID,k_GRID))
-        if(allocated(T_ijG).eqv..false.)        allocate(T_ijG (6, i_GRID,j_GRID,k_GRID))
+!        if(allocated(T_ijG).eqv..false.)        allocate(T_ijG (6, i_GRID,j_GRID,k_GRID))
      end if
 
 
@@ -228,7 +228,9 @@ program autonomic
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
         call loadFFT_data3(LESFilterType)
 !        call checkFFT_data()
-!        print*, T_ij(2,15,24,129)
+        print*, tau_ij(2,15,24,129)
+        print*, T_ij(2,15,24,129)
+        print*, T_ijB(2,15,24,129)
      end if
 
 !stop
@@ -241,9 +243,9 @@ program autonomic
         call rotateX(T_ij)
         if (run3FilterStress) then
             call rotateX(u_tB) 
-            call rotateX(u_tG) 
+ !           call rotateX(u_tG) 
             call rotateX(T_ijB)
-            call rotateX(T_ijG)
+ !           call rotateX(T_ijG)
         endif 
      else if (rotationAxis == 'Y') then
         print*, 'Rotate array along y-axis'
@@ -253,9 +255,9 @@ program autonomic
         call rotateY(T_ij)
         if (run3FilterStress) then
             call rotateY(u_tB) 
-            call rotateY(u_tG) 
+   !         call rotateY(u_tG) 
             call rotateY(T_ijB)
-            call rotateY(T_ijG)
+  !          call rotateY(T_ijG)
         endif 
      end if
 
@@ -332,9 +334,9 @@ program autonomic
      call extendDomain(T_ij)   
      if (run3FilterStress) then
         call extendDomain(u_tB)
-        call extendDomain(u_tG)
+  !      call extendDomain(u_tG)
         call extendDomain(T_ijB) 
-        call extendDomain(T_ijG) 
+ !       call extendDomain(T_ijG) 
     endif 
  
      call cpu_time(tic)

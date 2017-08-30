@@ -129,9 +129,9 @@ module global
                                                   str16('rotateY/')]
 
   ! TEST SCALE FILTER TYPE    
-  type(str16), parameter :: l_filterType(3) = [str16('Sharp'),           &
-                                               str16('Gauss'),        &
-                                               str16('Box')]                                           
+  type(str16), parameter :: l_filterType(3) = [str16('Sharp/'),           &
+                                               str16('Gauss/'),        &
+                                               str16('Box/')]                                           
 
   !*****************************************************************
               
@@ -139,7 +139,7 @@ module global
   character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 0                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
@@ -148,9 +148,11 @@ module global
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
-  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: rotationAxis   = trim(l_rotationAxis(3) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: rotationPlane  = trim(l_rotationPlane(3) % name)    ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
-  character(8) :: filterType     = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box]
+  character(8) :: LESfilterType  = trim(l_filterType(3) % name)      ! [Sharp,Gauss,Box]
+  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box]
 
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
@@ -321,9 +323,9 @@ module global
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RES_DIR  = '../results/'
   
-  character(64) :: DATA_PATH
-  character(64) :: TEMP_PATH
-  character(64) :: RES_PATH
+  character(96) :: DATA_PATH
+  character(96) :: TEMP_PATH
+  character(96) :: RES_PATH
 
   character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
@@ -386,7 +388,7 @@ contains
   !
   ! Also include a "DILATION FACTOR" to make boxSize 
   ! larger than M by a factor f_D
-  ! E.g. M = 960, box = 60 will give boxSize = 1000
+  ! e.g. M = 960, box = 60 will give boxSize = 1000
   ! There are just enough points in the box available to fit in 960 
   ! training points. f_D = 1000/960 = 1.04 (will ideally remain close to 1)  
   ! Now I can set M = 960, box = 72, such that boxSize = 1728
@@ -415,12 +417,14 @@ contains
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 43!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'
     else
-    CASE_NAME = trim(l_rotationPlane(1)%name)//trim(z_plane_name)//'/'//trim(l_case(case_idx)%name)
+    !CASE_NAME = trim(l_rotationPlane(1)%name)//trim(z_plane_name)//'/'//trim(l_case(case_idx)%name)
+      CASE_NAME = trim(l_case(case_idx)%name)
+    
     end if
 
     ! SPACING:[EQUIDISTANT IN X,Y,Z-DIR]

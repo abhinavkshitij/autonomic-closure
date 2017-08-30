@@ -574,14 +574,14 @@ end subroutine plotVelocities
      !    ..LOCAL VARIABLES..
      character(64) :: filename
      integer :: i
-
+  
      print*
      print*,'Load filtered variables ... '
      do i = 1,size(var_FFT)
         if (i.eq.1.or.i.eq.3) then
-        filename = trim(TEMP_PATH)//trim('Box/')//trim(var_FFT(i)%name)//'.bin'
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//trim(var_FFT(i)%name)//'.bin'
       else
-        filename = trim(TEMP_PATH)//trim('Box/')//trim('Gauss/')//trim(var_FFT(i)%name)//'.bin'
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//trim(TestfilterType)//trim(var_FFT(i)%name)//'.bin'
       endif
         
         print*, filename

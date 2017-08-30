@@ -68,7 +68,7 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
-  logical :: debug_PrintFilters = 1
+  logical :: debug_PrintFilters = 0
 
   if (computeFFT_data.eqv..false.) then
      useTestData      = 0
@@ -86,7 +86,7 @@ program autonomic
   print*, "CASE_NAME:", CASE_NAME
 !  call memRequirement()
 !  print*, boxSize, maskSize
-
+!stop
 
   ! TEST DATA:
   if (useTestData) then
@@ -160,7 +160,11 @@ program autonomic
      ! ADD PATH DEPTH : SCALE
      write(scale,'(2(i0))') LES_scale, test_scale 
      TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
-     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
+                 trim(LESfilterType)//&
+                 trim(TestfilterType)//&
+                 trim(rotationPlane)//&
+                 trim(z_plane_name)// '/'
      write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
@@ -176,8 +180,8 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
-        call createFilter(LES,LES_scale,'Box')
-        call createFilter(test,test_scale,'Gauss')
+        call createFilter(LES,LES_scale,'Gauss')
+        call createFilter(test,test_scale,'Sharp')
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call PrintFilters()

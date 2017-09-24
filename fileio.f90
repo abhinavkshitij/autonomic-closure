@@ -579,18 +579,18 @@ end subroutine plotVelocities
      print*,'Load filtered variables ... '
      do i = 1,size(var_FFT)
         if (i.eq.1.or.i.eq.3) then
-        filename = trim(TEMP_PATH)//trim(LESfilterType)//trim(var_FFT(i)%name)//'.bin'
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
       else
-        filename = trim(TEMP_PATH)//trim(LESfilterType)//trim(TestfilterType)//trim(var_FFT(i)%name)//'.bin'
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(TestfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
       endif
         
-        print*, filename
-        open(i, file = filename,form='unformatted')
-        if (i.eq.1) read(i) u_f
-        if (i.eq.2) read(i) u_t
-        if (i.eq.3) read(i) tau_ij
-        if (i.eq.4) read(i) T_ij
-        close(i)
+      print*, filename
+      open(i, file = filename,form='unformatted')
+      if (i.eq.1) read(i) u_f
+      if (i.eq.2) read(i) u_t
+      if (i.eq.3) read(i) tau_ij
+      if (i.eq.4) read(i) T_ij
+      close(i)
      end do
 
    end subroutine loadFFT_data
@@ -623,7 +623,13 @@ end subroutine plotVelocities
      print*,'Write filtered variables ... '
  
      do i = 1, size(var_FFT)
-        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+       if (i.eq.1.or.i.eq.3) then
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
+       ! filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+       else
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(TestfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
+      endif
+
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) write(i) u_f
@@ -778,6 +784,12 @@ end subroutine plotVelocities
         close(87)
      end do
 
+     ! SAVE Pij_DS:
+      print*,'Saving DS production field in', RES_PATH
+      open(53, file=trim(RES_PATH)//'Pij_DS_dev.dat')
+      write(53,*) Pij_DS(:,:,z_plane)
+      close(53)
+
    end subroutine plotDynSmag
 
    
@@ -818,6 +830,12 @@ end subroutine plotVelocities
         close(87)
 !        close(88)
      end do
+
+     ! SAVE Pij_BD:
+      print*,'Saving BD production field in', RES_PATH
+      open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD.dat')
+      write(53,*) Pij_BD(:,:,z_plane)
+      close(53)
 
    end subroutine plotBardina
    

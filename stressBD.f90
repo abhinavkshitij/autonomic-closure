@@ -43,12 +43,13 @@ program stressBD
   integer :: ij
   integer :: ferr
   character(1) :: idx
-  character(*), parameter :: BD_CASE = 'a1B' ! a1B[ox], a2G[auss]
+  character(*), parameter :: BD_CASE = 'a1' ! a1B[ox], a2G[auss]
 
   real(8), parameter :: C_Bardina = 0.9d0
 
-  logical :: save_tau_BD = 1
+  logical :: save_BD = 1
 
+  
   !    ..INIT POSTPROCESSING..
   call setEnv()
   call printParams('display')
@@ -81,11 +82,15 @@ program stressBD
      ! ADD PATH DEPTH : SCALE
      write(scale,'(2(i0))') LES_scale, test_scale 
      TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
-     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+     !!RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
+                 trim(LESfilterType)//&
+                 trim(TestfilterType)//&
+                 trim(rotationPlane)//&
+                 trim(z_plane_name)// '/'
+
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
-
-
 
      ! 3] GET FFT_DATA:
      if(allocated(u_f).eqv..false.)        allocate (u_f    (n_u,i_GRID, j_GRID, k_GRID))
@@ -152,30 +157,30 @@ program stressBD
 
 !     print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,129)
           
-     !  BARDINA MODEL:
+     !  FIND BARDINA STRESS:
      print*, 'Compute SGS stress using Bardina model \n'
-     allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
+    if(allocated(tau_BD).eqv..false.) allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
      tau_BD = C_Bardina * T_ij
+
+    
+     ! COMPUTE Pij_BD:
+      if(allocated(Pij_BD).eqv..false.) allocate (Pij_BD (i_GRID, j_GRID, zLower:zUpper))
+     call productionTerm(Pij_BD, tau_BD, Sij_f)
+     print*,'tau_a2_BD(15,24,129)', tau_BD(2,15,24,z_plane)
+     print*,'Pij_BD(15,24,129)', Pij_BD(15,24,z_plane)
 
 
      ! SAVE BARDINA STRESS:
-     if(save_tau_BD) call plotBardina(BD_CASE)
+     if(save_BD) call plotBardina(BD_CASE)
 
- 
-     ! COMPUTE Pij_BD:
-     allocate (Pij_BD (i_GRID, j_GRID, zLower:zUpper))
-     call productionTerm(Pij_BD, tau_BD, Sij_f)
-!     print*,'Pij_BD(15,24,129)', Pij_BD(15,24,129)
-
-     ! SAVE Pij_BD:
-      print*,'Saving BD production field in', RES_PATH
-      open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD.dat', iostat=ferr)
-      write(53,*) Pij_BD(:,:,z_plane)
-      close(53)
+     ! ! SAVE Pij_BD:
+     !  print*,'Saving BD production field in', RES_PATH
+     !  open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD.dat', iostat=ferr)
+     !  write(53,*) Pij_BD(:,:,z_plane)
+     !  close(53)
 
   end do time_loop
 
-  
 end program stressBD
 
 

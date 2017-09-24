@@ -159,10 +159,10 @@ program autonomic
      !
      ! ADD PATH DEPTH : SCALE
      write(scale,'(2(i0))') LES_scale, test_scale 
-     TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
+     TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'!//trim(stress)//'/'
      RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
-                 trim(LESfilterType)//&
-                 trim(TestfilterType)//&
+                 trim(LESfilterType)//'/'//&
+                 trim(TestfilterType)//'/'//&
                  trim(rotationPlane)//&
                  trim(z_plane_name)// '/'
      write(path_txt,*) RES_PATH
@@ -180,8 +180,8 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
-        call createFilter(LES,LES_scale,'Gauss')
-        call createFilter(test,test_scale,'Sharp')
+        call createFilter(LES,LES_scale,LESfilterType)
+        call createFilter(test,test_scale,TestfilterType)
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call PrintFilters()
@@ -225,6 +225,8 @@ program autonomic
         call loadFFT_data()
 !        call checkFFT_data()
      end if
+
+
 
      !->>
      if (rotationAxis == 'X') then
@@ -282,11 +284,11 @@ program autonomic
      
 
      !  DYNAMIC SMAGORINSKY : PERFORM PLANEWISE COMPUTATION
-!      if (computeDS) then
-!         allocate(S_f_Sij_f_t (6, i_GRID, j_GRID, zLower:zUpper))
-!         call loadPrecomputedStress(S_f_Sij_f_t)  ! LOAD PRECOMPUTED S_f_Sij_f_t: PLANE SLICE
-!         call dyn_Smag(Sij_f, Sij_t, S_f_Sij_f_t, T_ij, tau_DS)
-!      end if
+     ! if (computeDS) then
+     !    allocate(S_f_Sij_f_t (6, i_GRID, j_GRID, zLower:zUpper))
+     !    call loadPrecomputedStress(S_f_Sij_f_t)  ! LOAD PRECOMPUTED S_f_Sij_f_t: PLANE SLICE
+     !    call dyn_Smag(Sij_f, Sij_t, S_f_Sij_f_t, T_ij, tau_DS)
+     ! end if
 
 
      ! ************** Level 3 ****************!
@@ -363,8 +365,8 @@ contains
     open(20,file=trim(RES_PATH)//'test_filter.dat',status='replace')
     open(21,file=trim(RES_PATH)//'LES_filter.dat',status='replace')
        
-    write(20,*) test (:,:,129)
-    write(21,*) LES  (:,:,129)
+    write(20,*) test (:,:,z_plane)
+    write(21,*) LES  (:,:,z_plane)
        
     close(20)
     close(21)

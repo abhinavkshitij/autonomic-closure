@@ -129,9 +129,9 @@ module global
                                                   str16('rotateY/')]
 
   ! TEST SCALE FILTER TYPE    
-  type(str16), parameter :: l_filterType(3) = [str16('Sharp/'),           &
-                                               str16('Gauss/'),        &
-                                               str16('Box/')]                                           
+  type(str16), parameter :: l_filterType(3) = [str16('Sharp'),           &
+                                               str16('Gauss'),        &
+                                               str16('Box')]                                           
 
   !*****************************************************************
               
@@ -141,17 +141,17 @@ module global
 
   integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
+  character(2) :: hst_set        = 'S6'                               ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
-  character(8) :: rotationAxis   = trim(l_rotationAxis(3) % name)    ! [none:z, X:y, Y:x]
-  character(8) :: rotationPlane  = trim(l_rotationPlane(3) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: compDomain     = trim (l_compDomain(1) % name)     ! [all, plane]
+  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
-  character(8) :: LESfilterType  = trim(l_filterType(3) % name)      ! [Sharp,Gauss,Box]
+  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box]
   character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box]
 
   real(8), parameter :: lambda_0(1) =  1.d-03
@@ -400,7 +400,7 @@ contains
   ! CL18'  - 872/1000  = 0.872  CL18 - 656/729   = 0.899
   ! CL24' - 1516/1728  = 0.877  CL24 - 976/1000  = 0.976
   ! CL28' - 3032/3375  = 0.898  CL28 - 1952/2197 = 0.888
-  ! NG2'  - 17576/74088 = 0.23 =NG2  
+  ! NG2'  - 17576/74088 = 0.23 = NG2  
   !
   !----------------------------------------------------------------
 
@@ -417,7 +417,7 @@ contains
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 43!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'

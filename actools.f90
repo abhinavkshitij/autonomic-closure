@@ -1059,4 +1059,40 @@ contains
   end subroutine rotateY
 
 
+  !****************************************************************
+  !                      CONVERT TO DEVIATORIC                    !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Removes the deviatoric stress components.
+  !       
+  !
+  ! FORM: subroutine makeDeviatoric (tau_ijOpt, T_ijOpt)
+  !       
+  !
+  !----------------------------------------------------------------
+  
+  subroutine makeDeviatoric (tau_ijOpt, T_ijOpt)
+
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8),dimension(1:,1:,1:,zLower:),intent(inout) :: tau_ijOpt, T_ijOpt
+    !
+    !    ..WORK ARRAY..
+    real(8),allocatable,dimension(:,:,:)   :: dev_t
+
+    allocate(dev_t(i_GRID,j_GRID,zLower:zUpper))
+
+    dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
+    tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
+    tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
+    tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
+
+    dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
+    T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
+    T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
+    T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
+
+  end subroutine makeDeviatoric
+
 end module actools

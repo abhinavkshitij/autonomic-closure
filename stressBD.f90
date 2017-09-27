@@ -43,6 +43,9 @@ program stressBD
   integer :: ij
   integer :: ferr
   character(1) :: idx
+
+  real(8),allocatable,dimension(:,:,:)   :: dev_t
+
   character(*), parameter :: BD_CASE = 'a1' ! a1B[ox], a2G[auss]
 
   real(8), parameter :: C_Bardina = 0.9d0
@@ -84,8 +87,8 @@ program stressBD
      TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
      !!RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
      RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
-                 trim(LESfilterType)//&
-                 trim(TestfilterType)//&
+                 trim(LESfilterType)//'/'//&
+                 trim(TestfilterType)//'/'//&
                  trim(rotationPlane)//&
                  trim(z_plane_name)// '/'
 
@@ -160,13 +163,24 @@ program stressBD
      !  FIND BARDINA STRESS:
      print*, 'Compute SGS stress using Bardina model \n'
     if(allocated(tau_BD).eqv..false.) allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
-     tau_BD = C_Bardina * T_ij
+    tau_BD = C_Bardina * T_ij
 
     
+    ! CONVERT ABSOLUTE TO DEVATORIC STRESSES:
+    if (make_Deviatoric) then
+        print*, 'Convert to deviatoric stresses'
+        allocate(dev_t(i_GRID,j_GRID,zLower:zUpper))
+
+        dev_t = (tau_BD(1,:,:,:) + tau_BD(4,:,:,:) + tau_BD(6,:,:,:)) / 3.d0
+        tau_BD(1,:,:,:) = tau_BD(1,:,:,:) - dev_t
+        tau_BD(4,:,:,:) = tau_BD(4,:,:,:) - dev_t
+        tau_BD(6,:,:,:) = tau_BD(6,:,:,:) - dev_t
+    end if
+
      ! COMPUTE Pij_BD:
-      if(allocated(Pij_BD).eqv..false.) allocate (Pij_BD (i_GRID, j_GRID, zLower:zUpper))
+    if(allocated(Pij_BD).eqv..false.) allocate (Pij_BD (i_GRID, j_GRID, zLower:zUpper))
      call productionTerm(Pij_BD, tau_BD, Sij_f)
-     print*,'tau_a2_BD(15,24,129)', tau_BD(2,15,24,z_plane)
+     print*,'tau_a2_BD(15,24,129)', tau_BD(1,15,24,z_plane)
      print*,'Pij_BD(15,24,129)', Pij_BD(15,24,z_plane)
 
 

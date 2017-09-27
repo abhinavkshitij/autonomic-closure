@@ -490,7 +490,10 @@ contains
        end do
        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
-       
+       ! CONVERT ABSOLUTE TO DEVATORIC STRESSES:
+       if (make_Deviatoric) call makeDeviatoric (tau_ijOpt, T_ijOpt)
+
+       print*, 'Convert to deviatoric stress'
        ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
         if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
         if (production_Term) then

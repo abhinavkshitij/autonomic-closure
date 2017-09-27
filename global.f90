@@ -147,7 +147,7 @@ module global
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-  character(8) :: compDomain     = trim (l_compDomain(1) % name)     ! [all, plane]
+  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
@@ -188,6 +188,7 @@ module global
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
+  logical :: make_Deviatoric      =  1
 
 
   !----------------------------------------------------------------
@@ -650,7 +651,7 @@ contains
      write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
      write(fileID, * ), 'Stress computation:  ', stress, '\n'
-
+     write(fileID, * ), 'Convert to deviatoric:', make_Deviatoric, '\n'
 
 
      write(fileID, * ), 'BOX PARAMETERS:      '
@@ -678,6 +679,17 @@ contains
      write(fileID, *) , '****************************************************************','\n'
   end if
   end subroutine printParams
+
+  !****************************************************************
+  !                         MEMORY REQ.
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE: Display memory requirements
+  !      
+  ! FORM: subroutine memRequirement()
+  !       
+  !----------------------------------------------------------------
 
   subroutine memRequirement()
     real :: form0 ! 256^3 domain 

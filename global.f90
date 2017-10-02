@@ -139,7 +139,7 @@ module global
   character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 0                                  ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                               ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]

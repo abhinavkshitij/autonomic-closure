@@ -737,8 +737,8 @@ end subroutine plotVelocities
          
      do i=1,n_ij
         write(ij, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ij'//trim(ij)//'.dat')
-        open(11,file=trim(RES_PATH)//'tau_ij'//trim(ij)//'.dat')
+        open(10,file=trim(RES_PATH)//'T_ij_dev'//trim(ij)//'.dat')
+        open(11,file=trim(RES_PATH)//'tau_ij_dev'//trim(ij)//'.dat')
 
         write(10,*) T_ij  (i,:,:,z_plane)
         write(11,*) tau_ij(i,:,:,z_plane)
@@ -992,8 +992,8 @@ end subroutine plotVelocities
         print*,'Saving original production field in', RES_PATH
         call system ('mkdir -p '//trim(RES_PATH))
 
-        open(1,file = trim(RES_PATH)//'Pij_f.dat')
-        open(2,file = trim(RES_PATH)//'Pij_t.dat')
+        open(1,file = trim(RES_PATH)//'Pij_f_dev.dat')
+        open(2,file = trim(RES_PATH)//'Pij_t_dev.dat')
         write(1,*) Pij_f(:,:,z_plane)
         write(2,*) Pij_t(:,:,z_plane)
         close(1)

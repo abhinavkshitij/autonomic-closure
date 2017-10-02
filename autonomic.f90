@@ -70,6 +70,9 @@ program autonomic
 
   logical :: debug_PrintFilters = 0
 
+  real(8),allocatable,dimension(:,:,:)   :: dev_t
+
+
   if (computeFFT_data.eqv..false.) then
      useTestData      = 0
      readfile         = 0
@@ -78,9 +81,11 @@ program autonomic
      save_FFT_data    = 0
   end if
 
+
   !    ..INIT POSTPROCESSING..
 
   open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
+
   call setEnv()
   call printParams('display')
   print*, "CASE_NAME:", CASE_NAME
@@ -246,9 +251,27 @@ program autonomic
 
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data()
-     print*, 'tau_ij(2,15,24,129):', tau_ij(2,15,24,129)
-     print*, 'T_ij(2,15,24,129):', T_ij(2,15,24,129), '\n'
+     print*, 'tau_ij(2,15,24,129):', tau_ij(1,15,24,129)
+     print*, 'T_ij(2,15,24,129):', T_ij(1,15,24,129), '\n'
      !->>
+     if (make_Deviatoric) then
+        print*, 'Convert to deviatoric stress'
+        !call makeDeviatoric (tau_ijOpt, T_ijOpt)
+        allocate(dev_t(i_GRID,j_GRID,k_GRID))
+
+        dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
+        tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
+        tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
+        tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
+
+        dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
+        T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
+        T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
+        T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
+        deallocate (dev_t)
+      end if
+      
+
 !stop
      if (plot_Stress)                                            call plotOriginalStress('All')
 
@@ -338,6 +361,9 @@ program autonomic
 
   close (path_txt)
 
+  print*, 'tau_ijOpt(2,15,24,129):', tau_ijOpt(1,15,24,z_plane)
+  print*, 'T_ijOpt(2,15,24,129):', T_ijOpt(1,15,24,z_plane), '\n'
+
 contains 
 
 
@@ -410,7 +436,6 @@ contains
     print*, 'Pij_t(15,24,129)', Pij_t(15,24,z_plane)
 
     !print*, count(u_t == 0), count(u_f == 0), count(T_ij == 0)
-
 
   end subroutine check_beforeExtension
 

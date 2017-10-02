@@ -50,7 +50,7 @@ program stressBD
 
   real(8), parameter :: C_Bardina = 0.9d0
 
-  logical :: save_BD = 1
+  logical :: save_BD = 0
 
   
   !    ..INIT POSTPROCESSING..
@@ -170,7 +170,6 @@ program stressBD
     if (make_Deviatoric) then
         print*, 'Convert to deviatoric stresses'
         allocate(dev_t(i_GRID,j_GRID,zLower:zUpper))
-
         dev_t = (tau_BD(1,:,:,:) + tau_BD(4,:,:,:) + tau_BD(6,:,:,:)) / 3.d0
         tau_BD(1,:,:,:) = tau_BD(1,:,:,:) - dev_t
         tau_BD(4,:,:,:) = tau_BD(4,:,:,:) - dev_t

@@ -98,35 +98,6 @@ program stressBD
      ! 3] GET FFT_DATA:
      if(allocated(u_f).eqv..false.)        allocate (u_f    (n_u,i_GRID, j_GRID, k_GRID))
      if(allocated(u_t).eqv..false.)        allocate (u_t    (n_u,i_GRID, j_GRID, k_GRID))
-
-
-     ! Can load and filter velocities here or do the same with autonomic.f90. 
-
-     ! if (filterVelocities) then
-     !    write(*, '(a32)', ADVANCE='NO'), adjustl('        Filter velocities ... ')
-
-     !    ! CREATE FILTERS:
-     !    allocate(LES (f_GRID,f_GRID,f_GRID))
-     !    allocate(test(f_GRID,f_GRID,f_GRID))
-     !    call createFilter(LES,LES_scale)
-     !    call createFilter(test,LES_scale,'Gauss')
-     !    call fftshift(LES)
-     !    call fftshift(test)
-
-     !    ! Apply filter in Fourier domain 
-     !    do i=1,n_u
-     !     u_f(i,:,:,:) = sharpFilter(u  (i,:,:,:),LES)
-     !     u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) 
-     !   end do
-     !   ! ###
-     !   print*, 'Completed'
-     !   !        call check_FFT(u_t(1,15,24,10))  
-     !   if (plot_Velocities) then
-     !                                                                  call plotVelocities('All')
-     !     if (withPressure)                                            call plotPressure()
-     !   end if
-     !  end if
-
      if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6,  i_GRID, j_GRID, k_GRID))
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6,  i_GRID, j_GRID, k_GRID))
 
@@ -151,29 +122,22 @@ program stressBD
           
      ! STRAIN RATE [ALL]: zLower=1, zUpper=256
      print*, 'computeSij \n'
-     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
-!     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
-
- 
+     if(allocated(Sij_f).eqv..false.)  allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper)) 
      call computeSij(u_f, Sij_f) 
-!     call computeSij(u_t, Sij_t) 
+
 
 !     print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,129)
           
      !  FIND BARDINA STRESS:
-     print*, 'Compute SGS stress using Bardina model \n'
+    print*, 'Compute SGS stress using Bardina model \n'
     if(allocated(tau_BD).eqv..false.) allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
-    tau_BD = C_Bardina * T_ij
+    tau_BD = C_Bardina * T_ij(:,:,:,zLower:zUpper)
 
     
     ! CONVERT ABSOLUTE TO DEVATORIC STRESSES:
     if (make_Deviatoric) then
         print*, 'Convert to deviatoric stresses'
-        allocate(dev_t(i_GRID,j_GRID,zLower:zUpper))
-        dev_t = (tau_BD(1,:,:,:) + tau_BD(4,:,:,:) + tau_BD(6,:,:,:)) / 3.d0
-        tau_BD(1,:,:,:) = tau_BD(1,:,:,:) - dev_t
-        tau_BD(4,:,:,:) = tau_BD(4,:,:,:) - dev_t
-        tau_BD(6,:,:,:) = tau_BD(6,:,:,:) - dev_t
+        call makeDeviatoric (tau_BD)
     end if
 
      ! COMPUTE Pij_BD:
@@ -186,11 +150,6 @@ program stressBD
      ! SAVE BARDINA STRESS:
      if(save_BD) call plotBardina(BD_CASE)
 
-     ! ! SAVE Pij_BD:
-     !  print*,'Saving BD production field in', RES_PATH
-     !  open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD.dat', iostat=ferr)
-     !  write(53,*) Pij_BD(:,:,z_plane)
-     !  close(53)
 
   end do time_loop
 

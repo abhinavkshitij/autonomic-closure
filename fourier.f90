@@ -104,11 +104,24 @@ contains
                     +           dble((j - center)**2) &
                     +           dble((k - center)**2) )
 
-               ! filter(i,j,k) = sin(1.d0 * PI * (distance+eps) / (scale+eps)) / &
-               ! &                  (1.d0 * PI * (distance+eps) / (scale+eps))
+                filter(i,j,k) = sin( (distance+eps) / (scale+eps) ) / &
+               &                   ( (distance+eps) / (scale+eps) )
 
-                filter(i,j,k) = sin((distance+eps) / (scale+eps)) / &
-               &                   ((distance+eps) / (scale+eps))
+            end do
+         end do
+      end do
+      elseif (present(filterOption).and.filterOption.eq.'Tri') then
+      !  Create Tri filter:
+      do k = 1,f_GRID
+         do j = 1,f_GRID
+            do i = 1,f_GRID
+
+               distance = sqrt( dble((i - center)**2) &
+                    +           dble((j - center)**2) &
+                    +           dble((k - center)**2) )
+
+                filter(i,j,k) = sin( (distance+eps) / (scale+eps) * 0.5d0) ** 2 / &
+               &                   ( (distance+eps) / (scale+eps) * 0.5d0) ** 2
 
             end do
          end do

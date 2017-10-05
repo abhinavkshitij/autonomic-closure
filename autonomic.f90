@@ -251,28 +251,20 @@ program autonomic
 
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data()
-     print*, 'tau_ij(2,15,24,129):', tau_ij(1,15,24,129)
-     print*, 'T_ij(2,15,24,129):', T_ij(1,15,24,129), '\n'
+     print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
+     print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129), '\n'
      !->>
      if (make_Deviatoric) then
         print*, 'Convert to deviatoric stress'
-        !call makeDeviatoric (tau_ijOpt, T_ijOpt)
-        allocate(dev_t(i_GRID,j_GRID,k_GRID))
-
-        dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
-        tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
-        tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
-        tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
-
-        dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
-        T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
-        T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
-        T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
-        deallocate (dev_t)
+        print*, 'shape(tau_ij)', shape(tau_ij)
+        call makeDeviatoric (tau_ij)
+        call makeDeviatoric (T_ij)
       end if
+      print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
+      print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129), '\n'
       
 
-!stop
+stop
      if (plot_Stress)                                            call plotOriginalStress('All')
 
 

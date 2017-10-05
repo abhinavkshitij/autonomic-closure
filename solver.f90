@@ -494,24 +494,7 @@ contains
        end do
        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
-       ! CONVERT ABSOLUTE TO DEVATORIC STRESSES:
-       if (make_Deviatoric) then
-        print*, 'Convert to deviatoric stress'
-        !call makeDeviatoric (tau_ijOpt, T_ijOpt)
-        allocate(dev_t(i_GRID,j_GRID,zLower:zUpper))
 
-        dev_t = (tau_ijOpt(1,:,:,:) + tau_ijOpt(4,:,:,:) + tau_ijOpt(6,:,:,:)) / 3.d0
-        tau_ijOpt(1,:,:,:) = tau_ijOpt(1,:,:,:) - dev_t
-        tau_ijOpt(4,:,:,:) = tau_ijOpt(4,:,:,:) - dev_t
-        tau_ijOpt(6,:,:,:) = tau_ijOpt(6,:,:,:) - dev_t
-
-        dev_t = (T_ijOpt(1,:,:,:) + T_ijOpt(4,:,:,:) + T_ijOpt(6,:,:,:)) / 3.d0
-        T_ijOpt(1,:,:,:) = T_ijOpt(1,:,:,:) - dev_t
-        T_ijOpt(4,:,:,:) = T_ijOpt(4,:,:,:) - dev_t
-        T_ijOpt(6,:,:,:) = T_ijOpt(6,:,:,:) - dev_t
-      end if
-
-      
        ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
         if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
         if (production_Term) then
@@ -519,7 +502,6 @@ contains
            call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
            if (save_ProductionTerm)                             call plotProductionTerm(lambda)
         end if
-
        
     
     else

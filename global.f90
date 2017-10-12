@@ -137,13 +137,13 @@ module global
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
+  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 5                                  ! [1 - CL14, ...]          
+  integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set        = 'S6'                               ! [S1, S3, S6]
-  character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
+  character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
+  character(3) :: stress         = 'dev'                             ! [dev[DS], abs[BD]]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
@@ -152,8 +152,8 @@ module global
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
-  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box]
-  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box]
+  character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
 
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
@@ -649,7 +649,8 @@ contains
      write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)
      write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
      write(fileID, * ), 'Features(N):         ', N, '\n'
-     write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
+     write(fileID, * ), 'Filter scales:       ', LES_scale,  test_scale
+     write(fileID, * ), 'Filter types:        ', LESfilterType, TestfilterType
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
      write(fileID, * ), 'Stress computation:  ', stress, '\n'
      write(fileID, * ), 'Convert to deviatoric:', make_Deviatoric, '\n'

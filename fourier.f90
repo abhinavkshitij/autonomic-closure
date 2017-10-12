@@ -319,7 +319,7 @@ contains
   !         3) Use C_DOUBLE, C_INT, etc for C-compatibility on any platform.
   !         4) Can use ABS(in_cmplx) but residual imaginary values 
   !            are not exactly 0.d0.
-  !         5) Normalization depends in total number of points
+  !         5) Normalization depends on total number of points
   !            including the padded section. So f_GRID^3 is the
   !            correct normalization factor.
   !----------------------------------------------------------------
@@ -404,7 +404,23 @@ contains
   !         
   ! STATUS : > Passed test with MATLAB results (10/21/2015).    
   !         
-  !         
+  ! Boulder CODE: [for code validation]
+  !  ! DEVIATORIC STRESS:
+  !     elseif (stress.eq.'dev')then
+  !        k = 1
+  !        do j=1,3
+  !           do i=1,3
+  !              if (i.le.3.and.j.le.3.and.i.ge.j) then
+  !                 print *, 'tau(', i, ',', j, ')'
+  !                 tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:),LES)     &
+  !                                           - u_f(i,:,:,:) * u_f(j,:,:,:)
+  !                 print *, 'T(', i, ',', j, ')'
+  !                    T_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:),test)   &  
+  !               k = k + 1
+  !              end if
+  !           end do
+  !        end do
+  !       
   !----------------------------------------------------------------
 
 
@@ -420,55 +436,34 @@ contains
     real(8),allocatable,dimension(:,:,:)   :: dev_t
 
     ! ABSOLUTE STRESS:
-    if (stress.eq.'abs') then
-       k = 1
-       do j=1,3
-          do i=1,3
-             if (i.le.3.and.j.le.3.and.i.ge.j) then
-                print *, 'tau(', i, ',', j, ')' !<-- CHECK ORDER OF i,j,k...affects performance!!!
-                tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:), LES)       &
-                                          - u_f(i,:,:,:) * u_f(j,:,:,:)
-                print *, 'T(', i, ',', j, ')'
-                T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:) * u_f(j,:,:,:), test)    &
-                                          - u_t(i,:,:,:) * u_t(j,:,:,:)
-                k = k + 1
-             end if
-          end do
-       end do
-
-       ! DEVIATORIC STRESS:
-    elseif (stress.eq.'dev')then
-       k = 1
-       do j=1,3
-          do i=1,3
-             if (i.le.3.and.j.le.3.and.i.ge.j) then
-                print *, 'tau(', i, ',', j, ')'
-                tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:),LES)     &
-                                          - u_f(i,:,:,:) * u_f(j,:,:,:)
-                print *, 'T(', i, ',', j, ')'
-                T_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:),test)      &
+    k = 1
+     do j=1,3
+        do i=1,3
+           if (i.le.3.and.j.le.3.and.i.ge.j) then
+              print *, 'tau(', i, ',', j, ')' !<-- CHECK ORDER OF i,j,k...affects performance!!!
+              tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:), LES)       &
+                                        - u_f(i,:,:,:) * u_f(j,:,:,:)
+              print *, 'T(', i, ',', j, ')'
+              T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:) * u_f(j,:,:,:), test)    &
                                         - u_t(i,:,:,:) * u_t(j,:,:,:)
-                k = k + 1
-             end if
-          end do
-       end do
-       allocate(dev_t(i_GRID,j_GRID,k_GRID))
+              k = k + 1
+           end if
+        end do
+     end do
 
-       dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
-       tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
-       tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
-       tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
+    ! DEVIATORIC STRESS:
+    if (stress.eq.'dev') then
+     allocate(dev_t(i_GRID,j_GRID,k_GRID))
 
-       dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
-       T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
-       T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
-       T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
+     dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
+     tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
+     tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
+     tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
 
-       call check_Stress (T_ij(1,15,24,10))
-       deallocate (dev_t)
-    else
-       print*,"Stress must be either abs or dev"
-       stop
+     dev_t = (T_ij(1,:,:,:) + T_ij(4,:,:,:) + T_ij(6,:,:,:)) / 3.d0
+     T_ij(1,:,:,:) = T_ij(1,:,:,:) - dev_t
+     T_ij(4,:,:,:) = T_ij(4,:,:,:) - dev_t
+     T_ij(6,:,:,:) = T_ij(6,:,:,:) - dev_t
     end if
 
   contains

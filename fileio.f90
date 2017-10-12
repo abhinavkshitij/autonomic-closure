@@ -737,8 +737,8 @@ end subroutine plotVelocities
          
      do i=1,n_ij
         write(ij, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ij_dev'//trim(ij)//'.dat')
-        open(11,file=trim(RES_PATH)//'tau_ij_dev'//trim(ij)//'.dat')
+        open(10,file=trim(RES_PATH)//'T_ij_'//trim(stress)//trim(ij)//'.dat')
+        open(11,file=trim(RES_PATH)//'tau_ij_'//trim(stress)//trim(ij)//'.dat')
 
         write(10,*) T_ij  (i,:,:,z_plane)
         write(11,*) tau_ij(i,:,:,z_plane)
@@ -779,14 +779,14 @@ end subroutine plotVelocities
      ! SAVE tau_DS:
      do i = 1,6
         write(ij,'(i0)') i
-        open(87, file = trim(RES_PATH)//'tau_DS_dev'//trim(ij)//'.dat')
+        open(87, file = trim(RES_PATH)//'tau_DS_'//trim(stress)//trim(ij)//'.dat')
         write(87,*), tau_DS(i,:,:,z_plane)
         close(87)
      end do
 
      ! SAVE Pij_DS:
       print*,'Saving DS production field in', RES_PATH
-      open(53, file=trim(RES_PATH)//'Pij_DS_dev.dat')
+      open(53, file=trim(RES_PATH)//'Pij_DS_'//trim(stress)//'.dat')
       write(53,*) Pij_DS(:,:,z_plane)
       close(53)
 
@@ -823,7 +823,7 @@ end subroutine plotVelocities
      ! SAVE tau_BD:
      do i = 1,6
         write(ij,'(i0)') i
-        open(87, file = trim(RES_PATH)//'tau_'//trim(BD_CASE)//'_BD_dev'//trim(ij)//'.dat')
+        open(87, file = trim(RES_PATH)//'tau_'//trim(BD_CASE)//'_BD_'//trim(stress)//trim(ij)//'.dat')
 !        open(88, file = trim(RES_PATH)//'T_a105_BD'//trim(ij)//'.dat')
         write(87,*), tau_BD(i,:,:,z_plane)
 !        write(88,*), T_ij(i,:,:,z_plane)
@@ -833,7 +833,7 @@ end subroutine plotVelocities
 
      ! SAVE Pij_BD:
       print*,'Saving BD production field in', RES_PATH
-      open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD_dev.dat')
+      open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD_'//trim(stress)//'.dat')
       write(53,*) Pij_BD(:,:,z_plane)
       close(53)
 
@@ -880,8 +880,8 @@ end subroutine plotVelocities
  
      do i = 1, n_ij
         write(ij, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ijOpt_dev'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
-        open(11,file=trim(RES_PATH)//'tau_ijOpt_dev'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
+        open(10,file=trim(RES_PATH)//'T_ijOpt_'//trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt_'//trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
 
         write(10,*) T_ijOpt  (i,:,:,z_plane)
         write(11,*) tau_ijOpt(i,:,:,z_plane)
@@ -931,8 +931,8 @@ end subroutine plotVelocities
  
      do i = 1, n_ij
         write(ij, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
-        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+        open(10,file=trim(RES_PATH)//'T_ijOpt_'  //trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt_'//trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
 
         read(10,*) T_ijOpt  (i,:,:,z_plane)
         read(11,*) tau_ijOpt(i,:,:,z_plane)
@@ -978,8 +978,8 @@ end subroutine plotVelocities
         print*,'Saving computed production field in', RES_PATH
         call system ('mkdir -p '//trim(RES_PATH))
 
-        open(1,file=trim(RES_PATH)//'Pij_fOpt_dev'  //trim(lambda_char(4:6)) // '.dat')
-        open(2,file=trim(RES_PATH)//'Pij_tOpt_dev'  //trim(lambda_char(4:6)) // '.dat')
+        open(1,file=trim(RES_PATH)//'Pij_fOpt_'//trim(stress)//trim(lambda_char(4:6)) // '.dat')
+        open(2,file=trim(RES_PATH)//'Pij_tOpt_'//trim(stress)//trim(lambda_char(4:6)) // '.dat')
 
         write(1,*) Pij_fOpt(:,:,z_plane)
         write(2,*) Pij_tOpt(:,:,z_plane)
@@ -992,8 +992,8 @@ end subroutine plotVelocities
         print*,'Saving original production field in', RES_PATH
         call system ('mkdir -p '//trim(RES_PATH))
 
-        open(1,file = trim(RES_PATH)//'Pij_f_dev.dat')
-        open(2,file = trim(RES_PATH)//'Pij_t_dev.dat')
+        open(1,file = trim(RES_PATH)//'Pij_f_'//trim(stress)//'.dat')
+        open(2,file = trim(RES_PATH)//'Pij_t_'//trim(stress)//'.dat')
         write(1,*) Pij_f(:,:,z_plane)
         write(2,*) Pij_t(:,:,z_plane)
         close(1)

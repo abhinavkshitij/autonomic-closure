@@ -93,6 +93,7 @@ program autonomic
 !  print*, boxSize, maskSize
 !stop
 
+
   ! TEST DATA:
   if (useTestData) then
      n_u = 1;   n_uu = 3
@@ -164,7 +165,7 @@ program autonomic
      !
      ! ADD PATH DEPTH : SCALE
      write(scale,'(2(i0))') LES_scale, test_scale 
-     TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'!//trim(stress)//'/'
+     TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
      RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
                  trim(LESfilterType)//'/'//&
                  trim(TestfilterType)//'/'//&
@@ -251,21 +252,23 @@ program autonomic
 
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data()
-     print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
-     print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129), '\n'
+
+    ! stop
+     !print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
+     !print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129), '\n'
      !->>
-     if (make_Deviatoric) then
+     if (stress.eq.'dev') then
         print*, 'Convert to deviatoric stress'
-        print*, 'shape(tau_ij)', shape(tau_ij)
         call makeDeviatoric (tau_ij)
         call makeDeviatoric (T_ij)
       end if
-      print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
-      print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129), '\n'
+      !print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
+      !print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129), '\n'
       
+        
 
-stop
-     if (plot_Stress)                                            call plotOriginalStress('All')
+      if (plot_Stress)                    call plotOriginalStress('All')
+      
 
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
@@ -353,8 +356,10 @@ stop
 
   close (path_txt)
 
-  print*, 'tau_ijOpt(2,15,24,129):', tau_ijOpt(1,15,24,z_plane)
-  print*, 'T_ijOpt(2,15,24,129):', T_ijOpt(1,15,24,z_plane), '\n'
+  ! Ring an alarm:
+  print*, '\a'
+  !print*, 'tau_ijOpt(2,15,24,129):', tau_ijOpt(1,15,24,z_plane)
+  !print*, 'T_ijOpt(2,15,24,129):', T_ijOpt(1,15,24,z_plane), '\n'
 
 contains 
 

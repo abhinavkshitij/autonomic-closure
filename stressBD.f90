@@ -119,32 +119,29 @@ program stressBD
         call rotateY(T_ij)
      end if
 
-          
-     ! STRAIN RATE [ALL]: zLower=1, zUpper=256
-     print*, 'computeSij \n'
-     if(allocated(Sij_f).eqv..false.)  allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper)) 
-     call computeSij(u_f, Sij_f) 
+    ! CONVERT ABSOLUTE TO DEVATORIC STRESSES:
+    if (stress.eq.'dev')  then
+        print*, 'Convert to deviatoric stresses'
+        call makeDeviatoric (tau_BD)
+    end if
 
-
-!     print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,129)
           
-     !  FIND BARDINA STRESS:
+    !  FIND BARDINA STRESS:
     print*, 'Compute SGS stress using Bardina model \n'
     if(allocated(tau_BD).eqv..false.) allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
     tau_BD = C_Bardina * T_ij(:,:,:,zLower:zUpper)
 
     
-    ! CONVERT ABSOLUTE TO DEVATORIC STRESSES:
-    if (make_Deviatoric) then
-        print*, 'Convert to deviatoric stresses'
-        call makeDeviatoric (tau_BD)
-    end if
+    ! STRAIN RATE:
+    print*, 'computeSij \n'
+    if(allocated(Sij_f).eqv..false.) allocate (Sij_f (6, i_GRID,j_GRID,zLower:zUpper)) 
+    call computeSij(u_f, Sij_f) 
 
-     ! COMPUTE Pij_BD:
+    ! COMPUTE Pij_BD:
     if(allocated(Pij_BD).eqv..false.) allocate (Pij_BD (i_GRID, j_GRID, zLower:zUpper))
-     call productionTerm(Pij_BD, tau_BD, Sij_f)
-     print*,'tau_a2_BD(15,24,129)', tau_BD(1,15,24,z_plane)
-     print*,'Pij_BD(15,24,129)', Pij_BD(15,24,z_plane)
+    call productionTerm(Pij_BD, tau_BD, Sij_f)
+    print*,'tau_a2_BD(15,24,129)', tau_BD(1,15,24,z_plane)
+    print*,'Pij_BD(15,24,129)', Pij_BD(15,24,z_plane)
 
 
      ! SAVE BARDINA STRESS:

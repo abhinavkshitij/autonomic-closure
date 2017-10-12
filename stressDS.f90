@@ -121,6 +121,11 @@ program stressDS
         call rotateY(T_ij)
      end if
 
+     if (stress.eq.'dev') then
+        print*, 'Convert to deviatoric stress'
+        call makeDeviatoric (T_ij)
+      end if
+
           
      ! STRAIN RATE [ALL]: zLower=1, zUpper=256
      print*, 'computeSij \n'

@@ -125,7 +125,7 @@ program autonomic
         RES_PATH  = trim(RES_PATH)//trim(hst_set)//'/'
      end if
      write(path_txt,*) trim(DATA_PATH)
-     write(path_txt,*) RES_PATH
+     write(path_txt,*) trim(RES_PATH)
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
@@ -178,6 +178,10 @@ program autonomic
      ! 2] FILTER VELOCITIES [AND PRESSURE]:
      if(allocated(u_f).eqv..false.)        allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
      if(allocated(u_t).eqv..false.)        allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
+     if (run3FilterStress) then
+        if(allocated(u_tB).eqv..false.)        allocate(u_tB (n_u, i_GRID,j_GRID,k_GRID))
+       ! if(allocated(u_tG).eqv..false.)        allocate(u_tG (n_u, i_GRID,j_GRID,k_GRID))
+     end if
 
 
      if (filterVelocities) then
@@ -186,11 +190,12 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
+
         call createFilter(LES,LES_scale,LESfilterType)
         call createFilter(test,test_scale,TestfilterType)
 
         !DEBUG : Print filters 
-        if (debug_PrintFilters) call PrintFilters()
+        if (debug_PrintFilters) call printFilters()
            
 !stop
         call fftshift(LES)
@@ -218,6 +223,10 @@ program autonomic
      ! 3] GET FFT_DATA:
      if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6, i_GRID, j_GRID, k_GRID))
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
+     if (run3FilterStress) then
+        if(allocated(T_ijB).eqv..false.)        allocate(T_ijB (6, i_GRID,j_GRID,k_GRID))
+!        if(allocated(T_ijG).eqv..false.)        allocate(T_ijG (6, i_GRID,j_GRID,k_GRID))
+     end if
 
 
      ! COMPUTE ORIGINAL STRESS [ROTATE][SAVE]
@@ -228,10 +237,12 @@ program autonomic
         !->>     
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
-        call loadFFT_data()
+        call loadFFT_data3(LESFilterType)
 !        call checkFFT_data()
+        print*, tau_ij(2,15,24,129)
+        print*, T_ij(2,15,24,129)
+        print*, T_ijB(2,15,24,129)
      end if
-
 
 
      !->>
@@ -241,12 +252,24 @@ program autonomic
         call rotateX(u_t) 
         call rotateX(tau_ij) 
         call rotateX(T_ij)
+        if (run3FilterStress) then
+            call rotateX(u_tB) 
+ !           call rotateX(u_tG) 
+            call rotateX(T_ijB)
+ !           call rotateX(T_ijG)
+        endif 
      else if (rotationAxis == 'Y') then
         print*, 'Rotate array along y-axis'
         call rotateY(u_f) 
         call rotateY(u_t) 
         call rotateY(tau_ij) 
         call rotateY(T_ij)
+        if (run3FilterStress) then
+            call rotateY(u_tB) 
+   !         call rotateY(u_tG) 
+            call rotateY(T_ijB)
+  !          call rotateY(T_ijG)
+        endif 
      end if
 
 
@@ -256,6 +279,7 @@ program autonomic
     ! stop
      !print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
      !print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129), '\n'
+
      !->>
      if (stress.eq.'dev') then
         print*, 'Convert to deviatoric stress'
@@ -334,6 +358,12 @@ program autonomic
      call extendDomain(u_f)
      call extendDomain(u_t)
      call extendDomain(T_ij)   
+     if (run3FilterStress) then
+        call extendDomain(u_tB)
+  !      call extendDomain(u_tG)
+        call extendDomain(T_ijB) 
+ !       call extendDomain(T_ijG) 
+    endif 
  
      call cpu_time(tic)
 
@@ -382,7 +412,7 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine PrintFilters()
+  subroutine printFilters()
     implicit none
 
     open(20,file=trim(RES_PATH)//'test_filter.dat',status='replace')
@@ -394,7 +424,7 @@ contains
     close(20)
     close(21)
 
-  end subroutine PrintFilters
+  end subroutine printFilters
       
   !****************************************************************
   !                        CHECK: BEFORE EXTENSION                !

@@ -32,6 +32,7 @@ module solver
   implicit none
     integer :: i_boxCenter,    j_boxCenter,    k_boxCenter 
     real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
+    real(8), dimension(:,:,:,:), allocatable :: uu_tB, uu_tG
 contains
 
 
@@ -360,6 +361,7 @@ contains
     integer :: row_index, col_index, row, col 
     integer :: u_comp, uu_comp 
 
+    
     real(8) :: error_cross_T_ij, error_cross_tau_ij
     !
     !    ..DEBUG..
@@ -369,8 +371,9 @@ contains
     ! 
     real(8),allocatable,dimension(:,:,:)   :: dev_t
 
-
 ! ##
+    
+
     allocate (V (M, N) )
     allocate (T (M, P) )
 ! ###
@@ -388,6 +391,12 @@ contains
           if (allocated(uu_f).eqv..false.)allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
           call secondOrderProducts(uu_t, u_t)
           call secondOrderProducts(uu_f, u_f)
+          if (run3FilterStress) then
+            if (allocated(uu_tB).eqv..false.)allocate(uu_tB(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+  !          if (allocated(uu_tG).eqv..false.)allocate(uu_tG(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+                call secondOrderProducts(uu_tB, u_tB)
+  !              call secondOrderProducts(uu_tG, u_tG)
+          end if 
        end if
 
 
@@ -401,7 +410,7 @@ contains
              call randTrainingSet(randMask)
              rand_count = 0
           end if
-          row_index  = 0 
+          row_index  = 1-n_filter 
 
              ! VISIT M TRANING POINTS:
              do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
@@ -416,12 +425,14 @@ contains
 !print*, row_index, i_train, j_train, k_train
 
                 col_index = 0 
-                row_index = row_index + 1
+                row_index = row_index + n_filter
 
 
                 ! ZERO ORDER TERMS:
                 col_index = col_index + 1
-                V(row_index, col_index) = 1.d0
+                V(row_index:row_index+1, col_index) = 1.d0
+ !                V(row_index, col_index) = 1.d0
+               
 
                 ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
                 do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test ! Vectorize using (PACK/UNPACK)
@@ -432,6 +443,8 @@ contains
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
                       V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index+1,col_index) = u_tB(u_comp,i_stencil,j_stencil,k_stencil)
+!                      V(row_index+2,col_index) = u_tG(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
@@ -439,6 +452,8 @@ contains
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
                          V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index+1,col_index) = uu_tB(uu_comp,i_stencil,j_stencil,k_stencil)
+ !                        V(row_index+2,col_index) = uu_tG(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
 
@@ -447,6 +462,8 @@ contains
                 end do ! STENCIL
        
                 T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
+                T(row_index+1,:) = T_ijB(:,i_train,j_train,k_train) 
+  !              T(row_index+2,:) = T_ijG(:,i_train,j_train,k_train) 
 
              end do
              call progressBar(j_boxCenter, boxLast)

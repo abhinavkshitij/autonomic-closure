@@ -39,7 +39,7 @@ contains
   !----------------------------------------------------------------
   ! USE: Create an explicit filter.
   !      
-  ! FORM: subroutine createFilter(filter, scale)
+  ! FORM: subroutine createFilter(filter, scale,[filterOption-default:Sharp])
   !       
   ! BEHAVIOR: GRID must be cubic for spherical symmetry.
   !          
@@ -80,7 +80,7 @@ contains
     real(8) :: slope  
 
     if (present(filterOption).and.filterOption.eq.'Gauss') then
-      !  Create Gaussian filter:
+      !  Create Gauss filter:
       do k = 1,f_GRID
          do j = 1,f_GRID
             do i = 1,f_GRID

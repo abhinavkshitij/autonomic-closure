@@ -570,6 +570,7 @@ end subroutine plotVelocities
 
   subroutine loadFFT_data()
     implicit none
+
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename
@@ -596,6 +597,92 @@ end subroutine plotVelocities
    end subroutine loadFFT_data
 
    !****************************************************************
+   !                     LOAD FFT DATA - 3 FILTER
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Loads u_f, tau_ij from LES/ dir and u_t, T_ij from test/ 
+   !      dir
+   !
+   ! FORM:   subroutine loadFFT_data3()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays. Is a brute force method 
+   !           of reading a file. 
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+  subroutine loadFFT_data3(LESFilterType)
+    implicit none
+    !
+    !    ..ARGUMENTS..
+    character(*),intent(in), optional :: LESFilterType
+    !
+    !    ..LOCAL VARIABLES..
+    character(64) :: filename
+    integer :: i
+
+     print*
+     print*,'Load filtered variables ... '
+
+     ! READ LES DATA - u_f, tau_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('u_f.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_f
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('tau_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) tau_ij
+    close(2)
+
+    ! READ TEST DATA - u_t, T_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin') ! Sharp
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_t
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin') ! Sharp
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ij
+    close(2)
+    
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Box/u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_tB
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Box/T_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ijB
+    close(2)
+    
+
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin')
+    ! print*, filename
+    ! open(1, file = filename,form='unformatted')
+    ! read(1) u_tG
+    ! close(1)
+
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin')
+    ! print*, filename
+    ! open(2, file = filename,form='unformatted')
+    ! read(2) T_ijG
+    ! close(2)
+                  
+      
+
+   end subroutine loadFFT_data3
+
+
+   !****************************************************************
    !                          SAVE FFT_DATA
    !****************************************************************
 
@@ -605,18 +692,27 @@ end subroutine plotVelocities
    !
    ! FORM:    subroutine saveFFT_data()
    !
-   ! BEHAVIOR: Needs allocated, defined arrays.
+   ! BEHAVIOR: Saves only one set of LES and TEST filtered data at 
+   !            a time. 
    !
    ! STATUS : 
+   !        On GIT BRANCH:
+   !          1) test/validation: no arguments required.
+   !          2) filter3: both arguments required. 
    ! 
    !----------------------------------------------------------------
    
-   subroutine saveFFT_data()
+   subroutine saveFFT_data(LESFilterType,TestFilterType)
      implicit none
+     !
+     !    ..ARGUMENTS..
+     character(*),intent(in), optional :: LESFilterType
+     character(*),intent(in), optional :: TestFilterType
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename 
      integer :: i
+
 
      ! save FFT_DATA : Filtered velocities and stress files: 
      print*
@@ -629,7 +725,6 @@ end subroutine plotVelocities
        else
         filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(TestfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
       endif
-
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) write(i) u_f

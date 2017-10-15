@@ -132,7 +132,7 @@ module global
   type(str16), parameter :: l_filterType(4) = [str16('Sharp'),            &
                                                str16('Gauss'),            &
                                                str16('Box'),              &
-                                               str16('Tri')]                                           
+                                               str16('Tri')] 
 
   !*****************************************************************
               
@@ -152,9 +152,12 @@ module global
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
+
   character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
   character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
 
+ 
+  
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
 
@@ -190,6 +193,8 @@ module global
   logical :: compute_Stress       =  0
 
   logical :: make_Deviatoric      =  1
+  logical :: run3FilterStress     =  1
+
 
 
   !----------------------------------------------------------------
@@ -203,6 +208,7 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: u
   real(8), dimension(:,:,:,:), allocatable :: u_f 
   real(8), dimension(:,:,:,:), allocatable :: u_t
+  
   !
   !    ..VORTICITY..
   real(8), dimension(:,:,:,:), allocatable :: omega
@@ -212,6 +218,13 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: T_ij
   real(8), dimension(:,:,:,:), allocatable :: T_ijOpt
   real(8), dimension(:,:,:,:), allocatable :: tau_ijOpt
+
+  !     ..3-FILTER MODIFICATION..
+  real(8), dimension(:,:,:,:), allocatable :: u_tB
+  real(8), dimension(:,:,:,:), allocatable :: T_ijB
+  real(8), dimension(:,:,:,:), allocatable :: u_tG
+  real(8), dimension(:,:,:,:), allocatable :: T_ijG
+
   !
   !    ..FILTERS..
   real(8), dimension(:,:,:), allocatable :: LES
@@ -258,6 +271,7 @@ module global
   integer :: LES_scale 
   integer :: test_scale 
   integer :: Freq_Nyq
+  integer :: n_filter = 1       ! Number of filters
 
   !    ..STENCIL..
   integer :: Delta_LES          ! Grid spacing at LES scale = Nyquist frequ/LES_scale  (128/40 = 3)
@@ -586,6 +600,9 @@ contains
     n_bins = 250
     N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
+    ! 3-Filter MODIFICATION:
+    if (run3FilterStress) n_filter = 2
+    M = n_filter * M
 
   end subroutine setEnv
 
@@ -646,11 +663,13 @@ contains
      write(fileID, * ), 'Pressure Term:       ', withPressure
 
      write(fileID, * ), 'Order:               ', order
-     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)
-     write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
+     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)/real(n_filter)
+     write(fileID, * ), 'Training points(M):  ', M/n_filter, '\t', trainingPoints
      write(fileID, * ), 'Features(N):         ', N, '\n'
+
      write(fileID, * ), 'Filter scales:       ', LES_scale,  test_scale
      write(fileID, * ), 'Filter types:        ', LESfilterType, TestfilterType
+
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
      write(fileID, * ), 'Stress computation:  ', stress, '\n'
      write(fileID, * ), 'Convert to deviatoric:', make_Deviatoric, '\n'

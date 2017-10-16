@@ -331,12 +331,14 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+  subroutine autonomicClosure(u_f, u_t, tau_ij, T_ij, T_ijB, h_ij, tau_ijOpt, T_ijOpt)
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_f
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_t
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: T_ij
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: T_ijB
+
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
 
     real(8), dimension(:,:),     intent(out):: h_ij
@@ -391,7 +393,7 @@ contains
           if (allocated(uu_f).eqv..false.)allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
           call secondOrderProducts(uu_t, u_t)
           call secondOrderProducts(uu_f, u_f)
-          if (run3FilterStress) then
+          if (multiFilter) then
             if (allocated(uu_tB).eqv..false.)allocate(uu_tB(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
   !          if (allocated(uu_tG).eqv..false.)allocate(uu_tG(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
                 call secondOrderProducts(uu_tB, u_tB)

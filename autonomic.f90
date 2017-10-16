@@ -80,7 +80,7 @@ program autonomic
      plot_Velocities  = 0
      save_FFT_data    = 0
   end if
-
+ if (computeFFT_data) multiFilter  = 0
 
   !    ..INIT POSTPROCESSING..
 
@@ -178,7 +178,7 @@ program autonomic
      ! 2] FILTER VELOCITIES [AND PRESSURE]:
      if(allocated(u_f).eqv..false.)        allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
      if(allocated(u_t).eqv..false.)        allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
-     if (run3FilterStress) then
+     if (multiFilter) then
         if(allocated(u_tB).eqv..false.)        allocate(u_tB (n_u, i_GRID,j_GRID,k_GRID))
        ! if(allocated(u_tG).eqv..false.)        allocate(u_tG (n_u, i_GRID,j_GRID,k_GRID))
      end if
@@ -223,7 +223,7 @@ program autonomic
      ! 3] GET FFT_DATA:
      if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6, i_GRID, j_GRID, k_GRID))
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
-     if (run3FilterStress) then
+     if (multiFilter) then
         if(allocated(T_ijB).eqv..false.)        allocate(T_ijB (6, i_GRID,j_GRID,k_GRID))
 !        if(allocated(T_ijG).eqv..false.)        allocate(T_ijG (6, i_GRID,j_GRID,k_GRID))
      end if
@@ -237,11 +237,12 @@ program autonomic
         !->>     
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
-        call loadFFT_data3(LESFilterType)
+        if (multiFilter) then 
+          call loadFFT_data3(LESFilterType)
+        else
+          call loadFFT_data()
+        end if
 !        call checkFFT_data()
-        print*, tau_ij(2,15,24,129)
-        print*, T_ij(2,15,24,129)
-        print*, T_ijB(2,15,24,129)
      end if
 
 
@@ -252,7 +253,7 @@ program autonomic
         call rotateX(u_t) 
         call rotateX(tau_ij) 
         call rotateX(T_ij)
-        if (run3FilterStress) then
+        if (multiFilter) then
             call rotateX(u_tB) 
  !           call rotateX(u_tG) 
             call rotateX(T_ijB)
@@ -264,7 +265,7 @@ program autonomic
         call rotateY(u_t) 
         call rotateY(tau_ij) 
         call rotateY(T_ij)
-        if (run3FilterStress) then
+        if (multiFilter) then
             call rotateY(u_tB) 
    !         call rotateY(u_tG) 
             call rotateY(T_ijB)
@@ -277,23 +278,25 @@ program autonomic
      if (save_FFT_DATA) call saveFFT_data()
 
     ! stop
-     !print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
-     !print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129), '\n'
+     print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
+     print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
+     !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
 
      !->>
      if (stress.eq.'dev') then
         print*, 'Convert to deviatoric stress'
         call makeDeviatoric (tau_ij)
         call makeDeviatoric (T_ij)
+        if (multiFilter) call makeDeviatoric (T_ijB)
       end if
-      !print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
-      !print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129), '\n'
+      print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
+      print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
+      !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
       
-        
+    !stop    
 
-      if (plot_Stress)                    call plotOriginalStress('All')
+    if (plot_Stress)                    call plotOriginalStress('All')
       
-
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
      if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
@@ -358,7 +361,7 @@ program autonomic
      call extendDomain(u_f)
      call extendDomain(u_t)
      call extendDomain(T_ij)   
-     if (run3FilterStress) then
+     if (multiFilter) then
         call extendDomain(u_tB)
   !      call extendDomain(u_tG)
         call extendDomain(T_ijB) 
@@ -373,7 +376,7 @@ program autonomic
         print('(a32,ES8.1)'), 'Autonomic closure, lambda = ', lambda, '\n'
         ! $$
         ! $$$ 
-        call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+        call autonomicClosure (u_f, u_t, tau_ij, T_ij, T_ijB, h_ij, tau_ijOpt, T_ijOpt)
  !       call check_afterExtension()
      end do lambda_loop
 

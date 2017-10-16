@@ -621,62 +621,78 @@ end subroutine plotVelocities
     !
     !    ..LOCAL VARIABLES..
     character(64) :: filename
+    character(8) :: Testfilter1, Testfilter2, Testfilter3
     integer :: i
 
-     print*
-     print*,'Load filtered variables ... '
+    select case  (TestfilterType)
+        case ('GaussBox')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Box'
+        case ('GaussTri')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Tri'
+        case ('BoxTri')
+          Testfilter1 = 'Box'
+          Testfilter2 = 'Tri'
+        case ('All')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Box'
+          Testfilter3 = 'Tri'
+    end select
+
+    print*
+    print*,'Load filtered variables ... '
 
      ! READ LES DATA - u_f, tau_ij:
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('u_f.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim('u_f.bin')
     print*, filename
     open(1, file = filename,form='unformatted')
     read(1) u_f
     close(1)
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('tau_ij.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim('tau_ij.bin')
     print*, filename
     open(2, file = filename,form='unformatted')
     read(2) tau_ij
     close(2)
 
     ! READ TEST DATA - u_t, T_ij:
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin') ! Sharp
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter1)//'/'//trim('u_t.bin')
     print*, filename
     open(1, file = filename,form='unformatted')
     read(1) u_t
     close(1)
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin') ! Sharp
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter1)//'/'//trim('T_ij.bin') 
     print*, filename
     open(2, file = filename,form='unformatted')
     read(2) T_ij
     close(2)
     
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Box/u_t.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter2)//'/'//trim('u_t.bin')
     print*, filename
     open(1, file = filename,form='unformatted')
     read(1) u_tB
     close(1)
 
-    filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Box/T_ij.bin')
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter2)//'/'//trim('T_ij.bin')
     print*, filename
     open(2, file = filename,form='unformatted')
     read(2) T_ijB
     close(2)
     
-
-    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/u_t.bin')
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter3)//'/'//trim('u_t.bin')
     ! print*, filename
     ! open(1, file = filename,form='unformatted')
     ! read(1) u_tG
     ! close(1)
 
-    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//trim('Gauss/T_ij.bin')
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter3)//'/'//trim('T_ij.bin')
     ! print*, filename
     ! open(2, file = filename,form='unformatted')
     ! read(2) T_ijG
     ! close(2)
-                  
+              
       
 
    end subroutine loadFFT_data3

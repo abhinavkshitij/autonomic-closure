@@ -129,10 +129,14 @@ module global
                                                   str16('rotateY/')]
 
   ! TEST SCALE FILTER TYPE    
-  type(str16), parameter :: l_filterType(4) = [str16('Sharp'),            &
+  type(str16), parameter :: l_filterType(8) = [str16('Sharp'),            &
                                                str16('Gauss'),            &
                                                str16('Box'),              &
-                                               str16('Tri')] 
+                                               str16('Tri'),              &
+                                               str16('GaussBox'),         &
+                                               str16('GaussTri'),         &
+                                               str16('BoxTri'),           &
+                                               str16('All')] 
 
   !*****************************************************************
               
@@ -155,7 +159,8 @@ module global
 
   character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
   character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
-
+                                                                     ! [GaussBox, GaussTri, BoxTri]
+                                                                     ! [All]
  
   
   real(8), parameter :: lambda_0(1) =  1.d-03
@@ -193,7 +198,7 @@ module global
   logical :: compute_Stress       =  0
 
   logical :: make_Deviatoric      =  1
-  logical :: run3FilterStress     =  1
+  logical :: multiFilter          =  0
 
 
 
@@ -601,7 +606,7 @@ contains
     N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
     ! 3-Filter MODIFICATION:
-    if (run3FilterStress) n_filter = 2
+    if (multiFilter) n_filter = 2
     M = n_filter * M
 
   end subroutine setEnv
@@ -669,6 +674,7 @@ contains
 
      write(fileID, * ), 'Filter scales:       ', LES_scale,  test_scale
      write(fileID, * ), 'Filter types:        ', LESfilterType, TestfilterType
+     write(fileID, * ), 'multiFilter:         ', multiFilter
 
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
      write(fileID, * ), 'Stress computation:  ', stress, '\n'

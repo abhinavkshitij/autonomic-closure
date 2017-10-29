@@ -200,8 +200,7 @@ program autonomic
         call fftshift(LES)
         call fftshift(test)
 
-        print*, LES(15,24,129)
-!stop
+ 
         ! Apply filter in Fourier domain (DEFAULT:sharp)
         do i=1,n_u
            u_f(i,:,:,:) = sharpFilter(u  (i,:,:,:),LES)
@@ -246,7 +245,6 @@ program autonomic
 !        call checkFFT_data()
      end if
 
-
      !->>
      if (rotationAxis == 'X') then
         print*, 'Rotate array along x-axis'
@@ -284,7 +282,8 @@ program autonomic
      !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
 
      !->>
-     if (stress.eq.'dev') then
+     !if (stress.eq.'dev') then
+      if (make_Deviatoric) then
         print*, 'Convert to deviatoric stress'
         call makeDeviatoric (tau_ij)
         call makeDeviatoric (T_ij)
@@ -294,7 +293,7 @@ program autonomic
       print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
       !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
       
-    !stop    
+    stop    
 
     if (plot_Stress)                    call plotOriginalStress('All')
       

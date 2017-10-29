@@ -39,7 +39,7 @@ contains
   !----------------------------------------------------------------
   ! USE: Create an explicit filter.
   !      
-  ! FORM: subroutine createFilter(filter, scale,[filterOption-default:Sharp])
+  ! FORM: subroutine createFilter(array, scale,[filterOption-default:Sharp])
   !       
   ! BEHAVIOR: GRID must be cubic for spherical symmetry.
   !          

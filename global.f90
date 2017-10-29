@@ -147,7 +147,7 @@ module global
   integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
-  character(3) :: stress         = 'dev'                             ! [dev[DS], abs[BD]]
+  character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
@@ -157,8 +157,8 @@ module global
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
-  character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
-  character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
                                                                      ! [GaussBox, GaussTri, BoxTri]
                                                                      ! [All]
  
@@ -186,18 +186,18 @@ module global
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  1
+  logical :: plot_Velocities      =  0
   logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
-  logical :: save_FFT_data        =  1
+  logical :: save_FFT_data        =  0
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
   logical :: plot_Stress          =  0
-  logical :: production_Term      =  1
+  logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
 
-  logical :: make_Deviatoric      =  0
+  logical :: make_Deviatoric      =  1
   logical :: multiFilter          =  0
 
 

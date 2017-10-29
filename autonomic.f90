@@ -197,10 +197,11 @@ program autonomic
         !DEBUG : Print filters 
         if (debug_PrintFilters) call printFilters()
            
-!stop
         call fftshift(LES)
         call fftshift(test)
 
+        print*, LES(15,24,129)
+!stop
         ! Apply filter in Fourier domain (DEFAULT:sharp)
         do i=1,n_u
            u_f(i,:,:,:) = sharpFilter(u  (i,:,:,:),LES)

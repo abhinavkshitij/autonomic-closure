@@ -78,12 +78,16 @@ contains
     !    ..LOCAL VARS.. 
     real(8) :: distance
     real(8) :: slope  
+    integer :: last, center
+
+    last = size(filter,dim=1)
+    center = bigHalf(last)
 
     if (present(filterOption).and.filterOption.eq.'Gauss') then
       !  Create Gauss filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -96,9 +100,9 @@ contains
       end do
     elseif (present(filterOption).and.filterOption.eq.'Box') then
       !  Create Box filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -112,9 +116,9 @@ contains
       end do
       elseif (present(filterOption).and.filterOption.eq.'Tri') then
       !  Create Tri filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -128,9 +132,9 @@ contains
       end do
       elseif (present(filterOption).and.filterOption.eq.'Custom') then
       !  Create Custom filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -151,9 +155,9 @@ contains
       end do  
     else
       !  Create spectrally sharp filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -189,6 +193,7 @@ contains
   ! FORM: subroutine fftshift   [FILTER]
   !       
   ! BEHAVIOR: Brings DC component (k=0) at the center. 
+  !           Nyquist freqeuncy at the top left corner.
   !         
   ! 
   ! Layout:                     k 
@@ -206,17 +211,21 @@ contains
   ! SWAP RULES : A <-> G, C <-> E, D <-> F, B <-> H
   !----------------------------------------------------------------
   
-  subroutine fftshift(filter)
+  subroutine fftshift(array)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8),dimension(:,:,:),intent(inout):: filter
+    real(8),dimension(:,:,:),intent(inout):: array
     !
     !    ..WORK ARRAYS..
     real(8),allocatable,dimension(:,:,:) :: temp
     real(8),allocatable,dimension(:,:,:) :: A,B,C,D,E,F,G,H 
-
+    !
+    !   ..LOCAL VARS..
+    integer :: last,center
     
-
+    last = size(array,dim=1)
+    center = bigHalf(last)
+    
     ! CREATE SUBARRAYS:
     allocate(temp(1:(center-1), 1:(center-1) , 1:(center-1) ) )
     allocate(A ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
@@ -229,14 +238,14 @@ contains
     allocate(H ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
 
 
-    A = filter( center:f_GRID  ,  1:(center-1) ,  center:f_GRID  )
-    B = filter( center:f_GRID  ,  center:f_GRID  ,  center:f_GRID  )
-    C = filter( center:f_GRID  ,  center:f_GRID  ,  1:(center-1) )
-    D = filter( center:f_GRID  ,  1:(center-1) ,  1:(center-1) )
-    E = filter( 1:(center-1) ,  1:(center-1) ,  center:f_GRID  )
-    F = filter( 1:(center-1) ,  center:f_GRID  ,  center:f_GRID  )
-    G = filter( 1:(center-1) ,  center:f_GRID  ,  1:(center-1) )
-    H = filter( 1:(center-1) ,  1:(center-1) ,  1:(center-1) )
+    A = array( center:last  ,  1:(center-1) ,  center:last  )
+    B = array( center:last  ,  center:last  ,  center:last  )
+    C = array( center:last  ,  center:last  ,  1:(center-1) )
+    D = array( center:last  ,  1:(center-1) ,  1:(center-1) )
+    E = array( 1:(center-1) ,  1:(center-1) ,  center:last  )
+    F = array( 1:(center-1) ,  center:last  ,  center:last  )
+    G = array( 1:(center-1) ,  center:last  ,  1:(center-1) )
+    H = array( 1:(center-1) ,  1:(center-1) ,  1:(center-1) )
 
     ! SWAP SUBARRAYS: (_SHIFT)
     temp = A ; A = G ; G = temp
@@ -244,15 +253,15 @@ contains
     temp = D ; D = F ; F = temp
     temp = B ; B = H ; H = temp
 
-    ! RECREATE FILTER WITH FFTSHIFT:
-    filter( center:f_GRID  , 1:(center-1) , center:f_GRID  ) = A
-    filter( center:f_GRID  , center:f_GRID  , center:f_GRID  ) = B
-    filter( center:f_GRID  , center:f_GRID  , 1:(center-1) ) = C
-    filter( center:f_GRID  , 1:(center-1) , 1:(center-1) ) = D
-    filter( 1:(center-1) , 1:(center-1) , center:f_GRID  ) = E
-    filter( 1:(center-1) , center:f_GRID  , center:f_GRID  ) = F
-    filter( 1:(center-1) , center:f_GRID  , 1:(center-1) ) = G
-    filter( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
+    ! RECREATE array WITH FFTSHIFT:
+    array( center:last  , 1:(center-1) , center:last  ) = A
+    array( center:last  , center:last  , center:last  ) = B
+    array( center:last  , center:last  , 1:(center-1) ) = C
+    array( center:last  , 1:(center-1) , 1:(center-1) ) = D
+    array( 1:(center-1) , 1:(center-1) , center:last  ) = E
+    array( 1:(center-1) , center:last  , center:last  ) = F
+    array( 1:(center-1) , center:last  , 1:(center-1) ) = G
+    array( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
 
     deallocate (temp,A,B,C,D,E,F,G,H)
     return
@@ -328,7 +337,7 @@ contains
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(C_DOUBLE),dimension(:,:,:) :: array_work, filter
+    real(C_DOUBLE),dimension(:,:,:), intent(in) :: array_work, filter
     real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: sharpFilter 
     !
     !    ..WORK ARRAYS..

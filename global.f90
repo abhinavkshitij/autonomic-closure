@@ -187,17 +187,17 @@ module global
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  1
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
-  logical :: plot_Stress          =  1
+  logical :: plot_Stress          =  0
   logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  1
+  logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
 
-  logical :: make_Deviatoric      =  1
+  logical :: make_Deviatoric      =  0
   logical :: multiFilter          =  0
 
 

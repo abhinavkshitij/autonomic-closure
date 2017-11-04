@@ -157,8 +157,8 @@ module global
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
-  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
-  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
                                                                      ! [GaussBox, GaussTri, BoxTri]
                                                                      ! [All]
  
@@ -485,7 +485,7 @@ contains
 
     ! SCALE
     if (dataset.eq.'jhu256') then
-       LES_scale  = 40;    test_scale = 20
+       LES_scale  = 40;    test_scale = 40
     else if (dataset.eq.'hst'.and.hst_set.eq.'S6') then
        LES_scale  = 20;    test_scale = 10
     else if (dataset.eq.'hst'.and.hst_set.eq.'S1') then

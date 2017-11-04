@@ -91,7 +91,7 @@ program autonomic
   print*, "CASE_NAME:", CASE_NAME
 !  call memRequirement()
 !  print*, boxSize, maskSize
-!stop
+! stop 
 
 
   ! TEST DATA:

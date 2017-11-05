@@ -194,11 +194,16 @@ program autonomic
         call createFilter(LES,LES_scale,LESfilterType)
         call createFilter(test,test_scale,TestfilterType)
 
+
+        !DEBUG: UNIT TESTING dealiasedProducts()
+        !print*, dealiasedProducts(u(1,:,:,:), u(2,:,:,:) )
+        !stop
+
         !DEBUG : Print filters 
         if (debug_PrintFilters) call printFilters()
            
-        call fftshift(LES)
-        call fftshift(test)
+        LES = fftshift(LES)
+        test = fftshift(test)
 
  
         ! Apply filter in Fourier domain (DEFAULT:sharp)
@@ -293,7 +298,7 @@ program autonomic
       print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
       !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
       
-    stop    
+    stop
 
     if (plot_Stress)                    call plotOriginalStress('All')
       

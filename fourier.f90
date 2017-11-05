@@ -211,10 +211,11 @@ contains
   ! SWAP RULES : A <-> G, C <-> E, D <-> F, B <-> H
   !----------------------------------------------------------------
   
-  subroutine fftshift(array)
+  function fftshift(array)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8),dimension(:,:,:),intent(inout):: array
+    real(8),dimension(:,:,:):: array
+    real(8),dimension(:,:,:), allocatable:: fftshift
     !
     !    ..WORK ARRAYS..
     real(8),allocatable,dimension(:,:,:) :: temp
@@ -226,6 +227,8 @@ contains
     last = size(array,dim=1)
     center = bigHalf(last)
     
+    allocate (fftshift(last,last,last))
+
     ! CREATE SUBARRAYS:
     allocate(temp(1:(center-1), 1:(center-1) , 1:(center-1) ) )
     allocate(A ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
@@ -254,18 +257,18 @@ contains
     temp = B ; B = H ; H = temp
 
     ! RECREATE array WITH FFTSHIFT:
-    array( center:last  , 1:(center-1) , center:last  ) = A
-    array( center:last  , center:last  , center:last  ) = B
-    array( center:last  , center:last  , 1:(center-1) ) = C
-    array( center:last  , 1:(center-1) , 1:(center-1) ) = D
-    array( 1:(center-1) , 1:(center-1) , center:last  ) = E
-    array( 1:(center-1) , center:last  , center:last  ) = F
-    array( 1:(center-1) , center:last  , 1:(center-1) ) = G
-    array( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
+    fftshift( center:last  , 1:(center-1) , center:last  ) = A
+    fftshift( center:last  , center:last  , center:last  ) = B
+    fftshift( center:last  , center:last  , 1:(center-1) ) = C
+    fftshift( center:last  , 1:(center-1) , 1:(center-1) ) = D
+    fftshift( 1:(center-1) , 1:(center-1) , center:last  ) = E
+    fftshift( 1:(center-1) , center:last  , center:last  ) = F
+    fftshift( 1:(center-1) , center:last  , 1:(center-1) ) = G
+    fftshift( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
 
     deallocate (temp,A,B,C,D,E,F,G,H)
     return
-  end subroutine fftshift
+  end function fftshift
 
   !****************************************************************
   !                            FFTSHIFT_C
@@ -295,10 +298,11 @@ contains
   ! SWAP RULES : A <-> G, C <-> E, D <-> F, B <-> H
   !----------------------------------------------------------------
 
-  subroutine fftshift_c(array)
+  function fftshift_c(array)
     !
     !    ..ARRAY ARGUMENTS..
-    complex(C_DOUBLE_COMPLEX),dimension(:,:,:),intent(inout):: array
+    complex(C_DOUBLE_COMPLEX),dimension(:,:,:):: array
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:) :: fftshift_c
     !
     !    ..WORK ARRAYS..
     complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:) :: temp
@@ -309,7 +313,8 @@ contains
     
     last = size(array,dim=1)
     center = bigHalf(last)
-    
+    allocate (fftshift_c(last,last,last))
+
     ! CREATE SUBARRAYS:
     allocate(temp(1:(center-1), 1:(center-1) , 1:(center-1) ) )
     allocate(A ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
@@ -338,18 +343,18 @@ contains
     temp = B ; B = H ; H = temp
 
     ! RECREATE array WITH FFTSHIFT:
-    array( center:last  , 1:(center-1) , center:last  ) = A
-    array( center:last  , center:last  , center:last  ) = B
-    array( center:last  , center:last  , 1:(center-1) ) = C
-    array( center:last  , 1:(center-1) , 1:(center-1) ) = D
-    array( 1:(center-1) , 1:(center-1) , center:last  ) = E
-    array( 1:(center-1) , center:last  , center:last  ) = F
-    array( 1:(center-1) , center:last  , 1:(center-1) ) = G
-    array( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
+    fftshift_c( center:last  , 1:(center-1) , center:last  ) = A
+    fftshift_c( center:last  , center:last  , center:last  ) = B
+    fftshift_c( center:last  , center:last  , 1:(center-1) ) = C
+    fftshift_c( center:last  , 1:(center-1) , 1:(center-1) ) = D
+    fftshift_c( 1:(center-1) , 1:(center-1) , center:last  ) = E
+    fftshift_c( 1:(center-1) , center:last  , center:last  ) = F
+    fftshift_c( 1:(center-1) , center:last  , 1:(center-1) ) = G
+    fftshift_c( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
 
     deallocate (temp,A,B,C,D,E,F,G,H)
     return
-  end subroutine fftshift_c
+  end function fftshift_c
 
 
   !****************************************************************
@@ -518,48 +523,69 @@ contains
   !         
   ! STATUS: > Unit testing with full run.   
   ! 
-  ! Notes: 
+  ! Notes: The 3 DP complex arrays take 6GB memory
   !         
   !----------------------------------------------------------------
 
-  function dealiasedProducts(u1, u2, filter)
+  function dealiasedProducts(u1_real, u2_real, filter)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(C_DOUBLE),dimension(:,:,:), intent(in) :: u1, u2
+    real(C_DOUBLE),dimension(:,:,:), intent(in) :: u1_real, u2_real
     real(C_DOUBLE),dimension(:,:,:), intent(in), optional :: filter
     real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: dealiasedProducts
     !
     !    ..WORK ARRAYS..
-    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: in_cmplx, out_cmplx
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: u1_cmplx, u2_cmplx
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: temp
     !
     !    ..LOCAL VARS..
     type(C_PTR) :: plan
    
-    allocate(in_cmplx (f_GRID,f_GRID,f_GRID))
-    allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
+    allocate(u1_cmplx (f_GRID,f_GRID,f_GRID))
+    allocate(u2_cmplx (f_GRID,f_GRID,f_GRID))
 
 
-    in_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = dcmplx (u1(1:i_GRID,1:j_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
+    u1_cmplx = dcmplx (u1_real) / (dble(f_GRID**3)) 
+    u2_cmplx = dcmplx (u2_real) / (dble(f_GRID**3)) 
+
+    ! FT: [FORTRAN is CASE-INSENSITIVE]
+    !U1_cmplx = fftshift_c(forwardFT(u1_cmplx))
+    !U2_cmplx = fftshift_c(forwardFT(u2_cmplx))
+
+    ! print*,'Write FFT files from dealiasedProducts()'
+    !   open(1, file= trim(RES_PATH)//'U1_cmplx_256.dat')
+    !   open(2, file= trim(RES_PATH)//'U2_cmplx_256.dat')
+    !   write(1,*) abs(U1_cmplx(:,:,129))
+    !   write(2,*) abs(U2_cmplx(:,:,129))
+    !   close(1)
+    !   close(2)
+
+    !stop
+
+    print*, 2*f_GRID
+
+    ! ZERO-PAD U(256) from k = 129 to 256 -> U(512)
+    allocate (temp (2*f_GRID, 2*f_GRID, 2*f_GRID))
+    temp = U1_cmplx
+    deallocate (U1_cmplx)
+    allocate (U1_cmplx(2*f_GRID, 2*f_GRID, 2*f_GRID))
+    !U1_cmplx(129:384, 129:384, 129:384) = temp(1:256, 1:126, 1:256)
+
+    temp = U2_cmplx
+    deallocate(U2_cmplx)
+    allocate(U2_cmplx(2*f_GRID, 2*f_GRID, 2*f_GRID))
+    !U2_cmplx(129:384, 129:384, 129:384) = temp(1:256, 1:256, 1:256)
 
 
-    ! FT:
-    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
-    call dfftw_execute(plan)    
-    call dfftw_destroy_plan(plan)
+    
 
-    ! FFTSHIFT:
-    call fftshift_c(out_cmplx)
-
-    out_cmplx = out_cmplx * filter
+    
 
     ! IFFT:
-    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
-    call dfftw_execute(plan)
-    call dfftw_destroy_plan(plan)
-
+    
  
-    dealiasedProducts = real(in_cmplx) 
+    !dealiasedProducts = real(in_cmplx) 
     
   end function dealiasedProducts
 

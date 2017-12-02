@@ -68,7 +68,7 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
-  logical :: debug_PrintFilters = 0
+  logical :: debug_PrintFilters = 1
 
   real(8),allocatable,dimension(:,:,:)   :: dev_t
 
@@ -195,12 +195,9 @@ program autonomic
         call createFilter(test,test_scale,TestfilterType)
 
 
-        !DEBUG: UNIT TESTING dealiasedProducts()
-        !print*, dealiasedProducts(u(1,:,:,:), u(2,:,:,:) )
-        !stop
-
         !DEBUG : Print filters 
         if (debug_PrintFilters) call printFilters()
+        stop
            
         LES = fftshift(LES)
         test = fftshift(test)
@@ -298,7 +295,7 @@ program autonomic
       print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
       !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
       
-    stop
+!    stop
 
     if (plot_Stress)                    call plotOriginalStress('All')
       
@@ -423,8 +420,8 @@ contains
   subroutine printFilters()
     implicit none
 
-    open(20,file=trim(RES_PATH)//'test_filter.dat',status='replace')
-    open(21,file=trim(RES_PATH)//'LES_filter.dat',status='replace')
+    open(20,file=trim(RES_PATH)//'../../test_filter.dat',status='replace')
+    open(21,file=trim(RES_PATH)//'../../LES_filter.dat',status='replace')
        
     write(20,*) test (:,:,z_plane)
     write(21,*) LES  (:,:,z_plane)

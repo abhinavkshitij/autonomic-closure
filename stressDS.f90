@@ -142,7 +142,7 @@ program stressDS
      ! CREATE TEST FILTER: **
      allocate(test(f_GRID,f_GRID,f_GRID))
      call createFilter(test, test_scale, TestfilterType)        
-     call fftshift(test)
+     test = fftshift(test)
  
      ! PRECOMPUTE S_f_Sij_f_t [SAVE]: 
      print*

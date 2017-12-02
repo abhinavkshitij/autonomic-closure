@@ -152,13 +152,13 @@ module global
   character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
+  character(8) :: compDomain     = trim (l_compDomain(1) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
-  character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
-  character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
                                                                      ! [GaussBox, GaussTri, BoxTri]
                                                                      ! [All]
  
@@ -192,12 +192,12 @@ module global
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
-  logical :: plot_Stress          =  0
-  logical :: production_Term      =  0
-  logical :: save_ProductionTerm  =  0
+  logical :: plot_Stress          =  1
+  logical :: production_Term      =  1
+  logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
-  logical :: make_Deviatoric      =  1
+  logical :: make_Deviatoric      =  0
   logical :: multiFilter          =  0
 
 
@@ -452,7 +452,7 @@ contains
     dx = 2.d0*PI/dble(i_GRID) 
     
     ! TIMESTEPS:
-    if (dataset.eq.'jhu256') then
+    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D') then
        time = '256'; time_init = 256; time_incr = 1; time_final = 256
        nu = 1.85d-4
     end if
@@ -485,7 +485,7 @@ contains
 
     ! SCALE
     if (dataset.eq.'jhu256') then
-       LES_scale  = 40;    test_scale = 40
+       LES_scale  = 40;    test_scale = 20
     else if (dataset.eq.'hst'.and.hst_set.eq.'S6') then
        LES_scale  = 20;    test_scale = 10
     else if (dataset.eq.'hst'.and.hst_set.eq.'S1') then

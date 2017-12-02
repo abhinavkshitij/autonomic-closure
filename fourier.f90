@@ -108,8 +108,11 @@ contains
                     +           dble((j - center)**2) &
                     +           dble((k - center)**2) )
 
-                filter(i,j,k) = sin( (distance+eps) / (scale+eps) ) / &
-               &                   ( (distance+eps) / (scale+eps) )
+               !  filter(i,j,k) = sin( (distance+eps) / (scale+eps) ) / &
+               ! &                   ( (distance+eps) / (scale+eps) )
+
+               filter(i,j,k) = sin( (PI*(distance+eps)) / (scale+eps) ) / &
+               &                  ( (PI*(distance+eps)) / (scale+eps) )
 
             end do
          end do
@@ -124,8 +127,8 @@ contains
                     +           dble((j - center)**2) &
                     +           dble((k - center)**2) )
 
-                filter(i,j,k) = sin( (distance+eps) / (scale+eps) * 0.5d0) ** 2 / &
-               &                   ( (distance+eps) / (scale+eps) * 0.5d0) ** 2
+                filter(i,j,k) = sin( (PI*(distance+eps)) / (scale+eps) * 0.5d0) ** 2 / &
+               &                   ( (PI*(distance+eps)) / (scale+eps) * 0.5d0) ** 2
 
             end do
          end do
@@ -580,7 +583,6 @@ contains
 
     
 
-    
 
     ! IFFT:
     

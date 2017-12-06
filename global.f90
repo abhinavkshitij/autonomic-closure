@@ -186,7 +186,7 @@ module global
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  0
+  logical :: plot_Velocities      =  1
   logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  0
 
@@ -438,7 +438,7 @@ contains
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 133!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'
@@ -485,7 +485,7 @@ contains
 
     ! SCALE
     if (dataset.eq.'jhu256') then
-       LES_scale  = 40;    test_scale = 20
+       LES_scale  = 20;    test_scale = 10
     else if (dataset.eq.'hst'.and.hst_set.eq.'S6') then
        LES_scale  = 20;    test_scale = 10
     else if (dataset.eq.'hst'.and.hst_set.eq.'S1') then

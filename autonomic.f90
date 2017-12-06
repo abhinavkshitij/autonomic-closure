@@ -68,7 +68,7 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
-  logical :: debug_PrintFilters = 1
+  logical :: debug_PrintFilters = 0
 
   real(8),allocatable,dimension(:,:,:)   :: dev_t
 
@@ -197,7 +197,7 @@ program autonomic
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call printFilters()
-        stop
+        !stop
            
         LES = fftshift(LES)
         test = fftshift(test)
@@ -217,7 +217,12 @@ program autonomic
         end if
      end if
 
+     print*, u (1:3,1,1,1)
+     print*, u_f (1:3,1,1,1)
+     print*, u_t (1:3,1,1,1)
 
+
+stop
      ! BREAKPOINT 1:
      if (useTestData) stop
 

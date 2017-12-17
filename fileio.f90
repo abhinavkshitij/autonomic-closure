@@ -118,7 +118,7 @@ contains
 
         
         !  READ DOUBLE PRECISION DATA - SIN3D, JHU256
-     elseif (dataset.eq.'jhu256'.or.dataset.eq.'sin3D') then
+     elseif (dataset.eq.'jhu256'.or.dataset.eq.'sin3D'.or.dataset.eq.'jhu43') then
 
         if (allocated(u).eqv..false.) allocate(u(n_u, i_GRID, j_GRID, k_GRID))
         do fID = 1,DIM

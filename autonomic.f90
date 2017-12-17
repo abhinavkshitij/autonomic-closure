@@ -111,6 +111,9 @@ program autonomic
      if(readFile)                        call readData(DIM = n_u)
      if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
 
+     print*, u(:,3,4,23)
+     print*, bigHalf(i_GRID)
+     stop
 
      ! + GET STATISTICS OF INITIAL VELOCITY:
 

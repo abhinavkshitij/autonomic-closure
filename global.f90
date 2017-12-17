@@ -85,11 +85,12 @@ module global
                                       str16 ('Pressure')]
 
   ! DATASET
-  type(str16), parameter :: l_dataset(5) = [str16 ('nrl'),               & 
+  type(str16), parameter :: l_dataset(6) = [str16 ('nrl'),               & 
                                             str16 ('jhu256'),            & ! jhu256
                                             str16 ('hst'),               &
                                             str16 ('sin3D'),             &
-                                            str16 ('jhu1024')]
+                                            str16 ('jhu1024'),           &
+                                            str16 ('jhu43')]
 
   ! FILTERED VARIABLES 
   type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),                 &
@@ -141,7 +142,7 @@ module global
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
+  character(8) :: dataset        = trim (l_dataset(6) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
   integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
@@ -433,12 +434,13 @@ contains
     RES_PATH = RES_DIR
 
     ! GRID:
-    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
+!    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
+    i_GRID = 43;    j_GRID = 43;    k_GRID = 43
     
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 133!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 23!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'
@@ -452,8 +454,8 @@ contains
     dx = 2.d0*PI/dble(i_GRID) 
     
     ! TIMESTEPS:
-    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D') then
-       time = '256'; time_init = 256; time_incr = 1; time_final = 256
+    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D' .or. dataset.eq.'jhu43') then
+       time = '43'; time_init = 43; time_incr = 1; time_final = 43
        nu = 1.85d-4
     end if
     if (dataset.eq.'nrl') time = '0460'

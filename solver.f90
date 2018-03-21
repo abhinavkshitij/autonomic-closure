@@ -365,6 +365,7 @@ contains
     !    ..DEBUG..
     logical :: printval
     logical :: check_h_ij = 0
+    logical :: read_h_ij = 1
 
     ! 
     real(8),allocatable,dimension(:,:,:)   :: dev_t
@@ -421,7 +422,7 @@ contains
 
                 ! ZERO ORDER TERMS:
                 col_index = col_index + 1
-                V(row_index, col_index) = 1.d0
+                V(row_index, col_index) = 0.d0
 
                 ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
                 do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test ! Vectorize using (PACK/UNPACK)
@@ -455,12 +456,21 @@ contains
 
 ! DEBUG: Print V matrix 
 ! if(i_boxCenter.eq.15.and.j_boxCenter.eq.24) then
-!   ! Save V matrix
+!  Save V matrix
 !   open(47,file='V.dat')
-!   write(47,*) V
+!     do i = 1, size(V,dim=1)
+!       write(47,*) V(i,:)
+!     end do
 !   close(47)
-!  ! stop
-! end if
+! !   stop
+! ! end if
+
+! open(47,file='T.dat')
+!   do i = 1, size(T,dim=1)
+!     write(47,*) T(i,:)
+!   end do
+! close(47)
+!stop
 
 !call cpu_time(toc)
 !print*, 'Time to build V matrix, t1 = ', toc-tic          
@@ -484,6 +494,26 @@ contains
 !print*, 'Time to invert, t2 = ', toc-tic
 
 !$
+! PRINT H_IJ
+ if (check_h_ij) then
+   print*, 'size(h_ij):', size(h_ij)
+   open(47,file='h_ij.dat')
+   do i = 1, size(h_ij,dim=1)
+      write(47,*), i, h_ij(i,:)
+   end do
+   close(47)
+   check_h_ij = 0
+ end if
+
+ if(read_h_ij) then
+  print*, '*** Reading external h_ij from Python LASSO routine ***'
+  open(47,file='h_ij_lasso.dat')
+  read(47,*) h_ij
+  close (47)
+!  print*, "Check for h_ij"
+!  print*, h_ij(45,5)
+ end if
+!stop
                 call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
 ! $$
 
@@ -917,6 +947,7 @@ contains
     integer :: LWMAX
     integer :: NRHS 
     integer :: INFO
+    integer :: i
 
     LWMAX = M * N
     NRHS = P
@@ -929,12 +960,26 @@ contains
     ! A(N,N) = V'(N,M) * V(M,N)
     call DGEMM('T', 'N', N, N, M, alpha, V, M, V, M, beta, A, N)
 
+    ! open (11, file = 'A0.dat')
+    ! do i = 1, size(A,dim=1)
+    !   write (11,*) A(i,:)
+    ! end do
+    ! close (11)
+
     ! Apply damping: A = A + lambda*I
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 
     call DGEMM('T', 'N', N, P, M, alpha, V, M, T_ij, M, beta, b, N)
+    
 
+    ! open (11, file = 'b.dat')
+    ! do i = 1, size(b,dim=1)
+    !   write (11,*) b(i,:)
+    ! end do  
+    ! close (11)
+
+!stop
     !
     ! Solve Linear System: A(N,N) h_ij(N,P) = b(N,P)
     LWORK = -1

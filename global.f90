@@ -140,20 +140,20 @@ module global
   character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 0                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
-  character(3) :: stress         = 'dev'                             ! [dev[DS], abs[BD]]
+  character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
+  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
   character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
-  character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
-  character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
 
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
@@ -180,7 +180,7 @@ module global
   logical :: filterVelocities     =  1
   logical :: plot_Velocities      =  1
   logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
-  logical :: save_FFT_data        =  1
+  logical :: save_FFT_data        =  0
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
@@ -189,7 +189,7 @@ module global
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
-  logical :: make_Deviatoric      =  1
+  logical :: make_Deviatoric      =  0
 
 
   !----------------------------------------------------------------

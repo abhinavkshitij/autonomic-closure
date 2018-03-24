@@ -197,7 +197,7 @@ module global
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
-  logical :: make_Deviatoric      =  0
+  logical :: make_Deviatoric      =  1 ! Makes no difference in stressDS
   logical :: multiFilter          =  0
 
 

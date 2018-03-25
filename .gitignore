@@ -3,6 +3,6 @@
 *.mod
 *.exe
 *.dat
-run/
+*/*
 *.mk
 *.#*

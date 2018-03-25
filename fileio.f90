@@ -722,8 +722,8 @@ end subroutine plotVelocities
      implicit none
      !
      !    ..ARGUMENTS..
-     character(*),intent(in), optional :: LESFilterType
-     character(*),intent(in), optional :: TestFilterType
+     character(*),intent(in) :: LESFilterType
+     character(*),intent(in) :: TestFilterType
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename 
@@ -890,15 +890,27 @@ end subroutine plotVelocities
      ! SAVE tau_DS:
      do i = 1,6
         write(ij,'(i0)') i
-        open(87, file = trim(RES_PATH)//'tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        open(87, file = trim(RES_PATH)//'43/tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        write(87,*), tau_DS(i,:,:,43)
+        close(87)
+        open(87, file = trim(RES_PATH)//'129/tau_DS_'//trim(stress)//trim(ij)//'.dat')
         write(87,*), tau_DS(i,:,:,z_plane)
+        close(87)
+        open(87, file = trim(RES_PATH)//'212/tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        write(87,*), tau_DS(i,:,:,212)
         close(87)
      end do
 
      ! SAVE Pij_DS:
       print*,'Saving DS production field in', RES_PATH
-      open(53, file=trim(RES_PATH)//'Pij_DS_'//trim(stress)//'.dat')
+      open(53, file=trim(RES_PATH)//'43/Pij_DS_'//trim(stress)//'.dat')
+      write(53,*) Pij_DS(:,:,43)
+      close(53)
+      open(53, file=trim(RES_PATH)//'129/Pij_DS_'//trim(stress)//'.dat')
       write(53,*) Pij_DS(:,:,z_plane)
+      close(53)
+      open(53, file=trim(RES_PATH)//'212/Pij_DS_'//trim(stress)//'.dat')
+      write(53,*) Pij_DS(:,:,212)
       close(53)
 
    end subroutine plotDynSmag

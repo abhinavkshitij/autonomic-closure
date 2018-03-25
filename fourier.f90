@@ -607,7 +607,7 @@ contains
   !         
   ! STATUS : > Passed test with MATLAB results (10/21/2015).    
   !         
-  ! Boulder CODE: [for code validation]
+  ! Boulder CODE: [for code validation] - doesn't look right
   !  ! DEVIATORIC STRESS:
   !     elseif (stress.eq.'dev')then
   !        k = 1

@@ -68,7 +68,7 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
-  logical :: debug_PrintFilters = 1
+  logical :: debug_PrintFilters = 0
 
   real(8),allocatable,dimension(:,:,:)   :: dev_t
 
@@ -197,7 +197,7 @@ program autonomic
 
         !DEBUG : Print filters 
         if (debug_PrintFilters) call printFilters()
-        stop
+        !stop
            
         LES = fftshift(LES)
         test = fftshift(test)
@@ -276,9 +276,9 @@ program autonomic
 
 
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
-     if (save_FFT_DATA) call saveFFT_data()
-
-    ! stop
+     if (save_FFT_DATA) call saveFFT_data(LESFilterType,TestFilterType)
+     stop
+     
      print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
      print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
      !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
@@ -294,8 +294,7 @@ program autonomic
       print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
       print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
       !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
-      
-!    stop
+    stop
 
     if (plot_Stress)                    call plotOriginalStress('All')
       

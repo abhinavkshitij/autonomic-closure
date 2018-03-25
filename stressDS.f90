@@ -44,7 +44,7 @@ program stressDS
   integer :: ferr
   character(1) :: idx
 
-  logical :: save_tau_DS = 0
+  logical :: save_tau_DS = 1
   !    ..INIT POSTPROCESSING..
   call setEnv()
   call printParams('display')
@@ -90,8 +90,8 @@ program stressDS
      RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
                  trim(LESfilterType)//'/'//&
                  trim(TestfilterType)//'/'//&
-                 trim(rotationPlane)//&
-                 trim(z_plane_name)// '/'
+                 trim(rotationPlane) !// &
+                 !trim(z_plane_name)// '/'
 
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))

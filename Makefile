@@ -78,8 +78,7 @@ testCut : $(OBJECTS_TESTCUT)
 fileio.o  : FFLAGS += $(HDF5_INC)
 fourier.o : FFLAGS += $(FFTW_INC)
 %.o : %.f90
-	@$(FC) -c $(FFLAGS) $< 
-
+	@$(FC) -c $(FFLAGS) $< #DEBUG: add -g before -c
 
 #----------------------------------------------------------------
 

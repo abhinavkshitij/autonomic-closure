@@ -124,29 +124,45 @@ module global
 
 
   ! ROTATION PLANE NAME 
-  type(str16), parameter :: l_rotationPlane(3) = [str16('z_plane/'),          &
-                                                  str16('rotateX/'),             &
+  type(str16), parameter :: l_rotationPlane(3) = [str16('z_plane/'),      &
+                                                  str16('rotateX/'),      &
                                                   str16('rotateY/')]
+
+  ! TEST SCALE FILTER TYPE    
+  type(str16), parameter :: l_filterType(8) = [str16('Sharp'),            &
+                                               str16('Gauss'),            &
+                                               str16('Box'),              &
+                                               str16('Tri'),              &
+                                               str16('GaussBox'),         &
+                                               str16('GaussTri'),         &
+                                               str16('BoxTri'),           &
+                                               str16('All')] 
 
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU, HST,...]
+  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 19                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
-  character(3) :: stress         = 'abs'                             ! [deviatoric, absolute]
+  character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
+  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
-  character(8) :: rotationAxis   = trim(l_rotationAxis(2) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: compDomain     = trim (l_compDomain(1) % name)     ! [all, plane]
+  character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
+  character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
-
+  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
+                                                                     ! [GaussBox, GaussTri, BoxTri]
+                                                                     ! [All]
+ 
+  
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
 
@@ -170,9 +186,9 @@ module global
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
-  logical :: save_FFT_data        =  1
+  logical :: plot_Velocities      =  0
+  logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: save_FFT_data        =  0
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
@@ -180,6 +196,9 @@ module global
   logical :: production_Term      =  1
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
+
+  logical :: make_Deviatoric      =  1 ! Makes no difference in stressDS
+  logical :: multiFilter          =  0
 
 
 
@@ -194,6 +213,7 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: u
   real(8), dimension(:,:,:,:), allocatable :: u_f 
   real(8), dimension(:,:,:,:), allocatable :: u_t
+  
   !
   !    ..VORTICITY..
   real(8), dimension(:,:,:,:), allocatable :: omega
@@ -203,6 +223,13 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: T_ij
   real(8), dimension(:,:,:,:), allocatable :: T_ijOpt
   real(8), dimension(:,:,:,:), allocatable :: tau_ijOpt
+
+  !     ..3-FILTER MODIFICATION..
+  real(8), dimension(:,:,:,:), allocatable :: u_tB
+  real(8), dimension(:,:,:,:), allocatable :: T_ijB
+  real(8), dimension(:,:,:,:), allocatable :: u_tG
+  real(8), dimension(:,:,:,:), allocatable :: T_ijG
+
   !
   !    ..FILTERS..
   real(8), dimension(:,:,:), allocatable :: LES
@@ -249,6 +276,7 @@ module global
   integer :: LES_scale 
   integer :: test_scale 
   integer :: Freq_Nyq
+  integer :: n_filter = 1       ! Number of filters
 
   !    ..STENCIL..
   integer :: Delta_LES          ! Grid spacing at LES scale = Nyquist frequ/LES_scale  (128/40 = 3)
@@ -259,8 +287,9 @@ module global
   real(8) :: lambda
  
   !   ..BOUNDING BOX..
-  integer :: box(3) 
-  integer :: boxSize  
+  integer :: box(3)             ! Box size at DNS grid (256,30,...)
+  integer :: boxSize            ! Number of available trainingPoints (343,216,...)
+  integer :: box_effective      ! Box size on test grid
   integer :: maskSize  
  
   integer :: boxLower 
@@ -315,9 +344,9 @@ module global
   character(*), parameter :: TEMP_DIR = '../temp/'
   character(*), parameter :: RES_DIR  = '../results/'
   
-  character(64) :: DATA_PATH
-  character(64) :: TEMP_PATH
-  character(64) :: RES_PATH
+  character(96) :: DATA_PATH
+  character(96) :: TEMP_PATH
+  character(96) :: RES_PATH
 
   character(4) :: ext   = 'h5'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
@@ -380,7 +409,7 @@ contains
   !
   ! Also include a "DILATION FACTOR" to make boxSize 
   ! larger than M by a factor f_D
-  ! E.g. M = 960, box = 60 will give boxSize = 1000
+  ! e.g. M = 960, box = 60 will give boxSize = 1000
   ! There are just enough points in the box available to fit in 960 
   ! training points. f_D = 1000/960 = 1.04 (will ideally remain close to 1)  
   ! Now I can set M = 960, box = 72, such that boxSize = 1728
@@ -392,7 +421,7 @@ contains
   ! CL18'  - 872/1000  = 0.872  CL18 - 656/729   = 0.899
   ! CL24' - 1516/1728  = 0.877  CL24 - 976/1000  = 0.976
   ! CL28' - 3032/3375  = 0.898  CL28 - 1952/2197 = 0.888
-  ! NG2'  - 17576/74088 = 0.23 =NG2  
+  ! NG2'  - 17576/74088 = 0.23 = NG2  
   !
   !----------------------------------------------------------------
 
@@ -407,16 +436,23 @@ contains
     i_GRID = 256;    j_GRID = 256;    k_GRID = 256
     
     Freq_Nyq = i_GRID/2
+
+    ! CASE_NAME:
     z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
-    CASE_NAME = trim(l_rotationPlane(2)%name)//trim(z_plane_name)//'/'//trim(l_case(case_idx)%name)
-
+    if (case_idx == 0) then
+      CASE_NAME = 'scratch-col'
+    else
+    !CASE_NAME = trim(l_rotationPlane(1)%name)//trim(z_plane_name)//'/'//trim(l_case(case_idx)%name)
+      CASE_NAME = trim(l_case(case_idx)%name)
+    
+    end if
 
     ! SPACING:[EQUIDISTANT IN X,Y,Z-DIR]
     dx = 2.d0*PI/dble(i_GRID) 
     
     ! TIMESTEPS:
-    if (dataset.eq.'jhu256') then
+    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D') then
        time = '256'; time_init = 256; time_incr = 1; time_final = 256
        nu = 1.85d-4
     end if
@@ -487,15 +523,17 @@ contains
     box = [1, 1, 1]             
     ! ORDERED
     if (trainingPoints.eq.'ordered') then 
-       box = 60 * box ! Default = 256 [Initial value]
-       trainingPointSkip = 6   ! Change here for CP2(3) like cases. Default=10 [M=17576]
+       box = 256 * box ! Default = 256 [Initial value]
+              ! change here for CP(*)3,5,7 = 18,30,42 
+       trainingPointSkip = 10   ! Default=10 [M=17576]
+              ! Change here for CP(*)3,5,7 = 8,,10like cases
        M =    (floor((real(box(1) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(2) - 1)) / trainingPointSkip) + 1)    &
             * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
     ! RANDOM
     elseif (trainingPoints.eq.'random') then 
        M = M_N_ratio * N ! Default
-!       M = 27      ! without using the M/N ratio here.
+!       M = 27      ! change here for CP(*)3,5,7 = 27,64,125
        trainingPointSkip = Delta_test
 
        if (scheme.eq.'global') then
@@ -514,6 +552,8 @@ contains
        maskSize  = boxSize - M
        X = 1     
     end if
+
+    box_effective  = box(1)/trainingPointSkip
 
     boxLower  = bigHalf(box(1)) - 1
     boxUpper  = box(1) - bigHalf(box(1))
@@ -570,6 +610,9 @@ contains
     n_bins = 250
     N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
+    ! 3-Filter MODIFICATION:
+    if (multiFilter) n_filter = 2
+    M = n_filter * M
 
   end subroutine setEnv
 
@@ -630,17 +673,22 @@ contains
      write(fileID, * ), 'Pressure Term:       ', withPressure
 
      write(fileID, * ), 'Order:               ', order
-     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)
-     write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
+     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)/real(n_filter)
+     write(fileID, * ), 'Training points(M):  ', M/n_filter, '\t', trainingPoints
      write(fileID, * ), 'Features(N):         ', N, '\n'
-     write(fileID, * ), 'Filter scales:       ', LES_scale, test_scale
+
+     write(fileID, * ), 'Filter scales:       ', LES_scale,  test_scale
+     write(fileID, * ), 'Filter types:        ', LESfilterType, TestfilterType
+     write(fileID, * ), 'multiFilter:         ', multiFilter
+
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
      write(fileID, * ), 'Stress computation:  ', stress, '\n'
-
+     write(fileID, * ), 'Convert to deviatoric:', make_Deviatoric, '\n'
 
 
      write(fileID, * ), 'BOX PARAMETERS:      '
      write(fileID, * ), 'Bounding box:        ', box
+     write(fileID, * ), 'Box size:            ', box_effective
      write(fileID, * ), 'boxLower:            ', boxLower
      write(fileID, * ), 'boxUpper:            ', boxUpper, '\n'
 
@@ -663,6 +711,17 @@ contains
      write(fileID, *) , '****************************************************************','\n'
   end if
   end subroutine printParams
+
+  !****************************************************************
+  !                         MEMORY REQ.
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE: Display memory requirements
+  !      
+  ! FORM: subroutine memRequirement()
+  !       
+  !----------------------------------------------------------------
 
   subroutine memRequirement()
     real :: form0 ! 256^3 domain 
@@ -734,8 +793,8 @@ contains
 
     ! Step 4: With colocated formulation
     if (formulation == 'colocated') then
-       mem_uu_f      = 3.0 * form2
-       mem_uu_t      = 3.0 * form2
+       mem_uu_f      = 6.0 * form2
+       mem_uu_t      = 6.0 * form2
        mem = mem + mem_uu_f + mem_uu_t
        print('(a24,f8.1,a4)'), 'Colocated vel-products:', mem, 'MB'
     end if

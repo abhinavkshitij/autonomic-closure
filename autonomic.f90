@@ -68,6 +68,11 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
+  logical :: debug_PrintFilters = 0
+
+  real(8),allocatable,dimension(:,:,:)   :: dev_t
+
+
   if (computeFFT_data.eqv..false.) then
      useTestData      = 0
      readfile         = 0
@@ -75,15 +80,18 @@ program autonomic
      plot_Velocities  = 0
      save_FFT_data    = 0
   end if
+ if (computeFFT_data) multiFilter  = 0
 
   !    ..INIT POSTPROCESSING..
 
   open(path_txt, file = trim(RES_DIR)//'path.txt', status = 'replace', action = 'write')
+
   call setEnv()
   call printParams('display')
-!  print*, CASE_NAME
+  print*, "CASE_NAME:", CASE_NAME
 !  call memRequirement()
 !  print*, boxSize, maskSize
+! stop 
 
 
   ! TEST DATA:
@@ -117,7 +125,7 @@ program autonomic
         RES_PATH  = trim(RES_PATH)//trim(hst_set)//'/'
      end if
      write(path_txt,*) trim(DATA_PATH)
-     write(path_txt,*) RES_PATH
+     write(path_txt,*) trim(RES_PATH)
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
 
@@ -158,7 +166,11 @@ program autonomic
      ! ADD PATH DEPTH : SCALE
      write(scale,'(2(i0))') LES_scale, test_scale 
      TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
-     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
+                 trim(LESfilterType)//'/'//&
+                 trim(TestfilterType)//'/'//&
+                 trim(rotationPlane)//&
+                 trim(z_plane_name)// '/'
      write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
@@ -166,6 +178,10 @@ program autonomic
      ! 2] FILTER VELOCITIES [AND PRESSURE]:
      if(allocated(u_f).eqv..false.)        allocate(u_f (n_u, i_GRID,j_GRID,k_GRID))
      if(allocated(u_t).eqv..false.)        allocate(u_t (n_u, i_GRID,j_GRID,k_GRID))
+     if (multiFilter) then
+        if(allocated(u_tB).eqv..false.)        allocate(u_tB (n_u, i_GRID,j_GRID,k_GRID))
+       ! if(allocated(u_tG).eqv..false.)        allocate(u_tG (n_u, i_GRID,j_GRID,k_GRID))
+     end if
 
 
      if (filterVelocities) then
@@ -174,11 +190,20 @@ program autonomic
         ! CREATE FILTERS:
         allocate(LES (f_GRID,f_GRID,f_GRID))
         allocate(test(f_GRID,f_GRID,f_GRID))
-        call createFilter(LES,LES_scale)
-        call createFilter(test,test_scale)
-        call fftshift(LES)
-        call fftshift(test)
 
+        call createFilter(LES,LES_scale,LESfilterType)
+        call createFilter(test,test_scale,TestfilterType)
+
+
+        !DEBUG : Print filters 
+        if (debug_PrintFilters) call printFilters()
+        !stop
+           
+        LES = fftshift(LES)
+        test = fftshift(test)
+
+ 
+        ! Apply filter in Fourier domain (DEFAULT:sharp)
         do i=1,n_u
            u_f(i,:,:,:) = sharpFilter(u  (i,:,:,:),LES)
            u_t(i,:,:,:) = sharpFilter(u_f(i,:,:,:),test) 
@@ -200,6 +225,10 @@ program autonomic
      ! 3] GET FFT_DATA:
      if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6, i_GRID, j_GRID, k_GRID))
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6, i_GRID, j_GRID, k_GRID))
+     if (multiFilter) then
+        if(allocated(T_ijB).eqv..false.)        allocate(T_ijB (6, i_GRID,j_GRID,k_GRID))
+!        if(allocated(T_ijG).eqv..false.)        allocate(T_ijG (6, i_GRID,j_GRID,k_GRID))
+     end if
 
 
      ! COMPUTE ORIGINAL STRESS [ROTATE][SAVE]
@@ -210,7 +239,11 @@ program autonomic
         !->>     
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
-        call loadFFT_data()
+        if (multiFilter) then 
+          call loadFFT_data3(LESFilterType)
+        else
+          call loadFFT_data()
+        end if
 !        call checkFFT_data()
      end if
 
@@ -221,21 +254,50 @@ program autonomic
         call rotateX(u_t) 
         call rotateX(tau_ij) 
         call rotateX(T_ij)
+        if (multiFilter) then
+            call rotateX(u_tB) 
+ !           call rotateX(u_tG) 
+            call rotateX(T_ijB)
+ !           call rotateX(T_ijG)
+        endif 
      else if (rotationAxis == 'Y') then
         print*, 'Rotate array along y-axis'
         call rotateY(u_f) 
         call rotateY(u_t) 
         call rotateY(tau_ij) 
         call rotateY(T_ij)
+        if (multiFilter) then
+            call rotateY(u_tB) 
+   !         call rotateY(u_tG) 
+            call rotateY(T_ijB)
+  !          call rotateY(T_ijG)
+        endif 
      end if
 
 
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
-     if (save_FFT_DATA) call saveFFT_data()
-     !->>
-!stop
-     if (plot_Stress)                                            call plotOriginalStress('All')
+     if (save_FFT_DATA) call saveFFT_data(LESFilterType,TestFilterType)
+     stop
+     
+     print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
+     print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
+     !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
 
+     !->>
+     !if (stress.eq.'dev') then
+      if (make_Deviatoric) then
+        print*, 'Convert to deviatoric stress'
+        call makeDeviatoric (tau_ij)
+        call makeDeviatoric (T_ij)
+        if (multiFilter) call makeDeviatoric (T_ijB)
+      end if
+      print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
+      print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
+      !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
+    stop
+
+    if (plot_Stress)                    call plotOriginalStress('All')
+      
 
      if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
      if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
@@ -268,11 +330,11 @@ program autonomic
      
 
      !  DYNAMIC SMAGORINSKY : PERFORM PLANEWISE COMPUTATION
-!      if (computeDS) then
-!         allocate(S_f_Sij_f_t (6, i_GRID, j_GRID, zLower:zUpper))
-!         call loadPrecomputedStress(S_f_Sij_f_t)  ! LOAD PRECOMPUTED S_f_Sij_f_t: PLANE SLICE
-!         call dyn_Smag(Sij_f, Sij_t, S_f_Sij_f_t, T_ij, tau_DS)
-!      end if
+     ! if (computeDS) then
+     !    allocate(S_f_Sij_f_t (6, i_GRID, j_GRID, zLower:zUpper))
+     !    call loadPrecomputedStress(S_f_Sij_f_t)  ! LOAD PRECOMPUTED S_f_Sij_f_t: PLANE SLICE
+     !    call dyn_Smag(Sij_f, Sij_t, S_f_Sij_f_t, T_ij, tau_DS)
+     ! end if
 
 
      ! ************** Level 3 ****************!
@@ -281,7 +343,7 @@ program autonomic
      TEMP_PATH = trim(TEMP_PATH)//trim(CASE_NAME)//'/'
      RES_PATH =  trim(RES_PATH)//trim(CASE_NAME)//'/'
 
-     write(path_txt,*) trim(RES_PATH)
+     write(path_txt,*) RES_PATH
      call system ('mkdir -p '//trim(RES_PATH))
 
 !stop
@@ -300,6 +362,12 @@ program autonomic
      call extendDomain(u_f)
      call extendDomain(u_t)
      call extendDomain(T_ij)   
+     if (multiFilter) then
+        call extendDomain(u_tB)
+  !      call extendDomain(u_tG)
+        call extendDomain(T_ijB) 
+ !       call extendDomain(T_ijG) 
+    endif 
  
      call cpu_time(tic)
 
@@ -309,7 +377,7 @@ program autonomic
         print('(a32,ES8.1)'), 'Autonomic closure, lambda = ', lambda, '\n'
         ! $$
         ! $$$ 
-        call autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij, tau_ijOpt, T_ijOpt)
+        call autonomicClosure (u_f, u_t, tau_ij, T_ij, T_ijB, h_ij, tau_ijOpt, T_ijOpt)
  !       call check_afterExtension()
      end do lambda_loop
 
@@ -322,9 +390,62 @@ program autonomic
 
   close (path_txt)
 
+  ! Ring an alarm:
+  print*, '\a'
+  !print*, 'tau_ijOpt(2,15,24,129):', tau_ijOpt(1,15,24,z_plane)
+  !print*, 'T_ijOpt(2,15,24,129):', T_ijOpt(1,15,24,z_plane), '\n'
+
 contains 
+
+
+  !****************************************************************
+  !                        DEBUG: PRINT FILTERS                   !
+  !****************************************************************
   
+  !----------------------------------------------------------------
+  ! USE: Prints out a midplane slice (z=129) of the LES and test 
+  !     filter
+  !      
+  !      
+  ! FORM:   subroutine debug_PrintFilters()
+  !      
+  ! BEHAVIOR: 
+  !          
+  ! STATUS : Temporary utility procedure for debugging
+  !          
+  !
+  !----------------------------------------------------------------
   
+  subroutine printFilters()
+    implicit none
+
+    open(20,file=trim(RES_PATH)//'../../test_filter.dat',status='replace')
+    open(21,file=trim(RES_PATH)//'../../LES_filter.dat',status='replace')
+       
+    write(20,*) test (:,:,z_plane)
+    write(21,*) LES  (:,:,z_plane)
+       
+    close(20)
+    close(21)
+
+  end subroutine printFilters
+      
+  !****************************************************************
+  !                        CHECK: BEFORE EXTENSION                !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Dumps values at point P(15,24,129) before domain extension.
+  !      
+  !      
+  ! FORM:   subroutine check_beforeExtension()
+  !      
+  ! BEHAVIOR: 
+  !          
+  ! STATUS : Temporary utility procedure for debugging
+  !          
+  !
+  !----------------------------------------------------------------
   
   subroutine check_beforeExtension()
     implicit none
@@ -347,8 +468,25 @@ contains
 
     !print*, count(u_t == 0), count(u_f == 0), count(T_ij == 0)
 
-
   end subroutine check_beforeExtension
+
+
+  !****************************************************************
+  !                        CHECK: AFTER EXTENSION                !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Dumps values at point P(15,24,129) after domain extension.
+  !      
+  !      
+  ! FORM:   subroutine check_afterExtension()
+  !      
+  ! BEHAVIOR: 
+  !          
+  ! STATUS : Temporary utility procedure for debugging
+  !          
+  !
+  !----------------------------------------------------------------
 
   subroutine check_afterExtension()
     implicit none

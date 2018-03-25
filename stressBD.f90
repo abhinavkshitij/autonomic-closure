@@ -44,8 +44,15 @@ program stressBD
   integer :: ferr
   character(1) :: idx
 
-  logical :: save_tau_BD = 1
+  real(8),allocatable,dimension(:,:,:)   :: dev_t
 
+  character(*), parameter :: BD_CASE = 'a1' ! a1B[ox], a2G[auss]
+
+  real(8), parameter :: C_Bardina = 0.9d0
+
+  logical :: save_BD = 0
+
+  
   !    ..INIT POSTPROCESSING..
   call setEnv()
   call printParams('display')
@@ -78,7 +85,12 @@ program stressBD
      ! ADD PATH DEPTH : SCALE
      write(scale,'(2(i0))') LES_scale, test_scale 
      TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
-     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+     !!RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'
+     RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
+                 trim(LESfilterType)//'/'//&
+                 trim(TestfilterType)//'/'//&
+                 trim(rotationPlane)//&
+                 trim(z_plane_name)// '/'
 
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
@@ -86,6 +98,7 @@ program stressBD
      ! 3] GET FFT_DATA:
      if(allocated(u_f).eqv..false.)        allocate (u_f    (n_u,i_GRID, j_GRID, k_GRID))
      if(allocated(u_t).eqv..false.)        allocate (u_t    (n_u,i_GRID, j_GRID, k_GRID))
+
      if(allocated(tau_ij).eqv..false.)     allocate (tau_ij (6,  i_GRID, j_GRID, k_GRID))
      if(allocated(T_ij).eqv..false.)       allocate (T_ij   (6,  i_GRID, j_GRID, k_GRID))
 
@@ -107,42 +120,37 @@ program stressBD
         call rotateY(T_ij)
      end if
 
-          
-     ! STRAIN RATE [ALL]: zLower=1, zUpper=256
-     print*, 'computeSij \n'
-     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
-!     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
+    ! CONVERT ABSOLUTE TO DEVATORIC STRESSES:
+    if (stress.eq.'dev')  then
+        print*, 'Convert to deviatoric stresses'
+        call makeDeviatoric (tau_BD)
+    end if
 
- 
-     call computeSij(u_f, Sij_f) 
-!     call computeSij(u_t, Sij_t) 
-
-     print*, 'Sij_f(2,15,24,129)', Sij_f(2,15,24,129)
           
-     !  BARDINA MODEL:
-     print*, 'Compute SGS stress using Bardina model \n'
-     allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
-     tau_BD = 0.9d0 * T_ij
+    !  FIND BARDINA STRESS:
+    print*, 'Compute SGS stress using Bardina model \n'
+    if(allocated(tau_BD).eqv..false.) allocate (tau_BD (6, i_GRID, j_GRID, zLower:zUpper))
+    tau_BD = C_Bardina * T_ij(:,:,:,zLower:zUpper)
+
+    
+    ! STRAIN RATE:
+    print*, 'computeSij \n'
+    if(allocated(Sij_f).eqv..false.) allocate (Sij_f (6, i_GRID,j_GRID,zLower:zUpper)) 
+    call computeSij(u_f, Sij_f) 
+
+    ! COMPUTE Pij_BD:
+    if(allocated(Pij_BD).eqv..false.) allocate (Pij_BD (i_GRID, j_GRID, zLower:zUpper))
+    call productionTerm(Pij_BD, tau_BD, Sij_f)
+    print*,'tau_a2_BD(15,24,129)', tau_BD(1,15,24,z_plane)
+    print*,'Pij_BD(15,24,129)', Pij_BD(15,24,z_plane)
 
 
      ! SAVE BARDINA STRESS:
-     if(save_tau_BD) call plotBardina()
+     if(save_BD) call plotBardina(BD_CASE)
 
- 
-     ! COMPUTE Pij_BD:
-     allocate (Pij_BD (i_GRID, j_GRID, zLower:zUpper))
-     call productionTerm(Pij_BD, tau_BD, Sij_f)
-!     print*,'Pij_BD(15,24,129)', Pij_BD(15,24,129)
-
-     ! SAVE Pij_BD:
-      print*,'Saving BD production field in', RES_PATH
-      open(53, file = trim(RES_PATH)//'Pij_a105_BD.dat', iostat=ferr)
-      write(53,*) Pij_BD(:,:,z_plane)
-      close(53)
 
   end do time_loop
 
-  
 end program stressBD
 
 

@@ -1059,4 +1059,36 @@ contains
   end subroutine rotateY
 
 
+  !****************************************************************
+  !                      CONVERT TO DEVIATORIC                    !
+  !****************************************************************
+  
+  !----------------------------------------------------------------
+  ! USE: Removes the deviatoric stress components.
+  !       
+  !
+  ! FORM: subroutine makeDeviatoric (tau_ij)
+  !       
+  !
+  !----------------------------------------------------------------
+  
+  subroutine makeDeviatoric (tau_ij)
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(8),dimension(:,:,:,:),intent(inout) :: tau_ij 
+    !
+    !    ..WORK ARRAY..
+    real(8),allocatable,dimension(:,:,:) :: dev_t 
+
+    ! allocate dev_t(256,256,1) [plane], dev_t(256,256,256) [domain]
+    allocate(dev_t(i_GRID, j_GRID, size(tau_ij,dim=4)))
+
+    dev_t = (tau_ij(1,:,:,:) + tau_ij(4,:,:,:) + tau_ij(6,:,:,:)) / 3.d0
+
+    tau_ij(1,:,:,:) = tau_ij(1,:,:,:) - dev_t
+    tau_ij(4,:,:,:) = tau_ij(4,:,:,:) - dev_t
+    tau_ij(6,:,:,:) = tau_ij(6,:,:,:) - dev_t
+
+  end subroutine makeDeviatoric
+
 end module actools

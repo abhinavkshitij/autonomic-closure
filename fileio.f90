@@ -577,25 +577,133 @@ end subroutine plotVelocities
 
   subroutine loadFFT_data()
     implicit none
+
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename
      integer :: i
-
+  
      print*
      print*,'Load filtered variables ... '
      do i = 1,size(var_FFT)
-        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
-        print*, filename
-        open(i, file = filename,form='unformatted')
-        if (i.eq.1) read(i) u_f
-        if (i.eq.2) read(i) u_t
-        if (i.eq.3) read(i) tau_ij
-        if (i.eq.4) read(i) T_ij
-        close(i)
+        if (i.eq.1.or.i.eq.3) then
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
+      else
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(TestfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
+      endif
+        
+      print*, filename
+      open(i, file = filename,form='unformatted')
+      if (i.eq.1) read(i) u_f
+      if (i.eq.2) read(i) u_t
+      if (i.eq.3) read(i) tau_ij
+      if (i.eq.4) read(i) T_ij
+      close(i)
      end do
 
    end subroutine loadFFT_data
+
+   !****************************************************************
+   !                     LOAD FFT DATA - 3 FILTER
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Loads u_f, tau_ij from LES/ dir and u_t, T_ij from test/ 
+   !      dir
+   !
+   ! FORM:   subroutine loadFFT_data3()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays. Is a brute force method 
+   !           of reading a file. 
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+  subroutine loadFFT_data3(LESFilterType)
+    implicit none
+    !
+    !    ..ARGUMENTS..
+    character(*),intent(in), optional :: LESFilterType
+    !
+    !    ..LOCAL VARIABLES..
+    character(64) :: filename
+    character(8) :: Testfilter1, Testfilter2, Testfilter3
+    integer :: i
+
+    select case  (TestfilterType)
+        case ('GaussBox')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Box'
+        case ('GaussTri')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Tri'
+        case ('BoxTri')
+          Testfilter1 = 'Box'
+          Testfilter2 = 'Tri'
+        case ('All')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Box'
+          Testfilter3 = 'Tri'
+    end select
+
+    print*
+    print*,'Load filtered variables ... '
+
+     ! READ LES DATA - u_f, tau_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim('u_f.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_f
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim('tau_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) tau_ij
+    close(2)
+
+    ! READ TEST DATA - u_t, T_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter1)//'/'//trim('u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_t
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter1)//'/'//trim('T_ij.bin') 
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ij
+    close(2)
+    
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter2)//'/'//trim('u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_tB
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter2)//'/'//trim('T_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ijB
+    close(2)
+    
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter3)//'/'//trim('u_t.bin')
+    ! print*, filename
+    ! open(1, file = filename,form='unformatted')
+    ! read(1) u_tG
+    ! close(1)
+
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter3)//'/'//trim('T_ij.bin')
+    ! print*, filename
+    ! open(2, file = filename,form='unformatted')
+    ! read(2) T_ijG
+    ! close(2)
+              
+      
+
+   end subroutine loadFFT_data3
+
 
    !****************************************************************
    !                          SAVE FFT_DATA
@@ -607,25 +715,39 @@ end subroutine plotVelocities
    !
    ! FORM:    subroutine saveFFT_data()
    !
-   ! BEHAVIOR: Needs allocated, defined arrays.
+   ! BEHAVIOR: Saves only one set of LES and TEST filtered data at 
+   !            a time. 
    !
    ! STATUS : 
+   !        On GIT BRANCH:
+   !          1) test/validation: no arguments required.
+   !          2) filter3: both arguments required. 
    ! 
    !----------------------------------------------------------------
    
-   subroutine saveFFT_data()
+   subroutine saveFFT_data(LESFilterType,TestFilterType)
      implicit none
+     !
+     !    ..ARGUMENTS..
+     character(*),intent(in) :: LESFilterType
+     character(*),intent(in) :: TestFilterType
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename 
      integer :: i
+
 
      ! save FFT_DATA : Filtered velocities and stress files: 
      print*
      print*,'Write filtered variables ... '
  
      do i = 1, size(var_FFT)
-        filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+       if (i.eq.1.or.i.eq.3) then
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
+       ! filename = trim(TEMP_PATH)//trim(var_FFT(i)%name)//'.bin'
+       else
+        filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(TestfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
+      endif
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) write(i) u_f
@@ -733,8 +855,8 @@ end subroutine plotVelocities
          
      do i=1,n_ij
         write(ij, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ij'//trim(ij)//'.dat')
-        open(11,file=trim(RES_PATH)//'tau_ij'//trim(ij)//'.dat')
+        open(10,file=trim(RES_PATH)//'T_ij_'//trim(stress)//trim(ij)//'.dat')
+        open(11,file=trim(RES_PATH)//'tau_ij_'//trim(stress)//trim(ij)//'.dat')
 
         write(10,*) T_ij  (i,:,:,z_plane)
         write(11,*) tau_ij(i,:,:,z_plane)
@@ -775,10 +897,28 @@ end subroutine plotVelocities
      ! SAVE tau_DS:
      do i = 1,6
         write(ij,'(i0)') i
-        open(87, file = trim(RES_PATH)//'tau_DS_dev'//trim(ij)//'.dat')
+        open(87, file = trim(RES_PATH)//'43/tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        write(87,*), tau_DS(i,:,:,43)
+        close(87)
+        open(87, file = trim(RES_PATH)//'129/tau_DS_'//trim(stress)//trim(ij)//'.dat')
         write(87,*), tau_DS(i,:,:,z_plane)
         close(87)
+        open(87, file = trim(RES_PATH)//'212/tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        write(87,*), tau_DS(i,:,:,212)
+        close(87)
      end do
+
+     ! SAVE Pij_DS:
+      print*,'Saving DS production field in', RES_PATH
+      open(53, file=trim(RES_PATH)//'43/Pij_DS_'//trim(stress)//'.dat')
+      write(53,*) Pij_DS(:,:,43)
+      close(53)
+      open(53, file=trim(RES_PATH)//'129/Pij_DS_'//trim(stress)//'.dat')
+      write(53,*) Pij_DS(:,:,z_plane)
+      close(53)
+      open(53, file=trim(RES_PATH)//'212/Pij_DS_'//trim(stress)//'.dat')
+      write(53,*) Pij_DS(:,:,212)
+      close(53)
 
    end subroutine plotDynSmag
 
@@ -799,8 +939,11 @@ end subroutine plotVelocities
    !   
    !   
    !----------------------------------------------------------------
-   subroutine plotBardina()
+   subroutine plotBardina(BD_CASE)
      implicit none
+     !
+     !    ..ARGUMENTS..
+     character(*), intent(in) :: BD_CASE
      !
      !    ..LOCAL VARIABLES..
      integer :: i, n_ij
@@ -810,13 +953,19 @@ end subroutine plotVelocities
      ! SAVE tau_BD:
      do i = 1,6
         write(ij,'(i0)') i
-        open(87, file = trim(RES_PATH)//'tau_a105_BD'//trim(ij)//'.dat')
+        open(87, file = trim(RES_PATH)//'tau_'//trim(BD_CASE)//'_BD_'//trim(stress)//trim(ij)//'.dat')
 !        open(88, file = trim(RES_PATH)//'T_a105_BD'//trim(ij)//'.dat')
         write(87,*), tau_BD(i,:,:,z_plane)
 !        write(88,*), T_ij(i,:,:,z_plane)
         close(87)
 !        close(88)
      end do
+
+     ! SAVE Pij_BD:
+      print*,'Saving BD production field in', RES_PATH
+      open(53, file = trim(RES_PATH)//'Pij_'//trim(BD_CASE)//'_BD_'//trim(stress)//'.dat')
+      write(53,*) Pij_BD(:,:,z_plane)
+      close(53)
 
    end subroutine plotBardina
    
@@ -861,8 +1010,8 @@ end subroutine plotVelocities
  
      do i = 1, n_ij
         write(ij, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
-        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
+        open(10,file=trim(RES_PATH)//'T_ijOpt_'//trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt_'//trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='replace')
 
         write(10,*) T_ijOpt  (i,:,:,z_plane)
         write(11,*) tau_ijOpt(i,:,:,z_plane)
@@ -912,8 +1061,8 @@ end subroutine plotVelocities
  
      do i = 1, n_ij
         write(ij, '(i0)') i
-        open(10,file=trim(RES_PATH)//'T_ijOpt'  //trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
-        open(11,file=trim(RES_PATH)//'tau_ijOpt'//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+        open(10,file=trim(RES_PATH)//'T_ijOpt_'  //trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
+        open(11,file=trim(RES_PATH)//'tau_ijOpt_'//trim(stress)//trim(ij)//trim(lambda_char(4:6)) // '.dat',status='old')
 
         read(10,*) T_ijOpt  (i,:,:,z_plane)
         read(11,*) tau_ijOpt(i,:,:,z_plane)
@@ -959,8 +1108,8 @@ end subroutine plotVelocities
         print*,'Saving computed production field in', RES_PATH
         call system ('mkdir -p '//trim(RES_PATH))
 
-        open(1,file=trim(RES_PATH)//'Pij_fOpt'  //trim(lambda_char(4:6)) // '.dat')
-        open(2,file=trim(RES_PATH)//'Pij_tOpt'  //trim(lambda_char(4:6)) // '.dat')
+        open(1,file=trim(RES_PATH)//'Pij_fOpt_'//trim(stress)//trim(lambda_char(4:6)) // '.dat')
+        open(2,file=trim(RES_PATH)//'Pij_tOpt_'//trim(stress)//trim(lambda_char(4:6)) // '.dat')
 
         write(1,*) Pij_fOpt(:,:,z_plane)
         write(2,*) Pij_tOpt(:,:,z_plane)
@@ -973,8 +1122,8 @@ end subroutine plotVelocities
         print*,'Saving original production field in', RES_PATH
         call system ('mkdir -p '//trim(RES_PATH))
 
-        open(1,file = trim(RES_PATH)//'Pij_f.dat')
-        open(2,file = trim(RES_PATH)//'Pij_t.dat')
+        open(1,file = trim(RES_PATH)//'Pij_f_'//trim(stress)//'.dat')
+        open(2,file = trim(RES_PATH)//'Pij_t_'//trim(stress)//'.dat')
         write(1,*) Pij_f(:,:,z_plane)
         write(2,*) Pij_t(:,:,z_plane)
         close(1)

@@ -55,7 +55,7 @@ module global
   end type list
 
   ! CASES
-  type(list), parameter :: l_case(19) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
+  type(list), parameter :: l_case(20) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
                                          list('1b','CL14''','colocated_local_O1_4N_P'),   & ! 2
                                          list('2a','CL18',  'colocated_local_O1_8N'),     & ! 3
                                          list('2b','CL18''','colocated_local_O1_8N_P'),   & ! 4
@@ -73,7 +73,8 @@ module global
                                          list('8b','CL2(5)','colocated_point_O2_5'),      & ! 16
                                          list('9a','CL1(7)','colocated_point_O1_7'),      & ! 17
                                          list('9b','CL2(7)','colocated_point_O2_7'),      & ! 18
-                                         list('3a(o)','CL24o','colocated_local_O2_4N_O')]   ! 19
+                                         list('3a(o)','CL24o','colocated_local_O2_4N_O'), & ! 19
+                                         list('3a(s)','CG24s','colocated_global_O2_4N_static')]! 20
 
 
   ! MACHINE TYPE 
@@ -348,7 +349,7 @@ module global
   character(96) :: TEMP_PATH
   character(96) :: RES_PATH
 
-  character(4) :: ext   = 'h5'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
+  character(4) :: ext   = 'bin'   ! Dataset extension: [bin]ary, [h5] or [txt] format. 
 
   !
   !    ..MPI..

@@ -247,6 +247,9 @@ program autonomic
 !        call checkFFT_data()
      end if
 
+    !print*, 'tau_ij(1,15,24,129):[BEFORE ROTATEY]', tau_ij(1,15,24,129)
+    !print*, 'tau_ij(2,214,24,15):[BEFORE ROTATEY]', tau_ij(2,214,24,15)
+
      !->>
      if (rotationAxis == 'X') then
         print*, 'Rotate array along x-axis'
@@ -274,13 +277,16 @@ program autonomic
         endif 
      end if
 
-
+     !print*, 'tau_ij(1,129,24,242):[AFTER ROTATEY]', tau_ij(1,129,24,242)
+     !print*, 'tau_ij(2,15,24,43):[AFTER ROTATEY]', tau_ij(2,15,24,43)
+     !stop
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data(LESFilterType,TestFilterType)
-     stop
+     !stop
      
-     print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
-     print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
+     ! print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
+     ! print*, 'tau_ij_abs(1,1,1,129):', tau_ij(1,1,1,129)
+     ! print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
      !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
 
      !->>
@@ -291,10 +297,11 @@ program autonomic
         call makeDeviatoric (T_ij)
         if (multiFilter) call makeDeviatoric (T_ijB)
       end if
-      print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
-      print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
+      ! print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
+      ! print*, 'tau_ij_dev(1,1,1,129):', tau_ij(1,1,1,129)
+      ! print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
       !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
-    stop
+    !stop
 
     if (plot_Stress)                    call plotOriginalStress('All')
       
@@ -327,7 +334,7 @@ program autonomic
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
      end if
-     
+     stop
 
      !  DYNAMIC SMAGORINSKY : PERFORM PLANEWISE COMPUTATION
      ! if (computeDS) then

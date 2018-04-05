@@ -86,12 +86,12 @@ program stressDS
      !
      ! ADD PATH DEPTH : SCALE
      write(scale,'(2(i0))') LES_scale, test_scale 
-     TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'//trim(stress)//'/'
+     TEMP_PATH = trim(TEMP_PATH)//'bin'//trim(scale)//'/'
      RES_PATH =  trim(RES_PATH)//'dat'//trim(scale)//'/'//&
                  trim(LESfilterType)//'/'//&
                  trim(TestfilterType)//'/'//&
-                 trim(rotationPlane)//&
-                 trim(z_plane_name)// '/'
+                 trim(rotationPlane) !// &
+                 !trim(z_plane_name)// '/'
 
      call system ('mkdir -p '//trim(TEMP_PATH))
      call system ('mkdir -p '//trim(RES_PATH))
@@ -142,7 +142,7 @@ program stressDS
      ! CREATE TEST FILTER: **
      allocate(test(f_GRID,f_GRID,f_GRID))
      call createFilter(test, test_scale, TestfilterType)        
-     call fftshift(test)
+     test = fftshift(test)
  
      ! PRECOMPUTE S_f_Sij_f_t [SAVE]: 
      print*
@@ -169,16 +169,11 @@ program stressDS
       ! SAVE DYN SMAG:
      if(save_tau_DS) call plotDynSmag()
 
-     ! print*,'Pij_DS(15,24,129)', Pij_DS(15,24,129)
+      print*,'Pij_DS(15,24,129)', Pij_DS(15,24,129)
      ! print*,'Pij_DS(max)', maxval(Pij_DS(:,:,129)), 'at', maxloc(Pij_DS(:,:,129))
      ! print*,'Sij_f(max)', maxval(Sij_f(:,:,:,129)), 'at', maxloc(Sij_f(:,:,:,129))
 !stop
-     ! ! SAVE Pij_DS:
-     !  print*,'Saving DS production field in', RES_PATH
-     !  open(53, file=trim(RES_PATH)//'Pij_DS_dev.dat', iostat=ferr)
-     !  write(53,*) Pij_DS(:,:,z_plane)
-     !  close(53)
-
+    
   end do time_loop
 
   

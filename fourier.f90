@@ -39,7 +39,7 @@ contains
   !----------------------------------------------------------------
   ! USE: Create an explicit filter.
   !      
-  ! FORM: subroutine createFilter(filter, scale)
+  ! FORM: subroutine createFilter(array, scale,[filterOption-default:Sharp])
   !       
   ! BEHAVIOR: GRID must be cubic for spherical symmetry.
   !          
@@ -78,12 +78,16 @@ contains
     !    ..LOCAL VARS.. 
     real(8) :: distance
     real(8) :: slope  
+    integer :: last, center
+
+    last = size(filter,dim=1)
+    center = bigHalf(last)
 
     if (present(filterOption).and.filterOption.eq.'Gauss') then
-      !  Create Gaussian filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      !  Create Gauss filter:
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -96,41 +100,44 @@ contains
       end do
     elseif (present(filterOption).and.filterOption.eq.'Box') then
       !  Create Box filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
                     +           dble((k - center)**2) )
 
-                filter(i,j,k) = sin( (distance+eps) / (scale+eps) ) / &
-               &                   ( (distance+eps) / (scale+eps) )
+               !  filter(i,j,k) = sin( (distance+eps) / (scale+eps) ) / &
+               ! &                   ( (distance+eps) / (scale+eps) )
+
+               filter(i,j,k) = sin( (PI*(distance+eps)) / (scale+eps) ) / &
+               &                  ( (PI*(distance+eps)) / (scale+eps) )
 
             end do
          end do
       end do
       elseif (present(filterOption).and.filterOption.eq.'Tri') then
       !  Create Tri filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
                     +           dble((k - center)**2) )
 
-                filter(i,j,k) = sin( (distance+eps) / (scale+eps) * 0.5d0) ** 2 / &
-               &                   ( (distance+eps) / (scale+eps) * 0.5d0) ** 2
+                filter(i,j,k) = sin( (PI*(distance+eps)) / (scale+eps) * 0.5d0) ** 2 / &
+               &                   ( (PI*(distance+eps)) / (scale+eps) * 0.5d0) ** 2
 
             end do
          end do
       end do
       elseif (present(filterOption).and.filterOption.eq.'Custom') then
       !  Create Custom filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -151,9 +158,9 @@ contains
       end do  
     else
       !  Create spectrally sharp filter:
-      do k = 1,f_GRID
-         do j = 1,f_GRID
-            do i = 1,f_GRID
+      do k = 1,last
+         do j = 1,last
+            do i = 1,last
 
                distance = sqrt( dble((i - center)**2) &
                     +           dble((j - center)**2) &
@@ -189,6 +196,7 @@ contains
   ! FORM: subroutine fftshift   [FILTER]
   !       
   ! BEHAVIOR: Brings DC component (k=0) at the center. 
+  !           Nyquist freqeuncy at the top left corner.
   !         
   ! 
   ! Layout:                     k 
@@ -206,16 +214,23 @@ contains
   ! SWAP RULES : A <-> G, C <-> E, D <-> F, B <-> H
   !----------------------------------------------------------------
   
-  subroutine fftshift(filter)
+  function fftshift(array)
     !
     !    ..ARRAY ARGUMENTS..
-    real(8),dimension(:,:,:),intent(inout):: filter
+    real(8),dimension(:,:,:):: array
+    real(8),dimension(:,:,:), allocatable:: fftshift
     !
     !    ..WORK ARRAYS..
     real(8),allocatable,dimension(:,:,:) :: temp
     real(8),allocatable,dimension(:,:,:) :: A,B,C,D,E,F,G,H 
-
+    !
+    !   ..LOCAL VARS..
+    integer :: last,center
     
+    last = size(array,dim=1)
+    center = bigHalf(last)
+    
+    allocate (fftshift(last,last,last))
 
     ! CREATE SUBARRAYS:
     allocate(temp(1:(center-1), 1:(center-1) , 1:(center-1) ) )
@@ -229,14 +244,14 @@ contains
     allocate(H ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
 
 
-    A = filter( center:f_GRID  ,  1:(center-1) ,  center:f_GRID  )
-    B = filter( center:f_GRID  ,  center:f_GRID  ,  center:f_GRID  )
-    C = filter( center:f_GRID  ,  center:f_GRID  ,  1:(center-1) )
-    D = filter( center:f_GRID  ,  1:(center-1) ,  1:(center-1) )
-    E = filter( 1:(center-1) ,  1:(center-1) ,  center:f_GRID  )
-    F = filter( 1:(center-1) ,  center:f_GRID  ,  center:f_GRID  )
-    G = filter( 1:(center-1) ,  center:f_GRID  ,  1:(center-1) )
-    H = filter( 1:(center-1) ,  1:(center-1) ,  1:(center-1) )
+    A = array( center:last  ,  1:(center-1) ,  center:last  )
+    B = array( center:last  ,  center:last  ,  center:last  )
+    C = array( center:last  ,  center:last  ,  1:(center-1) )
+    D = array( center:last  ,  1:(center-1) ,  1:(center-1) )
+    E = array( 1:(center-1) ,  1:(center-1) ,  center:last  )
+    F = array( 1:(center-1) ,  center:last  ,  center:last  )
+    G = array( 1:(center-1) ,  center:last  ,  1:(center-1) )
+    H = array( 1:(center-1) ,  1:(center-1) ,  1:(center-1) )
 
     ! SWAP SUBARRAYS: (_SHIFT)
     temp = A ; A = G ; G = temp
@@ -244,27 +259,113 @@ contains
     temp = D ; D = F ; F = temp
     temp = B ; B = H ; H = temp
 
-    ! RECREATE FILTER WITH FFTSHIFT:
-    filter( center:f_GRID  , 1:(center-1) , center:f_GRID  ) = A
-    filter( center:f_GRID  , center:f_GRID  , center:f_GRID  ) = B
-    filter( center:f_GRID  , center:f_GRID  , 1:(center-1) ) = C
-    filter( center:f_GRID  , 1:(center-1) , 1:(center-1) ) = D
-    filter( 1:(center-1) , 1:(center-1) , center:f_GRID  ) = E
-    filter( 1:(center-1) , center:f_GRID  , center:f_GRID  ) = F
-    filter( 1:(center-1) , center:f_GRID  , 1:(center-1) ) = G
-    filter( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
+    ! RECREATE array WITH FFTSHIFT:
+    fftshift( center:last  , 1:(center-1) , center:last  ) = A
+    fftshift( center:last  , center:last  , center:last  ) = B
+    fftshift( center:last  , center:last  , 1:(center-1) ) = C
+    fftshift( center:last  , 1:(center-1) , 1:(center-1) ) = D
+    fftshift( 1:(center-1) , 1:(center-1) , center:last  ) = E
+    fftshift( 1:(center-1) , center:last  , center:last  ) = F
+    fftshift( 1:(center-1) , center:last  , 1:(center-1) ) = G
+    fftshift( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
 
     deallocate (temp,A,B,C,D,E,F,G,H)
     return
-  end subroutine fftshift
-
+  end function fftshift
 
   !****************************************************************
-  !                         FORWARD FFT
+  !                            FFTSHIFT_C
   !****************************************************************
 
   !----------------------------------------------------------------
-  ! USE: Take forward FFT
+  ! USE: Peforms fftshift operation on a complex array 
+  !      
+  ! FORM: subroutine fftshift_c   [FILTER]
+  !       
+  ! BEHAVIOR: Brings DC component (k=0) at the center. 
+  !           Nyquist freqeuncy at the top left corner.
+  !         
+  ! 
+  ! Layout:                     k 
+  !             E       F       |
+  !           A       B         |
+  !                             /----> j
+  !             H       G      /
+  !           D       C       i
+  !  
+  !
+  ! In clockwise direction from the topleft corner, 
+  ! Front half - (i = 129,256) :  A, B, C, D
+  ! Rear half  - (i = 1,128)   :  E, F, G, H
+  !
+  ! SWAP RULES : A <-> G, C <-> E, D <-> F, B <-> H
+  !----------------------------------------------------------------
+
+  function fftshift_c(array)
+    !
+    !    ..ARRAY ARGUMENTS..
+    complex(C_DOUBLE_COMPLEX),dimension(:,:,:):: array
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:) :: fftshift_c
+    !
+    !    ..WORK ARRAYS..
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:) :: temp
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:) :: A,B,C,D,E,F,G,H 
+    !
+    !   ..LOCAL VARS..
+    integer :: last,center
+    
+    last = size(array,dim=1)
+    center = bigHalf(last)
+    allocate (fftshift_c(last,last,last))
+
+    ! CREATE SUBARRAYS:
+    allocate(temp(1:(center-1), 1:(center-1) , 1:(center-1) ) )
+    allocate(A ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+    allocate(B ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+    allocate(C ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+    allocate(D ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+    allocate(E ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+    allocate(F ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+    allocate(G ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+    allocate(H ( 1:(center-1) , 1:(center-1) , 1:(center-1) ) )
+
+
+    A = array( center:last  ,  1:(center-1) ,  center:last  )
+    B = array( center:last  ,  center:last  ,  center:last  )
+    C = array( center:last  ,  center:last  ,  1:(center-1) )
+    D = array( center:last  ,  1:(center-1) ,  1:(center-1) )
+    E = array( 1:(center-1) ,  1:(center-1) ,  center:last  )
+    F = array( 1:(center-1) ,  center:last  ,  center:last  )
+    G = array( 1:(center-1) ,  center:last  ,  1:(center-1) )
+    H = array( 1:(center-1) ,  1:(center-1) ,  1:(center-1) )
+
+    ! SWAP SUBARRAYS: (_SHIFT)
+    temp = A ; A = G ; G = temp
+    temp = C ; C = E ; E = temp
+    temp = D ; D = F ; F = temp
+    temp = B ; B = H ; H = temp
+
+    ! RECREATE array WITH FFTSHIFT:
+    fftshift_c( center:last  , 1:(center-1) , center:last  ) = A
+    fftshift_c( center:last  , center:last  , center:last  ) = B
+    fftshift_c( center:last  , center:last  , 1:(center-1) ) = C
+    fftshift_c( center:last  , 1:(center-1) , 1:(center-1) ) = D
+    fftshift_c( 1:(center-1) , 1:(center-1) , center:last  ) = E
+    fftshift_c( 1:(center-1) , center:last  , center:last  ) = F
+    fftshift_c( 1:(center-1) , center:last  , 1:(center-1) ) = G
+    fftshift_c( 1:(center-1) , 1:(center-1) , 1:(center-1) ) = H
+
+    deallocate (temp,A,B,C,D,E,F,G,H)
+    return
+  end function fftshift_c
+
+
+  !****************************************************************
+  !                         FORWARD FT
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE: Takes forward FFT
   !      
   ! FORM:  function forwardFFT(array)  
   !       
@@ -275,31 +376,55 @@ contains
   !         
   !----------------------------------------------------------------
 
-!   function forwardFFT(array)
-!     implicit none
-!     !
-!     !    ..ARRAY ARGUMENTS..
-!     real(C_DOUBLE),dimension(:,:,:) :: array, forwardFFT
-!     !
-!     !    ..WORK ARRAYS..
-!     complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: in_cmplx, out_cmplx
-!     !
-!     !    ..LOCAL VARS..
-!     type(C_PTR) :: plan
-   
-!     allocate(in_cmplx(f_GRID,f_GRID,f_GRID))
-!     allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
+  function forwardFT(array)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    complex(C_DOUBLE_COMPLEX),dimension(:,:,:) :: array
+    complex(C_DOUBLE_COMPLEX),dimension(f_GRID,f_GRID,f_GRID) :: forwardFT
+    !
+    !    ..LOCAL VARS..
+    type(C_PTR) :: plan
 
-!     in_cmplx = dcmplx (array) / (dble(f_GRID**3)) 
-
-!     ! FFT:
-!     call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
-!     call dfftw_execute(plan)    
-!     call dfftw_destroy_plan(plan)
-
-!     forwardFFT = abs(out_cmplx) 
+    ! FFT:
+    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,array,forwardFT,FFTW_FORWARD,FFTW_ESTIMATE)
+    call dfftw_execute(plan)    
+    call dfftw_destroy_plan(plan)
     
-!   end function forwardFFT
+  end function forwardFT
+
+  !****************************************************************
+  !                         INVERSE FFT
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE: Takes inverse FFT
+  !      
+  ! FORM:  function inverseFFT(array)  
+  !       
+  ! BEHAVIOR: array_work must be of size(f_GRID,f_GRID,f_GRID)
+  !         
+  ! STATUS : 
+  ! Notes  : 
+  !         
+  !----------------------------------------------------------------
+
+  function inverseFT(array)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    complex(C_DOUBLE_COMPLEX),dimension(:,:,:) :: array
+    complex(C_DOUBLE_COMPLEX),dimension(f_GRID,f_GRID,f_GRID) :: inverseFT
+    !
+    !    ..LOCAL VARS..
+    type(C_PTR) :: plan
+
+    ! IFT:
+    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,array,inverseFT,FFTW_BACKWARD,FFTW_ESTIMATE)
+    call dfftw_execute(plan)    
+    call dfftw_destroy_plan(plan)
+    
+  end function inverseFT
 
   !****************************************************************
   !                         SHARPFILTER
@@ -313,7 +438,7 @@ contains
   ! BEHAVIOR: array_work must be of size(f_GRID,f_GRID,f_GRID)
   !         
   ! STATUS : > Passed test with MATLAB results (10/21/2015).    
-  ! Notes  : 
+  ! Notes: 
   !         1) dfftw_execute(plan) takes 2 secs
   !         2) Uses FFTW libraries.
   !         3) Use C_DOUBLE, C_INT, etc for C-compatibility on any platform.
@@ -321,59 +446,55 @@ contains
   !            are not exactly 0.d0.
   !         5) Normalization depends on total number of points
   !            including the padded section. So f_GRID^3 is the
-  !            correct normalization factor.
+  !            correct normalization factor. 
+  !
+  ! %%%
+  !     print*,'Write FFT files from sharpFilter()'
+  !     open(1, file= trim(RES_PATH)//'out_cmplx1.dat')
+  !     open(11,file= trim(RES_PATH)//'out_cmplx2.dat')
+  !     open(2, file= trim(RES_PATH)//'in_cmplx.dat')
+  !     write(1,*) abs(out_cmplx(:,1,:))
+  !     write(11,*) abs(out_cmplx(:,:,1))
+  !     write(2,*) real(in_cmplx(:,:,129))
+  !     close(1)
+  !     close(11)
+  !     close(2)
   !----------------------------------------------------------------
 
-  function sharpFilter(array_work,filter)
+  function sharpFilter(u_real,filter)
     implicit none
     !
     !    ..ARRAY ARGUMENTS..
-    real(C_DOUBLE),dimension(:,:,:) :: array_work, filter
+    real(C_DOUBLE),dimension(:,:,:), intent(in) :: u_real, filter
     real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: sharpFilter 
     !
     !    ..WORK ARRAYS..
-    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: in_cmplx, out_cmplx
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: u_cmplx
     !
     !    ..LOCAL VARS..
     type(C_PTR) :: plan
    
-    allocate(in_cmplx (f_GRID,f_GRID,f_GRID))
-    allocate(out_cmplx(f_GRID,f_GRID,f_GRID))
+    allocate(u_cmplx (f_GRID,f_GRID,f_GRID))
 
-
-    in_cmplx(1:i_GRID,1:j_GRID,1:k_GRID) = dcmplx (array_work(1:i_GRID,1:j_GRID,1:k_GRID)) / (dble(f_GRID**3)) 
-
-
-    ! FT:
-    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,in_cmplx,out_cmplx,FFTW_FORWARD,FFTW_ESTIMATE)
-    call dfftw_execute(plan)    
-    call dfftw_destroy_plan(plan)
-
-!      ! ****
-!     print*,'Write FFT files from sharpFilter()'
-!     open(1, file= trim(RES_PATH)//'out_cmplx1.dat')
-!     open(11,file= trim(RES_PATH)//'out_cmplx2.dat')
-!     open(2, file= trim(RES_PATH)//'in_cmplx.dat')
-!     write(1,*) abs(out_cmplx(:,1,:))
-!     write(11,*) abs(out_cmplx(:,:,1))
-!     write(2,*) real(in_cmplx(:,:,129))
-!     close(1)
-!     close(11)
-!     close(2)
-!     ! ****
-
-    out_cmplx = out_cmplx * filter
-
-
-    ! IFFT:
-    call dfftw_plan_dft_3d(plan,f_GRID,f_GRID,f_GRID,out_cmplx,in_cmplx,FFTW_BACKWARD,FFTW_ESTIMATE)
-    call dfftw_execute(plan)
-    call dfftw_destroy_plan(plan)
-
- 
-    sharpFilter = real(in_cmplx) 
+    u_cmplx = dcmplx (u_real) / (dble(f_GRID**3)) 
+    sharpFilter = real(inverseFT(forwardFT(u_cmplx) * filter)) 
     
   end function sharpFilter
+
+  !****************************************************************
+  !                         CHECK FFT
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE: Check for FFT opertion.
+  !
+  ! FORM: subroutine check_FFT(value)
+  !       
+  ! BEHAVIOR: Optionally filters the resulting product. 
+  !         
+  ! STATUS: Redundant. Replace with a checksum.  
+  ! 
+  !----------------------------------------------------------------
 
   subroutine check_FFT(value)
     implicit none
@@ -390,6 +511,88 @@ contains
     end if
   end subroutine check_FFT
 
+  !****************************************************************
+  !                         DEALIASED PRODUCTS
+  !****************************************************************
+
+  !----------------------------------------------------------------
+  ! USE: Convolves TWO products at 2x grid resolution and then 
+  !      projects resulting product at the original (1x) grid 
+  !      resolution.
+  !      
+  ! FORM: function dealiasedProducts(u1,u2,[filter])  
+  !       
+  ! BEHAVIOR: Optionally filters the resulting product. 
+  !         
+  ! STATUS: > Unit testing with full run.   
+  ! 
+  ! Notes: The 3 DP complex arrays take 6GB memory
+  !         
+  !----------------------------------------------------------------
+
+  function dealiasedProducts(u1_real, u2_real, filter)
+    implicit none
+    !
+    !    ..ARRAY ARGUMENTS..
+    real(C_DOUBLE),dimension(:,:,:), intent(in) :: u1_real, u2_real
+    real(C_DOUBLE),dimension(:,:,:), intent(in), optional :: filter
+    real(C_DOUBLE),dimension(f_GRID,f_GRID,f_GRID) :: dealiasedProducts
+    !
+    !    ..WORK ARRAYS..
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: u1_cmplx, u2_cmplx
+    complex(C_DOUBLE_COMPLEX),allocatable,dimension(:,:,:):: temp
+    !
+    !    ..LOCAL VARS..
+    type(C_PTR) :: plan
+   
+    allocate(u1_cmplx (f_GRID,f_GRID,f_GRID))
+    allocate(u2_cmplx (f_GRID,f_GRID,f_GRID))
+
+
+    u1_cmplx = dcmplx (u1_real) / (dble(f_GRID**3)) 
+    u2_cmplx = dcmplx (u2_real) / (dble(f_GRID**3)) 
+
+    ! FT: [FORTRAN is CASE-INSENSITIVE]
+    !U1_cmplx = fftshift_c(forwardFT(u1_cmplx))
+    !U2_cmplx = fftshift_c(forwardFT(u2_cmplx))
+
+    ! print*,'Write FFT files from dealiasedProducts()'
+    !   open(1, file= trim(RES_PATH)//'U1_cmplx_256.dat')
+    !   open(2, file= trim(RES_PATH)//'U2_cmplx_256.dat')
+    !   write(1,*) abs(U1_cmplx(:,:,129))
+    !   write(2,*) abs(U2_cmplx(:,:,129))
+    !   close(1)
+    !   close(2)
+
+    !stop
+
+    print*, 2*f_GRID
+
+    ! ZERO-PAD U(256) from k = 129 to 256 -> U(512)
+    allocate (temp (2*f_GRID, 2*f_GRID, 2*f_GRID))
+    temp = U1_cmplx
+    deallocate (U1_cmplx)
+    allocate (U1_cmplx(2*f_GRID, 2*f_GRID, 2*f_GRID))
+    !U1_cmplx(129:384, 129:384, 129:384) = temp(1:256, 1:126, 1:256)
+
+    temp = U2_cmplx
+    deallocate(U2_cmplx)
+    allocate(U2_cmplx(2*f_GRID, 2*f_GRID, 2*f_GRID))
+    !U2_cmplx(129:384, 129:384, 129:384) = temp(1:256, 1:256, 1:256)
+
+
+    
+
+
+    ! IFFT:
+    
+ 
+    !dealiasedProducts = real(in_cmplx) 
+    
+  end function dealiasedProducts
+
+
+
 
   !****************************************************************
   !                         COMPUTESTRESS
@@ -404,7 +607,7 @@ contains
   !         
   ! STATUS : > Passed test with MATLAB results (10/21/2015).    
   !         
-  ! Boulder CODE: [for code validation]
+  ! Boulder CODE: [for code validation] - doesn't look right
   !  ! DEVIATORIC STRESS:
   !     elseif (stress.eq.'dev')then
   !        k = 1

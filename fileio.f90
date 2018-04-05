@@ -88,6 +88,7 @@ contains
      if (dataset.eq.'nrl') then
         endian = 'big_endian'
 
+
         allocate(u_s(i_GRID,j_GRID,k_GRID))
         
         do fID = 1,DIM
@@ -135,7 +136,7 @@ contains
 
         ! READ DOUBLE PRECISION DATA - JHU1024 - HDF5
       elseif (dataset.eq.'jhu1024'.and.ext.eq.'h5') then
-         call readHDF5(n_files=1)
+         call readHDF5(n_files=11)
       
         ! DEFAULT:
      else
@@ -346,15 +347,21 @@ contains
 
            ! LOAD DATA
            ! +     
-           call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) 
+           if (fCount == 11) then
+              call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex), data_dims, error) 
+           else
+              call h5dread_f(dset_id, H5T_NATIVE_DOUBLE, u(:,:,:,lowerIndex+1:upperIndex+1), data_dims, error) 
+           end if
            ! ++ 
            ! ALTERNATE METHOD:READ INTO DSET_DATA. STASHED ABOVE.
            call h5dclose_f(dset_id, error)    
            call h5fclose_f(file_id, error)
 
-           lowerIndex = lowerIndex + 96
+           lowerIndex = lowerIndex + 96 
            upperIndex = upperIndex + 96
-           if (fCount == 10) upperIndex = 1023
+
+           if (fCount == 10) upperIndex = 1024
+
         end do
 
         ! HDF5_FINALIZE
@@ -570,6 +577,7 @@ end subroutine plotVelocities
 
   subroutine loadFFT_data()
     implicit none
+
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename
@@ -596,6 +604,108 @@ end subroutine plotVelocities
    end subroutine loadFFT_data
 
    !****************************************************************
+   !                     LOAD FFT DATA - 3 FILTER
+   !****************************************************************
+
+   !----------------------------------------------------------------
+   ! USE : Loads u_f, tau_ij from LES/ dir and u_t, T_ij from test/ 
+   !      dir
+   !
+   ! FORM:   subroutine loadFFT_data3()
+   !
+   ! BEHAVIOR: Needs allocated, defined arrays. Is a brute force method 
+   !           of reading a file. 
+   !
+   ! STATUS : 
+   ! 
+   !----------------------------------------------------------------
+
+  subroutine loadFFT_data3(LESFilterType)
+    implicit none
+    !
+    !    ..ARGUMENTS..
+    character(*),intent(in), optional :: LESFilterType
+    !
+    !    ..LOCAL VARIABLES..
+    character(64) :: filename
+    character(8) :: Testfilter1, Testfilter2, Testfilter3
+    integer :: i
+
+    select case  (TestfilterType)
+        case ('GaussBox')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Box'
+        case ('GaussTri')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Tri'
+        case ('BoxTri')
+          Testfilter1 = 'Box'
+          Testfilter2 = 'Tri'
+        case ('All')
+          Testfilter1 = 'Gauss'
+          Testfilter2 = 'Box'
+          Testfilter3 = 'Tri'
+    end select
+
+    print*
+    print*,'Load filtered variables ... '
+
+     ! READ LES DATA - u_f, tau_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim('u_f.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_f
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim('tau_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) tau_ij
+    close(2)
+
+    ! READ TEST DATA - u_t, T_ij:
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter1)//'/'//trim('u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_t
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter1)//'/'//trim('T_ij.bin') 
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ij
+    close(2)
+    
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter2)//'/'//trim('u_t.bin')
+    print*, filename
+    open(1, file = filename,form='unformatted')
+    read(1) u_tB
+    close(1)
+
+    filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter2)//'/'//trim('T_ij.bin')
+    print*, filename
+    open(2, file = filename,form='unformatted')
+    read(2) T_ijB
+    close(2)
+    
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter3)//'/'//trim('u_t.bin')
+    ! print*, filename
+    ! open(1, file = filename,form='unformatted')
+    ! read(1) u_tG
+    ! close(1)
+
+    ! filename = trim(TEMP_PATH)//trim(LESFilterType)//'/'//trim(Testfilter3)//'/'//trim('T_ij.bin')
+    ! print*, filename
+    ! open(2, file = filename,form='unformatted')
+    ! read(2) T_ijG
+    ! close(2)
+              
+      
+
+   end subroutine loadFFT_data3
+
+
+   !****************************************************************
    !                          SAVE FFT_DATA
    !****************************************************************
 
@@ -605,18 +715,27 @@ end subroutine plotVelocities
    !
    ! FORM:    subroutine saveFFT_data()
    !
-   ! BEHAVIOR: Needs allocated, defined arrays.
+   ! BEHAVIOR: Saves only one set of LES and TEST filtered data at 
+   !            a time. 
    !
    ! STATUS : 
+   !        On GIT BRANCH:
+   !          1) test/validation: no arguments required.
+   !          2) filter3: both arguments required. 
    ! 
    !----------------------------------------------------------------
    
-   subroutine saveFFT_data()
+   subroutine saveFFT_data(LESFilterType,TestFilterType)
      implicit none
+     !
+     !    ..ARGUMENTS..
+     character(*),intent(in) :: LESFilterType
+     character(*),intent(in) :: TestFilterType
      !
      !    ..LOCAL VARIABLES..
      character(64) :: filename 
      integer :: i
+
 
      ! save FFT_DATA : Filtered velocities and stress files: 
      print*
@@ -629,7 +748,6 @@ end subroutine plotVelocities
        else
         filename = trim(TEMP_PATH)//trim(LESfilterType)//'/'//trim(TestfilterType)//'/'//trim(var_FFT(i)%name)//'.bin'
       endif
-
         print*, filename
         open(i, file = filename,form='unformatted')
         if (i.eq.1) write(i) u_f
@@ -779,15 +897,27 @@ end subroutine plotVelocities
      ! SAVE tau_DS:
      do i = 1,6
         write(ij,'(i0)') i
-        open(87, file = trim(RES_PATH)//'tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        open(87, file = trim(RES_PATH)//'43/tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        write(87,*), tau_DS(i,:,:,43)
+        close(87)
+        open(87, file = trim(RES_PATH)//'129/tau_DS_'//trim(stress)//trim(ij)//'.dat')
         write(87,*), tau_DS(i,:,:,z_plane)
+        close(87)
+        open(87, file = trim(RES_PATH)//'212/tau_DS_'//trim(stress)//trim(ij)//'.dat')
+        write(87,*), tau_DS(i,:,:,212)
         close(87)
      end do
 
      ! SAVE Pij_DS:
       print*,'Saving DS production field in', RES_PATH
-      open(53, file=trim(RES_PATH)//'Pij_DS_'//trim(stress)//'.dat')
+      open(53, file=trim(RES_PATH)//'43/Pij_DS_'//trim(stress)//'.dat')
+      write(53,*) Pij_DS(:,:,43)
+      close(53)
+      open(53, file=trim(RES_PATH)//'129/Pij_DS_'//trim(stress)//'.dat')
       write(53,*) Pij_DS(:,:,z_plane)
+      close(53)
+      open(53, file=trim(RES_PATH)//'212/Pij_DS_'//trim(stress)//'.dat')
+      write(53,*) Pij_DS(:,:,212)
       close(53)
 
    end subroutine plotDynSmag

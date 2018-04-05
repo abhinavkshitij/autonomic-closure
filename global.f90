@@ -55,7 +55,7 @@ module global
   end type list
 
   ! CASES
-  type(list), parameter :: l_case(19) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
+  type(list), parameter :: l_case(20) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
                                          list('1b','CL14''','colocated_local_O1_4N_P'),   & ! 2
                                          list('2a','CL18',  'colocated_local_O1_8N'),     & ! 3
                                          list('2b','CL18''','colocated_local_O1_8N_P'),   & ! 4
@@ -73,7 +73,8 @@ module global
                                          list('8b','CL2(5)','colocated_point_O2_5'),      & ! 16
                                          list('9a','CL1(7)','colocated_point_O1_7'),      & ! 17
                                          list('9b','CL2(7)','colocated_point_O2_7'),      & ! 18
-                                         list('3a(o)','CL24o','colocated_local_O2_4N_O')]   ! 19
+                                         list('3a(o)','CL24o','colocated_local_O2_4N_O'), & ! 19
+                                         list('3a(s)','CG24s','colocated_global_O2_4N_static')]! 20
 
 
   ! MACHINE TYPE 
@@ -129,10 +130,14 @@ module global
                                                   str16('rotateY/')]
 
   ! TEST SCALE FILTER TYPE    
-  type(str16), parameter :: l_filterType(4) = [str16('Sharp'),            &
+  type(str16), parameter :: l_filterType(8) = [str16('Sharp'),            &
                                                str16('Gauss'),            &
                                                str16('Box'),              &
-                                               str16('Tri')]                                           
+                                               str16('Tri'),              &
+                                               str16('GaussBox'),         &
+                                               str16('GaussTri'),         &
+                                               str16('BoxTri'),           &
+                                               str16('All')] 
 
   !*****************************************************************
               
@@ -148,13 +153,17 @@ module global
   character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
   character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
+  character(8) :: compDomain     = trim (l_compDomain(1) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
+
   character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
   character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
-
+                                                                     ! [GaussBox, GaussTri, BoxTri]
+                                                                     ! [All]
+ 
+  
   real(8), parameter :: lambda_0(1) =  1.d-03
 !  real(8), parameter :: lambda_0(2) =  [1.d-03, 1.d-01]!, 1.d-01,  1.d+01]
 
@@ -178,8 +187,8 @@ module global
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  1
-  logical :: computeFFT_data      =  0! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
+  logical :: plot_Velocities      =  0
+  logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  0
 
   logical :: computeDS            =  0
@@ -189,7 +198,10 @@ module global
   logical :: save_ProductionTerm  =  1
   logical :: compute_Stress       =  0
 
-  logical :: make_Deviatoric      =  0
+  logical :: make_Deviatoric      =  0 ! Makes no difference in stressDS
+  logical :: multiFilter          =  0
+
+
 
 
   !----------------------------------------------------------------
@@ -203,6 +215,7 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: u
   real(8), dimension(:,:,:,:), allocatable :: u_f 
   real(8), dimension(:,:,:,:), allocatable :: u_t
+  
   !
   !    ..VORTICITY..
   real(8), dimension(:,:,:,:), allocatable :: omega
@@ -212,6 +225,13 @@ module global
   real(8), dimension(:,:,:,:), allocatable :: T_ij
   real(8), dimension(:,:,:,:), allocatable :: T_ijOpt
   real(8), dimension(:,:,:,:), allocatable :: tau_ijOpt
+
+  !     ..3-FILTER MODIFICATION..
+  real(8), dimension(:,:,:,:), allocatable :: u_tB
+  real(8), dimension(:,:,:,:), allocatable :: T_ijB
+  real(8), dimension(:,:,:,:), allocatable :: u_tG
+  real(8), dimension(:,:,:,:), allocatable :: T_ijG
+
   !
   !    ..FILTERS..
   real(8), dimension(:,:,:), allocatable :: LES
@@ -258,6 +278,7 @@ module global
   integer :: LES_scale 
   integer :: test_scale 
   integer :: Freq_Nyq
+  integer :: n_filter = 1       ! Number of filters
 
   !    ..STENCIL..
   integer :: Delta_LES          ! Grid spacing at LES scale = Nyquist frequ/LES_scale  (128/40 = 3)
@@ -433,15 +454,17 @@ contains
     dx = 2.d0*PI/dble(i_GRID) 
     
     ! TIMESTEPS:
-    if (dataset.eq.'jhu256') then
+    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D') then
        time = '256'; time_init = 256; time_incr = 1; time_final = 256
        nu = 1.85d-4
     end if
+
     if (dataset.eq.'nrl') time = '0460'
     if (dataset.eq.'hst') then
        nu = 5.67d-4 !6.093d-3
        if (hst_set.eq.'S1') then
-          time = '016'; time_init = 16; time_incr = 1; time_final = 28
+!          time = '016'; time_init = 16; time_incr = 1; time_final = 28
+          time = '017'; time_init = 17; time_incr = 1; time_final = 28
        end if
        if (hst_set.eq.'S3') then
           time = '015'; time_init = 15; time_incr = 1; time_final = 24
@@ -462,6 +485,7 @@ contains
        print*, 'Dataset ',dataset,' has no pressure data files'
        stop
     end if
+
     P = 6
 
     ! SCALE
@@ -476,6 +500,8 @@ contains
     Delta_LES = floor(real(Freq_Nyq) / real(LES_scale))
     Delta_test = floor(real(Freq_Nyq) / real(test_scale))    
 
+
+    ! FFT 
     ! FFT GRID: Set f_GRID[CUBIC]
     f_GRID = 256 
     center = (0.5d0 * f_GRID) + 1.d0
@@ -586,6 +612,9 @@ contains
     n_bins = 250
     N_cr = 1   ! Number of cross-validation points in each dir (11x11x11)
 
+    ! 3-Filter MODIFICATION:
+    if (multiFilter) n_filter = 2
+    M = n_filter * M
 
   end subroutine setEnv
 
@@ -646,11 +675,14 @@ contains
      write(fileID, * ), 'Pressure Term:       ', withPressure
 
      write(fileID, * ), 'Order:               ', order
-     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)
-     write(fileID, * ), 'Training points(M):  ', M, '\t', trainingPoints
+     write(fileID, '(a22,f5.2)' ), 'M:N                  ', real(M)/real(N)/real(n_filter)
+     write(fileID, * ), 'Training points(M):  ', M/n_filter, '\t', trainingPoints
      write(fileID, * ), 'Features(N):         ', N, '\n'
+
      write(fileID, * ), 'Filter scales:       ', LES_scale,  test_scale
      write(fileID, * ), 'Filter types:        ', LESfilterType, TestfilterType
+     write(fileID, * ), 'multiFilter:         ', multiFilter
+
      write(fileID, * ), 'Delta_LES, _test:    ', Delta_LES, Delta_test, '\n'
      write(fileID, * ), 'Stress computation:  ', stress, '\n'
      write(fileID, * ), 'Convert to deviatoric:', make_Deviatoric, '\n'

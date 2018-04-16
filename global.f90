@@ -90,7 +90,7 @@ module global
                                             str16 ('hst'),               &
                                             str16 ('sin3D'),             &
                                             str16 ('jhu1024'),           &
-                                            str16 ('jhu43')]
+                                            str16 ('jhu42')]
 
   ! FILTERED VARIABLES 
   type(str16), parameter :: var_FFT(4) = [str16 ('u_f'),                 &
@@ -187,15 +187,15 @@ module global
   logical :: useTestData          =  0
   logical :: readFile             =  1
   logical :: filterVelocities     =  1
-  logical :: plot_Velocities      =  1
+  logical :: plot_Velocities      =  0
   logical :: computeFFT_data      =  1! **** ALWAYS CHECK THIS ONE BEFORE A RUN **** !
   logical :: save_FFT_data        =  0
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
-  logical :: plot_Stress          =  1
+  logical :: plot_Stress          =  0
   logical :: production_Term      =  1
-  logical :: save_ProductionTerm  =  1
+  logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
 
   logical :: make_Deviatoric      =  0
@@ -435,7 +435,7 @@ contains
 
     ! GRID:
 !    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
-    i_GRID = 43;    j_GRID = 43;    k_GRID = 43
+    i_GRID = 42;    j_GRID = 42;    k_GRID = 42
     
     Freq_Nyq = i_GRID/2
 
@@ -454,8 +454,8 @@ contains
     dx = 2.d0*PI/dble(i_GRID) 
     
     ! TIMESTEPS:
-    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D' .or. dataset.eq.'jhu43') then
-       time = '43'; time_init = 43; time_incr = 1; time_final = 43
+    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D' .or. dataset.eq.'jhu42') then
+       time = '42'; time_init = 42; time_incr = 1; time_final = 42
        nu = 1.85d-4
     end if
     if (dataset.eq.'nrl') time = '0460'
@@ -486,7 +486,7 @@ contains
     P = 6
 
     ! SCALE
-    if (dataset.eq.'jhu256') then
+    if (dataset.eq.'jhu256'.or.dataset.eq.'jhu42') then
        LES_scale  = 20;    test_scale = 10
     else if (dataset.eq.'hst'.and.hst_set.eq.'S6') then
        LES_scale  = 20;    test_scale = 10
@@ -498,7 +498,7 @@ contains
     Delta_test = floor(real(Freq_Nyq) / real(test_scale))    
 
     ! FFT GRID: Set f_GRID[CUBIC]
-    f_GRID = 256 
+    f_GRID = 42!256 
     center = (0.5d0 * f_GRID) + 1.d0
 
     ! STENCIL: Set N  [noncolocated/colocated]

@@ -171,16 +171,16 @@ contains
          end do
       end do
 
-      ! Check spherical symmetry:
-      if ( (filter (center+scale+1,center,center) .eq. 0)      .and.  &
-           (filter (center,center-scale,center)   .eq. 1)      .and.  &
-           (filter (center+scale,center,center)   .eq. 1)      .and.  &
-           (filter (center,center,center+scale)   .eq. 1)      .and.  &
-           (filter (center,center-scale-1,center) .eq. 0) )    then
-      else
-         print*, 'Failed creating spherically symmetric filter ... Aborting'
-         stop
-      end if
+      ! ! Check spherical symmetry:
+      ! if ( (filter (center+scale+1,center,center) .eq. 0)      .and.  &
+      !      (filter (center,center-scale,center)   .eq. 1)      .and.  &
+      !      (filter (center+scale,center,center)   .eq. 1)      .and.  &
+      !      (filter (center,center,center+scale)   .eq. 1)      .and.  &
+      !      (filter (center,center-scale-1,center) .eq. 0) )    then
+      ! else
+      !    print*, 'Failed creating spherically symmetric filter ... Aborting'
+      !    stop
+      ! end if
     endif
 
     return

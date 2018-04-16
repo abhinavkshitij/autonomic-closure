@@ -68,7 +68,7 @@ program autonomic
   real(8) :: u_rms, epsilon, TKE
   character(1) :: idx
 
-  logical :: debug_PrintFilters = 0
+  logical :: debug_PrintFilters = 1
 
   real(8),allocatable,dimension(:,:,:)   :: dev_t
 
@@ -111,9 +111,11 @@ program autonomic
      if(readFile)                        call readData(DIM = n_u)
      if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
 
-     print*, u(:,3,4,23)
-     print*, bigHalf(i_GRID)
-     stop
+!    print*, u(:,1,1,1)
+!     print*, u(:,3,15,17)
+     !print*, u(:,3,4,23)
+     !print*, bigHalf(i_GRID)
+     !stop
 
      ! + GET STATISTICS OF INITIAL VELOCITY:
 
@@ -220,9 +222,15 @@ program autonomic
         end if
      end if
 
-     print*, u (1:3,1,1,1)
-     print*, u_f (1:3,1,1,1)
-     print*, u_t (1:3,1,1,1)
+     print*, 'P (:,1,1,1)' 
+     print*, u (:,1,1,1)
+     print*, u_f (:,1,1,1)
+     print*, u_t (:,1,1,1)
+
+     print*, 'P (:,3,15,17)' 
+     print*, u (:,3,15,17)
+     print*, u_f (:,3,15,17)
+     print*, u_t (:,3,15,17)
 
 
 stop
@@ -244,7 +252,7 @@ stop
         print*,'Compute original stress:',stress
         call computeStress(u, u_f, u_t, tau_ij, T_ij, LES, test)
         deallocate(LES,test)
-        !->>     
+        !-     
      else
         ! LOAD SAVED FFT_DATA ../temp/ [CHECK]
         if (multiFilter) then 
@@ -255,7 +263,7 @@ stop
 !        call checkFFT_data()
      end if
 
-     !->>
+     !-
      if (rotationAxis == 'X') then
         print*, 'Rotate array along x-axis'
         call rotateX(u_f) 
@@ -291,7 +299,7 @@ stop
      print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
      !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
 
-     !->>
+     !-
      !if (stress.eq.'dev') then
       if (make_Deviatoric) then
         print*, 'Convert to deviatoric stress'

@@ -111,8 +111,8 @@ program autonomic
      if(readFile)                        call readData(DIM = n_u)
      if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
 
-!    print*, u(:,1,1,1)
-!     print*, u(:,3,15,17)
+    print*, u(:,1,1,1)
+     print*, u(:,3,15,17)
      !print*, u(:,3,4,23)
      !print*, bigHalf(i_GRID)
      !stop
@@ -233,7 +233,7 @@ program autonomic
      print*, u_t (:,3,15,17)
 
 
-stop
+!stop
      ! BREAKPOINT 1:
      if (useTestData) stop
 
@@ -295,9 +295,11 @@ stop
      if (save_FFT_DATA) call saveFFT_data()
 
     ! stop
-     print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
-     print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
-     !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
+     print*, 'tau_ij(1,1,1,1):', tau_ij(1,1,1,1)
+     print*, 'tau_ij(2,3,15,17):', tau_ij(2,3,15,17)
+     print*, 'T_ij(1,1,1,1):', T_ij(1,1,1,1)
+     print*, 'T_ij(2,3,15,17):', T_ij(2,3,15,17)
+     stop
 
      !-
      !if (stress.eq.'dev') then

@@ -142,24 +142,24 @@ module global
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
+  character(8) :: dataset        = trim (l_dataset(3) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 0                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 5                                ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
-  character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
+  character(3) :: hst_set        = 'S12'                              ! [S1, S3, S6, S12]
   character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
   character(16):: formulation    = trim (l_formulation(1) % name)    ! [colocated, non-colocated]
-  character(8) :: trainingPoints = trim (l_trainingPoints(1) % name) ! [ordered, random]
-  character(8) :: scheme         = trim (l_scheme(2) % name)         ! [local, global]
+  character(8) :: trainingPoints = trim (l_trainingPoints(2) % name) ! [ordered, random]
+  character(8) :: scheme         = trim (l_scheme(1) % name)         ! [local, global]
   integer      :: order          = 2                                 ! [first, second]
-  character(8) :: compDomain     = trim (l_compDomain(1) % name)     ! [all, plane]
+  character(8) :: compDomain     = trim (l_compDomain(2) % name)     ! [all, plane]
   character(8) :: rotationAxis   = trim(l_rotationAxis(1) % name)    ! [none:z, X:y, Y:x]
   character(8) :: rotationPlane  = trim(l_rotationPlane(1) % name)   ! [none:z, X:y, Y:x]
   integer      :: M_N_ratio      = 4
 
-  character(8) :: LESfilterType  = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
-  character(8) :: TestfilterType = trim(l_filterType(1) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: LESfilterType  = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
+  character(8) :: TestfilterType = trim(l_filterType(2) % name)      ! [Sharp,Gauss,Box,Tri]
                                                                      ! [GaussBox, GaussTri, BoxTri]
                                                                      ! [All]
  
@@ -440,7 +440,7 @@ contains
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 43!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'
@@ -472,6 +472,9 @@ contains
        if (hst_set.eq.'S6') then
           time = '100'; time_init = 100; time_incr = 5; time_final = 100
        end if
+       if (hst_set.eq.'S12') then
+          time = '175'; time_init = 175; time_incr = 5; time_final = 175
+       end if
     end if
     read(time,*) time_init
     if (machine.eq.'local') time_final = time_init
@@ -490,6 +493,8 @@ contains
 
     ! SCALE
     if (dataset.eq.'jhu256') then
+       LES_scale  = 40;    test_scale = 20
+    else if (dataset.eq.'hst'.and.hst_set.eq.'S12') then
        LES_scale  = 40;    test_scale = 20
     else if (dataset.eq.'hst'.and.hst_set.eq.'S6') then
        LES_scale  = 20;    test_scale = 10

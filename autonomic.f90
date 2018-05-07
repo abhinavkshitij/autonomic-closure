@@ -88,7 +88,7 @@ program autonomic
 
   call setEnv()
   call printParams('display')
-  print*, "CASE_NAME:", CASE_NAME
+  print*, "CASE_NAME: ", CASE_NAME, "\n"
 !  call memRequirement()
 !  print*, boxSize, maskSize
 ! stop 
@@ -107,9 +107,9 @@ program autonomic
      if ((len(trim(time))-1).lt.2) time = trim('0')//trim(time)
 
      ! 1] LOAD DATASET:
-!     if(allocated(u).eqv..false.)        allocate(u(n_u,i_GRID,j_GRID,k_GRID))
+     if(allocated(u).eqv..false.)        allocate(u(n_u,i_GRID,j_GRID,k_GRID))
      if(readFile)                        call readData(DIM = n_u)
-     if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
+     !if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
 
 
      ! + GET STATISTICS OF INITIAL VELOCITY:
@@ -282,12 +282,13 @@ program autonomic
      !stop
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data(LESFilterType,TestFilterType)
-     !stop
      
-     ! print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
+     
+      print*, 'tau_ij(1,15,24,129):', tau_ij(1,15,24,129)
      ! print*, 'tau_ij_abs(1,1,1,129):', tau_ij(1,1,1,129)
-     ! print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
+      print*, 'T_ij(1,15,24,129):', T_ij(1,15,24,129)
      !print*, 'T_ijB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
+     !stop
 
      !->>
      !if (stress.eq.'dev') then
@@ -334,7 +335,7 @@ program autonomic
         if (save_ProductionTerm)                                   call plotProductionTerm()     
         deallocate (Pij_f, Pij_t)
      end if
-     stop
+     !stop
 
      !  DYNAMIC SMAGORINSKY : PERFORM PLANEWISE COMPUTATION
      ! if (computeDS) then

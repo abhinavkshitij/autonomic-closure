@@ -107,12 +107,13 @@ contains
      elseif (dataset.eq.'hst') then
         DATA_PATH = trim(DATA_DIR) // trim(dataset) // '/' // trim(ext) // '/' // trim(hst_set) // '/'
 
-        allocate(u_s(i_GRID, bigHalf(j_GRID),k_GRID))
+!        allocate(u_s(i_GRID, bigHalf(j_GRID),k_GRID))
+        allocate(u_s(i_GRID, j_GRID,k_GRID))
         do fID = 1,DIM
            write(fileID, 10) fID
            write(fIndex,'(i1)') fID
            filename = trim(DATA_PATH)//trim(variableName)//trim(fIndex)//'_'//trim(time)//'.'//trim(ext)
-!           print*, filename
+           print*, filename, '\n', shape(u_s),'\n', shape(u)
            call readBin(u_s,fID,filename,endian)
          end do
         deallocate(u_s)
@@ -190,14 +191,15 @@ contains
 
      position = 0
      do k=1,k_GRID
-        do j=1,129! ##  j_GRID
+        do j=1,j_GRID
            do i=1,i_GRID
               position = position + 1
               read (fID,rec=position) u_s(i,j,k)
            end do
         end do
      end do
-     u(fID,1:256,1:129,1:256) = u_s(1:256,1:129,1:256) ! ### move back to (:,:,:)
+!     u(fID,1:256,1:129,1:256) = u_s(1:256,1:129,1:256) ! ### move back to (:,:,:)
+     u(fID,:,:,:) = u_s(:,:,:) ! ### move back to (:,:,:)
      close(fID)
 
    end subroutine readBinSingle

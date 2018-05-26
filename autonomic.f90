@@ -111,8 +111,8 @@ program autonomic
      if(readFile)                        call readData(DIM = n_u)
      if (dataset.eq.'hst')               u(:,:,256:130:-1,:) = u(:,:,2:128,:) ! CHANGE THIS PART
 
-    print*, u(:,1,1,1)
-     print*, u(:,3,15,17)
+    !print*, 'u(:,1,1,1): ', u(:,1,1,1)
+    ! print*,'u(:,3,15,17): ', u(:,3,15,17)
      !print*, u(:,3,4,23)
      !print*, bigHalf(i_GRID)
      !stop
@@ -222,15 +222,15 @@ program autonomic
         end if
      end if
 
-     print*, 'P (:,1,1,1)' 
-     print*, u (:,1,1,1)
-     print*, u_f (:,1,1,1)
-     print*, u_t (:,1,1,1)
+     ! print*, 'P (:,1,1,1)' 
+     ! print*, u (:,1,1,1)
+     ! print*, u_f (:,1,1,1)
+     ! print*, u_t (:,1,1,1)
 
-     print*, 'P (:,3,15,17)' 
-     print*, u (:,3,15,17)
-     print*, u_f (:,3,15,17)
-     print*, u_t (:,3,15,17)
+     ! print*, 'P (:,3,15,17)' 
+     ! print*, u (:,3,15,17)
+     ! print*, u_f (:,3,15,17)
+     ! print*, u_t (:,3,15,17)
 
 
 !stop

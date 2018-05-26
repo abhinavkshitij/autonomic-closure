@@ -478,11 +478,6 @@ contains
 
     u_cmplx = dcmplx (u_real) / (dble(f_GRID**3)) 
     sharpFilter = real(inverseFT(forwardFT(u_cmplx) * filter)) 
-
-    print*, sharpFilter(1,1,1)
-    print*, sharpFilter(3,15,17)
-
-
     
   end function sharpFilter
 
@@ -585,10 +580,6 @@ contains
     allocate(U2_cmplx(2*f_GRID, 2*f_GRID, 2*f_GRID))
     !U2_cmplx(129:384, 129:384, 129:384) = temp(1:256, 1:256, 1:256)
 
-
-    
-
-
     ! IFFT:
     
  
@@ -648,17 +639,13 @@ contains
      do j=1,3
         do i=1,3
            if (i.le.3.and.j.le.3.and.i.ge.j) then
-            !if(i.ge.j) then
               print *, 'tau(', i, ',', j, ')' !<-- CHECK ORDER OF i,j,k...affects performance!!!
               tau_ij(k,:,:,:) = sharpFilter(u(i,:,:,:) * u(j,:,:,:), LES)       &
                                         - u_f(i,:,:,:) * u_f(j,:,:,:)
               print *, 'T(', i, ',', j, ')'
               T_ij(k,:,:,:) = sharpFilter(u_f(i,:,:,:) * u_f(j,:,:,:), test)    &
                                         - u_t(i,:,:,:) * u_t(j,:,:,:)
-              print*, 'u_t(1,1,1)*u_t(1,1,1): ', u_t(i,1,1,1)*u_t(j,1,1,1)
-              print*, 'u_t(3,15,17)*u_t(3,15,17): ', u_t(i,3,15,17)*u_t(j,3,15,17)                        
               k = k + 1
-           ! end if
            end if
         end do
      end do

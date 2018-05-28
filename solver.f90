@@ -393,12 +393,6 @@ contains
           if (allocated(uu_f).eqv..false.)allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
           call secondOrderProducts(uu_t, u_t)
           call secondOrderProducts(uu_f, u_f)
-          if (multiFilter) then
-            if (allocated(uu_tB).eqv..false.)allocate(uu_tB(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
-  !          if (allocated(uu_tG).eqv..false.)allocate(uu_tG(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
-                call secondOrderProducts(uu_tB, u_tB)
-  !              call secondOrderProducts(uu_tG, u_tG)
-          end if 
        end if
 
 
@@ -431,9 +425,8 @@ contains
 
 
                 ! ZERO ORDER TERMS:
-                col_index = col_index + 1
-                V(row_index:row_index+1, col_index) = 1.d0
- !                V(row_index, col_index) = 1.d0
+                col_index = col_index + 1        
+                V(row_index, col_index) = 1.d0
                
 
                 ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
@@ -445,8 +438,6 @@ contains
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
                       V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index+1,col_index) = u_tB(u_comp,i_stencil,j_stencil,k_stencil)
-!                      V(row_index+2,col_index) = u_tG(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
@@ -454,8 +445,6 @@ contains
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
                          V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(row_index+1,col_index) = uu_tB(uu_comp,i_stencil,j_stencil,k_stencil)
- !                        V(row_index+2,col_index) = uu_tG(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
 
@@ -464,12 +453,12 @@ contains
                 end do ! STENCIL
        
                 T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
-                T(row_index+1,:) = T_ijB(:,i_train,j_train,k_train) 
-  !              T(row_index+2,:) = T_ijG(:,i_train,j_train,k_train) 
 
              end do
-             call progressBar(j_boxCenter, boxLast)
+             !call progressBar(j_boxCenter, boxLast)
+!             print*, i_boxCenter, j_boxCenter, k_boxCenter
              end do
+             call progressBar(k_boxCenter, boxLast)
              end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
 
 ! DEBUG: Print V matrix 
@@ -723,9 +712,9 @@ contains
 
     if (formulation.eq.'colocated') then
 ! Whole domain:
-!       do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper
+       do k_opt = k_boxCenter-optLower, k_boxCenter+optUpper
 ! Cross-validation points [Preferred]:
-       do k_opt = k_boxCenter-3*smallHalf(N_cr), k_boxCenter+3*smallHalf(N_cr), 3
+!       do k_opt = k_boxCenter-3*smallHalf(N_cr), k_boxCenter+3*smallHalf(N_cr), 3
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
          

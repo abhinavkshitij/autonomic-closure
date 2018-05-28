@@ -90,7 +90,8 @@ program autonomic
   call printParams('display')
   print*, "CASE_NAME:", CASE_NAME
 !  call memRequirement()
-!  print*, boxSize, maskSize
+  print*, boxSize, maskSize
+  print*, zLower, zUpper
 ! stop 
 
 
@@ -294,12 +295,10 @@ program autonomic
      ! SAVE FFT DATA. THEN LOAD AND ROTATE IT. 
      if (save_FFT_DATA) call saveFFT_data()
 
-    ! stop
      print*, 'tau_ij(1,1,1,1):', tau_ij(1,1,1,1)
      print*, 'tau_ij(2,3,15,17):', tau_ij(2,3,15,17)
      print*, 'T_ij(1,1,1,1):', T_ij(1,1,1,1)
      print*, 'T_ij(2,3,15,17):', T_ij(2,3,15,17)
-     stop
 
      !-
      !if (stress.eq.'dev') then
@@ -309,8 +308,8 @@ program autonomic
         call makeDeviatoric (T_ij)
         if (multiFilter) call makeDeviatoric (T_ijB)
       end if
-      print*, 'tau_ij_dev(1,15,24,129):', tau_ij(1,15,24,129)
-      print*, 'T_ij_dev(1,15,24,129):', T_ij(1,15,24,129)
+      print*, 'tau_ij_dev(1,1,1,1):', tau_ij(1,1,1,1)
+      print*, 'T_ij_dev(2,3,15,17):', T_ij(2,3,15,17)
       !print*, 'T_ij_devB(1,15,24,129):', T_ijB(1,15,24,129), '\n'
       
 !    stop
@@ -411,9 +410,8 @@ program autonomic
 
   ! Ring an alarm:
   print*, '\a'
-  !print*, 'tau_ijOpt(2,15,24,129):', tau_ijOpt(1,15,24,z_plane)
-  !print*, 'T_ijOpt(2,15,24,129):', T_ijOpt(1,15,24,z_plane), '\n'
-
+  print*, 'tau_ijOpt(1,1,1,1):', tau_ijOpt(1,1,1,1)
+  print*, 'tau_ijOpt(2,3,15,17):', tau_ijOpt(2,3,15,17)
 contains 
 
 

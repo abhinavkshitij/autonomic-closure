@@ -193,8 +193,8 @@ module global
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
-  logical :: plot_Stress          =  0
-  logical :: production_Term      =  1
+  logical :: plot_Stress          =  1
+  logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
 
@@ -529,17 +529,17 @@ contains
             * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
     ! RANDOM
     elseif (trainingPoints.eq.'random') then 
-       M = M_N_ratio * N ! Default
-!       M = 27      ! change here for CP(*)3,5,7 = 27,64,125
+!       M = M_N_ratio * N ! Default
+       M = 1000      ! change here for CP(*)3,5,7 = 27,64,125
        trainingPointSkip = Delta_test
 
        if (scheme.eq.'global') then
-          box = 256 * box ! ** Initial value for box; change this part.
+          box = 42 * box ! ** Initial value for box; change this part.
           boxSize = product(box/trainingPointSkip+1)
 
        elseif (scheme.eq.'local') then
 ! (a) Box is either inflated by M training points  [RANDOM] - default
-          box = ceiling(M**(1./3.)) * trainingPointSkip * box
+          box = ceiling(M**(1.d0/3.d0)) * trainingPointSkip * box
 ! (b) Or given a predefined size (Used in CP2(3), ...  cases) [ORDERED]
 !     Specify trainingPointSkip under the ORDERED section.
 !          box = 3 * trainingPointSkip * box ! ADD DILATION FACTOR
@@ -1228,7 +1228,7 @@ contains
     integer, intent(in) :: count_max
     integer, save :: progress(2)
 
-    progress(2) = floor(real(count) / real(count_max) * 100.)
+    progress(2) = floor(real(count) / real(count_max) * 100.d0)
     if ((mod(progress(2),10) == 0) .and. (progress(2) >= 10) .and. (progress(2).ne.progress(1))) then
           print*, progress(2), ' %'
     end if

@@ -461,13 +461,17 @@ contains
              call progressBar(k_boxCenter, boxLast)
              end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
 
-! DEBUG: Print V matrix 
-! if(i_boxCenter.eq.15.and.j_boxCenter.eq.24) then
+!DEBUG: Print V matrix 
+! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
 !   ! Save V matrix
-!   open(47,file='V.dat')
-!   write(47,*) V
+!   open(47,file='V_42.dat')
+!   do i = 1,M
+!     do j = 1,N
+!       write(47,*) i,j,V(i,j)
+!   end do
+! end do
 !   close(47)
-!  ! stop
+!  stop
 ! end if
 
 !call cpu_time(toc)
@@ -487,6 +491,19 @@ contains
                    print*, 'Choose correct solver: LU, SVD'
                    stop
                 end if
+
+!DEBUG: Print h_ij matrix 
+! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
+!   ! Save V matrix
+!   open(47,file='../validation_Eric/hij_42.dat')
+!   do i = 1,N
+!       write(47,*) h_ij(i,:)
+! end do
+!   close(47)
+!  stop
+! end if
+
+
 
 !call cpu_time(toc)
 !print*, 'Time to invert, t2 = ', toc-tic

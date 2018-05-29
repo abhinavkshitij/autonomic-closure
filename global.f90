@@ -193,7 +193,7 @@ module global
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
-  logical :: plot_Stress          =  1
+  logical :: plot_Stress          =  0
   logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0

@@ -346,7 +346,7 @@ contains
     real(8), dimension(1:,1:,1:,zLower:), intent(out):: T_ijOpt
     !
     !    ..LOCAL ARRAYS..
-    real(8), dimension(:,:),     allocatable :: V  
+    real(8), dimension(:,:,:),   allocatable :: V  
     real(8), dimension(:,:),     allocatable :: T  
     !
     !    .. NON-COLOCATED..
@@ -360,7 +360,7 @@ contains
     !    ..INDICES..
     integer :: i_train,     j_train,     k_train  
     integer :: i_stencil,   j_stencil,   k_stencil 
-    integer :: row_index, col_index, row, col 
+    integer :: row_index, col_index, row, col, idx
     integer :: u_comp, uu_comp 
 
     
@@ -376,7 +376,7 @@ contains
 ! ##
     
 
-    allocate (V (M, N) )
+    allocate (V (P, M, N) )
     allocate (T (M, P) )
 ! ###
 
@@ -406,7 +406,7 @@ contains
              call randTrainingSet(randMask)
              rand_count = 0
           end if
-          row_index  = 1-n_filter 
+          row_index  = 0 
 
              ! VISIT M TRANING POINTS:
              do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip
@@ -421,15 +421,16 @@ contains
 !print*, row_index, i_train, j_train, k_train
 
                 col_index = 0 
-                row_index = row_index + n_filter
+                row_index = row_index + 1
 
 
                 ! ZERO ORDER TERMS:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 1.d0
+                V(:, row_index, col_index) = 1.d0
                
 
                 ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
+                ! V12
                 do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test ! Vectorize using (PACK/UNPACK)
                 do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
                 do i_stencil = i_train-Delta_test, i_train+Delta_test, Delta_test
@@ -437,21 +438,78 @@ contains
                    ! FIRST ORDER TERMS:
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
-                      V(row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(1,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(2,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
-                         V(row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(1,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(2,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
 
                 end do 
                 end do 
                 end do ! STENCIL
-       
+
+
+                ! V45
+                col_index = 1 
+
+                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test
+                do i_stencil = i_train+Delta_test, i_train-Delta_test, -Delta_test
+                do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
+              
+                   ! FIRST ORDER TERMS:
+                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
+                      col_index = col_index+1
+                      V(4,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(5,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   end do
+
+                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
+                   if (order == 2) then
+                      do uu_comp = 1, n_uu 
+                         col_index = col_index+1
+                         V(4,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(5,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                      end do
+                   end if
+
+                end do 
+                end do 
+                end do ! STENCIL
+
+                ! V36
+                col_index = 1 
+
+                do j_stencil = j_train+Delta_test, j_train-Delta_test, -Delta_test           
+                do i_stencil = i_train+Delta_test, i_train-Delta_test, -Delta_test
+                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test 
+              
+                   ! FIRST ORDER TERMS:
+                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
+                      col_index = col_index+1
+                      V(3,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(6,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   end do
+
+                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
+                   if (order == 2) then
+                      do uu_comp = 1, n_uu 
+                         col_index = col_index+1
+                         V(3,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(6,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                      end do
+                   end if
+
+                end do 
+                end do 
+                end do ! STENCIL
+
                 T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
 
              end do
@@ -484,9 +542,16 @@ contains
 !call cpu_time (tic)
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
-                   call LU(V, T, h_ij)                       ! DAMPED LEAST SQUARES 
+                do idx = 1,6
+                   call LU(idx, V(idx,1:M,1:N), T(1:M,idx), h_ij(1:N,:))    ! DAMPED LEAST SQUARES 
+               end do
+                   ! call LU(V(2,1:M,1:N), T(1:M,2), h_ij(1:N,2))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(3,1:M,1:N), T(1:M,3), h_ij(1:N,3))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(4,1:M,1:N), T(1:M,4), h_ij(1:N,4))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(5,1:M,1:N), T(1:M,5), h_ij(1:N,5))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(6,1:M,1:N), T(1:M,6), h_ij(1:N,6))    ! DAMPED LEAST SQUARES 
                 elseif(solutionMethod.eq.'SVD') then
-                   call SVD(V, T, h_ij, printval)             ! TSVD
+                   !call SVD(V, T, h_ij, printval)             ! TSVD
                 else
                    print*, 'Choose correct solver: LU, SVD'
                    stop
@@ -531,71 +596,71 @@ contains
     
     else
 
-       ! NON-COLOCATED FORMULATION WITH ORDERED TRAINING POINTS:
+!        ! NON-COLOCATED FORMULATION WITH ORDERED TRAINING POINTS:
 
-       allocate (u_n(stencil_size))
+!        allocate (u_n(stencil_size))
 
-       ! WHOLE DOMAIN COMPUTATION: 
-!call cpu_time(tic)
-!       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
-       do k_boxCenter = z_plane, z_plane                    
-       do j_boxCenter = boxFirst, boxLast, boxCenterSkip
-       do i_boxCenter = boxFirst, boxLast, boxCenterSkip
+!        ! WHOLE DOMAIN COMPUTATION: 
+! !call cpu_time(tic)
+! !       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
+!        do k_boxCenter = z_plane, z_plane                    
+!        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
+!        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
-          if (trainingPoints.eq.'random') then
-             call randTrainingSet(randMask)
-             rand_count = 0
-          end if
-          row_index  = 0 
+!           if (trainingPoints.eq.'random') then
+!              call randTrainingSet(randMask)
+!              rand_count = 0
+!           end if
+!           row_index  = 0 
 
-           ! VISIT TRAINING POINT: C-ORDER
-          do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip       
-          do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
-          do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip       
+!            ! VISIT TRAINING POINT: C-ORDER
+!           do k_train = k_boxCenter-boxLower, k_boxCenter+boxUpper, trainingPointSkip       
+!           do j_train = j_boxCenter-boxLower, j_boxCenter+boxUpper, trainingPointSkip
+!           do i_train = i_boxCenter-boxLower, i_boxCenter+boxUpper, trainingPointSkip       
 
               
-              if (trainingPoints.eq.'random') then
-                 rand_count = rand_count + 1
-                 if (any(randMask.eq.rand_count)) cycle
-              end if
+!               if (trainingPoints.eq.'random') then
+!                  rand_count = rand_count + 1
+!                  if (any(randMask.eq.rand_count)) cycle
+!               end if
 
-             ! Replace this loop with subroutine build_V()
-             col_index = 0 
-             row_index = row_index + 1
-!print*, row_index, i_train, j_train, k_train
-
-
-             ! ZERO ORDER TERMS: 80 C 0
-             col_index = col_index + 1
-             V(row_index, col_index) = 1.d0
+!              ! Replace this loop with subroutine build_V()
+!              col_index = 0 
+!              row_index = row_index + 1
+! !print*, row_index, i_train, j_train, k_train
 
 
-             ! ENTER 3x3x3 STENCIL: C-ORDER
-             u_n = reshape(u_t (:, i_train-Delta_test : i_train+Delta_test : Delta_test, & 
-                                   j_train-Delta_test : j_train+Delta_test : Delta_test, &
-                                   k_train-Delta_test : k_train+Delta_test : Delta_test), [stencil_size])
+!              ! ZERO ORDER TERMS: 80 C 0
+!              col_index = col_index + 1
+!              V(row_index, col_index) = 1.d0
 
-             ! FIRST ORDER TERMS: 81 C 1      
-             do non_col_1 = 1,stencil_size 
-                col_index = col_index + 1
-                V(row_index,col_index) = u_n(non_col_1)
-             end do
 
-             ! SECOND ORDER TERMS: 82 C 2
-             if(order == 2) then
-             do non_col_1 = 1, stencil_size
-             do non_col_2 = non_col_1, stencil_size
-                col_index = col_index + 1
-                V(row_index,col_index) = u_n(non_col_1) * u_n(non_col_2)
-             end do
-             end do
-             end if
+!              ! ENTER 3x3x3 STENCIL: C-ORDER
+!              u_n = reshape(u_t (:, i_train-Delta_test : i_train+Delta_test : Delta_test, & 
+!                                    j_train-Delta_test : j_train+Delta_test : Delta_test, &
+!                                    k_train-Delta_test : k_train+Delta_test : Delta_test), [stencil_size])
 
-             T(row_index,:) = T_ij(:,i_train,j_train,k_train) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
+!              ! FIRST ORDER TERMS: 81 C 1      
+!              do non_col_1 = 1,stencil_size 
+!                 col_index = col_index + 1
+!                 V(row_index,col_index) = u_n(non_col_1)
+!              end do
 
-          end do
-          end do
-          end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
+!              ! SECOND ORDER TERMS: 82 C 2
+!              if(order == 2) then
+!              do non_col_1 = 1, stencil_size
+!              do non_col_2 = non_col_1, stencil_size
+!                 col_index = col_index + 1
+!                 V(row_index,col_index) = u_n(non_col_1) * u_n(non_col_2)
+!              end do
+!              end do
+!              end if
+
+!              T(row_index,:) = T_ij(:,i_train,j_train,k_train) !Change 1 to (1-6) here. !THIS ONE IS CORRECT; KEEP IT.
+
+!           end do
+!           end do
+!           end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
 !call cpu_time(toc)
 !print*, 'Time to build V matrix, t1 = ', toc-tic          
@@ -744,6 +809,7 @@ contains
           col_index = col_index + 1
           T_ijOpt   (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
           
+          ! 12
           do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
           do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
           do i_stencil = i_opt-Delta_test, i_opt+Delta_test, Delta_test
@@ -752,9 +818,13 @@ contains
              do u_comp = 1, n_u
                 col_index = col_index + 1
 
-                T_ijOpt (:,i_opt,j_opt,k_opt) = T_ijOpt (:,i_opt,j_opt,k_opt)             &
+                T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+
+                T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt)             &
+                                        +                                          &
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
              end do
 
              
@@ -763,9 +833,13 @@ contains
                 do uu_comp = 1, n_uu
                    col_index = col_index + 1
 
-                   T_ijOpt (:,i_opt,j_opt,k_opt) = T_ijOpt(:,i_opt,j_opt,k_opt)               &
+                   T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt(1,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+
+                   T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt(2,i_opt,j_opt,k_opt)               &
+                        +                                            &
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
                 end do
              end if
 
@@ -787,20 +861,184 @@ contains
              ! FIRST ORDER TERMS:             
              do u_comp = 1, n_u
                 col_index = col_index + 1
-                tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt)         &
+                tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt)         &
                      +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+
+                tau_ijOpt(2,i_opt,j_opt,k_opt) = tau_ijOpt(2,i_opt,j_opt,k_opt)         &
+                     +                                          &
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+
              end do
              
              ! SECOND ORDER TERMS: 
              if (order == 2) then
                 do uu_comp = 1, n_uu
                    col_index = col_index + 1
-                   tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
+                   tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt) &
                         +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,:)
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                    tau_ijOpt(2,i_opt,j_opt,k_opt) = tau_ijOpt(2,i_opt,j_opt,k_opt) &
+                        +                                &
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+ 
                 end do
              end if
+
+          end do
+          end do
+          end do
+
+        ! 45
+          col_index = 1
+          do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
+          do i_stencil = i_opt+Delta_test, i_opt-Delta_test, -Delta_test
+          do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
+
+             ! FIRST ORDER TERMS:             
+             do u_comp = 1, n_u
+                col_index = col_index + 1
+
+                T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt)             &
+                                        +                                          &
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+
+                T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt)             &
+                                        +                                          &
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)
+             end do
+
+             
+             ! SECOND ORDER TERMS: 
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
+
+                   T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt(4,i_opt,j_opt,k_opt)               &
+                        +                                            &
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+
+                   T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt(5,i_opt,j_opt,k_opt)               &
+                        +                                            &
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)    
+                end do
+             end if
+
+          end do
+          end do
+          end do
+
+          ! tau_ij^F: LES scale
+          col_index = 1
+          
+          do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
+          do i_stencil = i_opt+Delta_LES, i_opt-Delta_LES, -Delta_LES
+          do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES  
+
+             ! FIRST ORDER TERMS:             
+             do u_comp = 1, n_u
+                col_index = col_index + 1
+                tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt)         &
+                     +                                          &
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+
+                tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt)         &
+                     +                                          &
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)
+
+             end do
+             
+             ! SECOND ORDER TERMS: 
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
+                   tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt) &
+                        +                                &
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+                    tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt) &
+                        +                                &
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)
+ 
+                end do
+             end if
+
+          end do
+          end do
+          end do
+
+          ! 36
+          col_index = 1
+          
+          do j_stencil = j_opt+Delta_test, j_opt-Delta_test, -Delta_test
+          do i_stencil = i_opt+Delta_test, i_opt-Delta_test, -Delta_test
+          do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
+
+             ! FIRST ORDER TERMS:             
+             do u_comp = 1, n_u
+                col_index = col_index + 1
+
+                T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt)             &
+                                        +                                          &
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+
+                T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt)             &
+                                        +                                          &
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)
+             end do
+
+             
+             ! SECOND ORDER TERMS: 
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
+
+                   T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt(3,i_opt,j_opt,k_opt)               &
+                        +                                            &
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+
+                   T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt(6,i_opt,j_opt,k_opt)               &
+                        +                                            &
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)    
+                end do
+             end if
+
+          end do
+          end do
+          end do
+
+          ! tau_ij^F: LES scale
+          col_index = 1
+            
+          do j_stencil = j_opt+Delta_LES, j_opt-Delta_LES, -Delta_LES
+          do i_stencil = i_opt+Delta_LES, i_opt-Delta_LES, -Delta_LES
+          do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES  
+
+             ! FIRST ORDER TERMS:             
+             do u_comp = 1, n_u
+                col_index = col_index + 1
+                tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt)         &
+                     +                                          &
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+
+                tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt)         &
+                     +                                          &
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)
+
+             end do
+             
+             ! SECOND ORDER TERMS: 
+             if (order == 2) then
+                do uu_comp = 1, n_uu
+                   col_index = col_index + 1
+                   tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt) &
+                        +                                &
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+                    tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt) &
+                        +                                &
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)
+ 
+                end do
+             end if             
 !call cpu_time(toc)
 !print*, 'Time to compute one cell, t3 = ', toc-tic
 !stop
@@ -918,19 +1156,20 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine LU (V,  T_ij, h_ij)
+  subroutine LU (idx, V,  T_ij, h_ij)
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(:,:), intent(in)  :: V 
-    real(8), dimension(:,:), intent(in)  :: T_ij
+    real(8), dimension(:), intent(in)  :: T_ij
     real(8), dimension(:,:), intent(out) :: h_ij
+    integer, intent(in) :: idx
     !
     !    ..SCALAR ARGUMENTS..
 !    real(8),optional :: lambda
     !
     !    ..LOCAL ARRAYS.. 
     real(8), dimension(:,:), allocatable  :: A
-    real(8), dimension(:,:), allocatable  :: b
+    real(8), dimension(:), allocatable  :: b
     integer, dimension(:),   allocatable  :: IPIV
     !
     !    ..DGEMM ARGUMENTS..
@@ -944,10 +1183,10 @@ contains
     integer :: INFO
 
     LWMAX = M * N
-    NRHS = P
+    NRHS = 1 ! NOT P since it is computed ONE at a time
     !
     ! Allocate work arrays
-    allocate (A(N,N), b(N,P), IPIV(N))
+    allocate (A(N,N), b(N), IPIV(N))
     allocate (WORK(LWMAX))
 
     ! 
@@ -958,14 +1197,14 @@ contains
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 
-    call DGEMM('T', 'N', N, P, M, alpha, V, M, T_ij, M, beta, b, N)
+    call DGEMM('T', 'N', N, NRHS, M, alpha, V, M, T_ij, M, beta, b, N)
 
     !
     ! Solve Linear System: A(N,N) h_ij(N,P) = b(N,P)
     LWORK = -1
-    call DSYSV('Lower', N, P, A, N, IPIV, b, N, WORK, LWORK, INFO) 
+    call DSYSV('Lower', N, NRHS, A, N, IPIV, b, N, WORK, LWORK, INFO) 
     LWORK = min(LWMAX, int(WORK(1)))
-    call DSYSV('Lower', N, P, A, N, IPIV, b, N, WORK, LWORK, INFO) 
+    call DSYSV('Lower', N, NRHS, A, N, IPIV, b, N, WORK, LWORK, INFO) 
     ! + DGESV IS THE ALTERNATE OPTION - Stashed above.
 
     ! Convergence check:
@@ -976,7 +1215,7 @@ contains
 
     !
     ! Return h_ij
-    h_ij = b
+    h_ij(:,idx) = b
 
   end subroutine LU
 

@@ -662,75 +662,75 @@ contains
 !           end do
 !           end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
-!call cpu_time(toc)
-!print*, 'Time to build V matrix, t1 = ', toc-tic          
+! !call cpu_time(toc)
+! !print*, 'Time to build V matrix, t1 = ', toc-tic          
 
-          ! CHECK V,T: ^^
-!print*, 'V(1500,2000) ',V(1500,2000)
-!print*, 'T(3,1) ', T(3,1)
+!           ! CHECK V,T: ^^
+! !print*, 'V(1500,2000) ',V(1500,2000)
+! !print*, 'T(3,1) ', T(3,1)
 
-          !
-          ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
-!          do iter = 1, n_lambda
-!             lambda = lambda_0(1) * 10**(iter-1)
-!             lambda = lambda_0(iter)
-!             print('(a8,ES10.2)'), 'lambda ',lambda
-!call cpu_time (tic)
-             !
-             ! CALL SOLVER: LATER SPLIT IT INTO 1) FACTORIZATION STEP (OUT OF LOOP)
-             ! AND 2] SOLUTION USING LAMBDA (WITHIN LOOP)
-             if (solutionMethod.eq.'LU') then
-                call LU(V, T, h_ij)                       ! DAMPED LEAST SQUARES 
-             elseif(solutionMethod.eq.'SVD') then
-                call SVD(V, T, h_ij, printval)             ! TSVD
-             else
-                print*, 'Choose correct solver: LU, SVD'
-                stop
-             end if
-!call cpu_time(toc)
-!print*, 'Time to invert, t2 = ', toc-tic
-             ! CHECK h_ij:
-             if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
-                if (h_ij(350,1).ne.-4.5121154730201521d-2)then
-                   print*, "Error! Check lambda, method or sorting order for h_ij computation:"
-                   print*, h_ij(350,1)
-                   !stop
-                else 
-                   print*,'SVD check ... Passed'
-                end if
-             end if
-
-!              ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
-              call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
-
-              ! KEEP IT FOR THE LAMBDA LOOP:
-             
-!              if (production_Term) then
-!                 call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
-!                 call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
-!                 if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+!           !
+!           ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
+! !          do iter = 1, n_lambda
+! !             lambda = lambda_0(1) * 10**(iter-1)
+! !             lambda = lambda_0(iter)
+! !             print('(a8,ES10.2)'), 'lambda ',lambda
+! !call cpu_time (tic)
+!              !
+!              ! CALL SOLVER: LATER SPLIT IT INTO 1) FACTORIZATION STEP (OUT OF LOOP)
+!              ! AND 2] SOLUTION USING LAMBDA (WITHIN LOOP)
+!              if (solutionMethod.eq.'LU') then
+!                 call LU(V, T, h_ij)                       ! DAMPED LEAST SQUARES 
+!              elseif(solutionMethod.eq.'SVD') then
+!                 call SVD(V, T, h_ij, printval)             ! TSVD
+!              else
+!                 print*, 'Choose correct solver: LU, SVD'
+!                 stop
+!              end if
+! !call cpu_time(toc)
+! !print*, 'Time to invert, t2 = ', toc-tic
+!              ! CHECK h_ij:
+!              if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
+!                 if (h_ij(350,1).ne.-4.5121154730201521d-2)then
+!                    print*, "Error! Check lambda, method or sorting order for h_ij computation:"
+!                    print*, h_ij(350,1)
+!                    !stop
+!                 else 
+!                    print*,'SVD check ... Passed'
+!                 end if
 !              end if
 
-             !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
-!             call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
-!             call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
+! !              ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+!               call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
 
-!          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
+!               ! KEEP IT FOR THE LAMBDA LOOP:
+             
+! !              if (production_Term) then
+! !                 call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+! !                 call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+! !                 if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+! !              end if
 
-       end do
-       end do
-       end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
+!              !  FIND TRAINING ERROR FOR EACH BOX [THERE WILL BE TOO MANY BOXES; USE IF CONDITION]
+! !             call trainingerror(T_ijOpt,   T_ij,    error_cross_T_ij,   'plot', cross_csv_T_ij   )
+! !             call trainingError(tau_ijOpt, tau_ij,  error_cross_tau_ij, 'plot', cross_csv_tau_ij )
+
+! !          end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX
+
+!        end do
+!        end do
+!        end do ! BOX. DONE COMPUTING OPTIMIZED STRESSES IN ALL BOUNDING BOXES. 
 
 
 
        
-       ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
-        if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
-        if (production_Term) then
-           call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
-           call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
-           if (save_ProductionTerm)                             call plotProductionTerm(lambda)
-        end if
+!        ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
+!         if (plot_Stress)                                        call plotComputedStress(lambda,'All')     
+!         if (production_Term) then
+!            call productionTerm(Pij_fOpt, tau_ijOpt, Sij_f)
+!            call productionTerm(Pij_tOpt, T_ijOpt,   Sij_t)
+!            if (save_ProductionTerm)                             call plotProductionTerm(lambda)
+!         end if
 
 
     end if
@@ -1159,10 +1159,11 @@ contains
   subroutine LU (idx, V,  T_ij, h_ij)
     !
     !    ..ARRAY ARGUMENTS..
+    integer, intent(in) :: idx
     real(8), dimension(:,:), intent(in)  :: V 
     real(8), dimension(:), intent(in)  :: T_ij
     real(8), dimension(:,:), intent(out) :: h_ij
-    integer, intent(in) :: idx
+    
     !
     !    ..SCALAR ARGUMENTS..
 !    real(8),optional :: lambda

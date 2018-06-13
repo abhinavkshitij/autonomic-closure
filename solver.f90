@@ -542,15 +542,15 @@ contains
 !call cpu_time (tic)
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
-               !  do idx = 1,6
-               !     call LU(idx, V(idx,1:M,1:N), T(1:M,idx), h_ij(1:N,:))    ! DAMPED LEAST SQUARES 
-               ! end do
-                   call LU(V(1:M,1:N,1), T(1:M,1), h_ij(1:N,1))    ! DAMPED LEAST SQUARES
-                   call LU(V(1:M,1:N,2), T(1:M,2), h_ij(1:N,2))    ! DAMPED LEAST SQUARES 
-                   call LU(V(1:M,1:N,3), T(1:M,3), h_ij(1:N,3))    ! DAMPED LEAST SQUARES 
-                   call LU(V(1:M,1:N,4), T(1:M,4), h_ij(1:N,4))    ! DAMPED LEAST SQUARES 
-                   call LU(V(1:M,1:N,5), T(1:M,5), h_ij(1:N,5))    ! DAMPED LEAST SQUARES 
-                   call LU(V(1:M,1:N,6), T(1:M,6), h_ij(1:N,6))    ! DAMPED LEAST SQUARES 
+                do idx = 1,6
+                   call LU(V(:,:,idx), T(:,idx), h_ij(:,idx))    ! DAMPED LEAST SQUARES 
+                end do
+                   ! call LU(V(1,1:M,1:N), T(1:M,1), h_ij(1:N,1))    ! DAMPED LEAST SQUARES
+                   ! call LU(V(2,1:M,1:N), T(1:M,2), h_ij(1:N,2))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(3,1:M,1:N), T(1:M,3), h_ij(1:N,3))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(4,1:M,1:N), T(1:M,4), h_ij(1:N,4))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(5,1:M,1:N), T(1:M,5), h_ij(1:N,5))    ! DAMPED LEAST SQUARES 
+                   ! call LU(V(6,1:M,1:N), T(1:M,6), h_ij(1:N,6))    ! DAMPED LEAST SQUARES 
                 elseif(solutionMethod.eq.'SVD') then
                    !call SVD(V, T, h_ij, printval)             ! TSVD
                 else
@@ -1161,10 +1161,10 @@ contains
     !
     !    ..ARRAY ARGUMENTS..
     !integer, intent(in) :: idx
-    real(8), dimension(M,N), intent(in)  :: V 
-    real(8), dimension(M), intent(in)  :: T_ij
+    real(8), dimension(:,:), intent(in)  :: V 
+    real(8), dimension(:), intent(in)  :: T_ij
 !    real(8), dimension(:,:), intent(out) :: h_ij
-    real(8), dimension(N), intent(out) :: h_ij
+    real(8), dimension(:), intent(out) :: h_ij
     
     !
     !    ..SCALAR ARGUMENTS..

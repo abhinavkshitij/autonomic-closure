@@ -55,7 +55,7 @@ module global
   end type list
 
   ! CASES
-  type(list), parameter :: l_case(19) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
+  type(list), parameter :: l_case(20) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
                                          list('1b','CL14''','colocated_local_O1_4N_P'),   & ! 2
                                          list('2a','CL18',  'colocated_local_O1_8N'),     & ! 3
                                          list('2b','CL18''','colocated_local_O1_8N_P'),   & ! 4
@@ -73,7 +73,8 @@ module global
                                          list('8b','CL2(5)','colocated_point_O2_5'),      & ! 16
                                          list('9a','CL1(7)','colocated_point_O1_7'),      & ! 17
                                          list('9b','CL2(7)','colocated_point_O2_7'),      & ! 18
-                                         list('3a(o)','CL24o','colocated_local_O2_4N_O')]   ! 19
+                                         list('3a(o)','CL24o','colocated_local_O2_4N_O'), & ! 19
+                                          list('3a(t)','CL24t','colocated_local_O2_4N_T')]  ! 20
 
 
   ! MACHINE TYPE 
@@ -142,10 +143,10 @@ module global
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
-  character(8) :: dataset        = trim (l_dataset(6) % name)        ! [...,JHU[2], HST[3],...]
+  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 5                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 20                                 ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]
@@ -169,7 +170,7 @@ module global
 
 
   character(48) :: CASE_NAME
-!  character(*), parameter :: CASE_NAME = 'scratch-col'
+!  character(*), parameter :: CASE_NAME = 'scratch'
 !  character(*), parameter :: CASE_NAME = 'z_plane/43/colocated_global'
   character(16) :: z_plane_name
 
@@ -434,13 +435,13 @@ contains
     RES_PATH = RES_DIR
 
     ! GRID:
-!    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
-    i_GRID = 42;    j_GRID = 42;    k_GRID = 42
+    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
+!    i_GRID = 42;    j_GRID = 42;    k_GRID = 42
     
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 23!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'
@@ -455,7 +456,8 @@ contains
     
     ! TIMESTEPS:
     if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D' .or. dataset.eq.'jhu42') then
-       time = '42'; time_init = 42; time_incr = 1; time_final = 42
+!       time = '42'; time_init = 42; time_incr = 1; time_final = 42
+       time = '256'; time_init = 256; time_incr = 1; time_final = 256
        nu = 1.85d-4
     end if
     if (dataset.eq.'nrl') time = '0460'
@@ -486,8 +488,10 @@ contains
     P = 6
 
     ! SCALE
-    if (dataset.eq.'jhu256'.or.dataset.eq.'jhu42') then
-       LES_scale  = 20;    test_scale = 10
+    if (dataset.eq.'jhu256') then
+       LES_scale  = 40;    test_scale = 20
+    elseif (dataset.eq.'jhu42') then
+       LES_scale  = 20;    test_scale = 10   
     else if (dataset.eq.'hst'.and.hst_set.eq.'S6') then
        LES_scale  = 20;    test_scale = 10
     else if (dataset.eq.'hst'.and.hst_set.eq.'S1') then
@@ -498,7 +502,7 @@ contains
     Delta_test = floor(real(Freq_Nyq) / real(test_scale))    
 
     ! FFT GRID: Set f_GRID[CUBIC]
-    f_GRID = 42!256 
+    f_GRID = i_GRID!256 
     center = (0.5d0 * f_GRID) + 1.d0
 
     ! STENCIL: Set N  [noncolocated/colocated]
@@ -529,8 +533,8 @@ contains
             * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
     ! RANDOM
     elseif (trainingPoints.eq.'random') then 
-!       M = M_N_ratio * N ! Default
-       M = 1000      ! change here for CP(*)3,5,7 = 27,64,125
+       M = M_N_ratio * N ! Default
+!       M = 1000      ! change here for CP(*)3,5,7 = 27,64,125
        trainingPointSkip = Delta_test
 
        if (scheme.eq.'global') then

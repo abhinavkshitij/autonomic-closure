@@ -376,7 +376,7 @@ contains
 ! ##
     
 
-    allocate (V (P, M, N) )
+    allocate (V (M, N, P) )
     allocate (T (M, P) )
 ! ###
 
@@ -426,7 +426,7 @@ contains
 
                 ! ZERO ORDER TERMS:
                 col_index = col_index + 1        
-                V(:, row_index, col_index) = 1.d0
+                V(row_index, col_index,:) = 1.d0
                
 
                 ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
@@ -438,16 +438,16 @@ contains
                    ! FIRST ORDER TERMS:
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
-                      V(1,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(2,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index,col_index,1) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index,col_index,2) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
-                         V(1,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(2,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index,col_index,1) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index,col_index,2) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
 
@@ -466,16 +466,16 @@ contains
                    ! FIRST ORDER TERMS:
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
-                      V(4,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(5,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index,col_index,4) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index,col_index,5) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
-                         V(4,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(5,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index,col_index,4) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index,col_index,5) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
 
@@ -493,16 +493,16 @@ contains
                    ! FIRST ORDER TERMS:
                    do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
                       col_index = col_index+1
-                      V(3,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(6,row_index,col_index) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index,col_index,3) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                      V(row_index,col_index,6) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
                    end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
                       do uu_comp = 1, n_uu 
                          col_index = col_index+1
-                         V(3,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(6,row_index,col_index) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index,col_index,3) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
+                         V(row_index,col_index,6) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
                       end do
                    end if
 
@@ -542,14 +542,15 @@ contains
 !call cpu_time (tic)
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
-                do idx = 1,6
-                   call LU(idx, V(idx,1:M,1:N), T(1:M,idx), h_ij(1:N,:))    ! DAMPED LEAST SQUARES 
-               end do
-                   ! call LU(V(2,1:M,1:N), T(1:M,2), h_ij(1:N,2))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(3,1:M,1:N), T(1:M,3), h_ij(1:N,3))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(4,1:M,1:N), T(1:M,4), h_ij(1:N,4))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(5,1:M,1:N), T(1:M,5), h_ij(1:N,5))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(6,1:M,1:N), T(1:M,6), h_ij(1:N,6))    ! DAMPED LEAST SQUARES 
+               !  do idx = 1,6
+               !     call LU(idx, V(idx,1:M,1:N), T(1:M,idx), h_ij(1:N,:))    ! DAMPED LEAST SQUARES 
+               ! end do
+                   call LU(V(1:M,1:N,1), T(1:M,1), h_ij(1:N,1))    ! DAMPED LEAST SQUARES
+                   call LU(V(1:M,1:N,2), T(1:M,2), h_ij(1:N,2))    ! DAMPED LEAST SQUARES 
+                   call LU(V(1:M,1:N,3), T(1:M,3), h_ij(1:N,3))    ! DAMPED LEAST SQUARES 
+                   call LU(V(1:M,1:N,4), T(1:M,4), h_ij(1:N,4))    ! DAMPED LEAST SQUARES 
+                   call LU(V(1:M,1:N,5), T(1:M,5), h_ij(1:N,5))    ! DAMPED LEAST SQUARES 
+                   call LU(V(1:M,1:N,6), T(1:M,6), h_ij(1:N,6))    ! DAMPED LEAST SQUARES 
                 elseif(solutionMethod.eq.'SVD') then
                    !call SVD(V, T, h_ij, printval)             ! TSVD
                 else
@@ -1156,22 +1157,23 @@ contains
   !
   !----------------------------------------------------------------
   
-  subroutine LU (idx, V,  T_ij, h_ij)
+  subroutine LU (V,  T_ij, h_ij)
     !
     !    ..ARRAY ARGUMENTS..
-    integer, intent(in) :: idx
-    real(8), dimension(:,:), intent(in)  :: V 
-    real(8), dimension(:), intent(in)  :: T_ij
-    real(8), dimension(:,:), intent(out) :: h_ij
+    !integer, intent(in) :: idx
+    real(8), dimension(M,N), intent(in)  :: V 
+    real(8), dimension(M), intent(in)  :: T_ij
+!    real(8), dimension(:,:), intent(out) :: h_ij
+    real(8), dimension(N), intent(out) :: h_ij
     
     !
     !    ..SCALAR ARGUMENTS..
 !    real(8),optional :: lambda
     !
     !    ..LOCAL ARRAYS.. 
-    real(8), dimension(:,:), allocatable  :: A
-    real(8), dimension(:), allocatable  :: b
-    integer, dimension(:),   allocatable  :: IPIV
+    real(8), dimension(N,N)  :: A
+    real(8), dimension(N) :: b
+    integer, dimension(N):: IPIV
     !
     !    ..DGEMM ARGUMENTS..
     real(8):: alpha = 1.d0, beta = 0.d0
@@ -1187,7 +1189,7 @@ contains
     NRHS = 1 ! NOT P since it is computed ONE at a time
     !
     ! Allocate work arrays
-    allocate (A(N,N), b(N), IPIV(N))
+    !allocate (A(N,N), b(N), IPIV(N))
     allocate (WORK(LWMAX))
 
     ! 
@@ -1216,7 +1218,8 @@ contains
 
     !
     ! Return h_ij
-    h_ij(:,idx) = b
+!    h_ij(:,idx) = b
+    h_ij = b
 
   end subroutine LU
 

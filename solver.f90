@@ -348,6 +348,8 @@ contains
     !    ..LOCAL ARRAYS..
     real(8), dimension(:,:,:),   allocatable :: V  
     real(8), dimension(:,:),     allocatable :: T  
+    real(8), dimension(:,:,:),   allocatable :: temp_V  
+    real(8), dimension(:,:),     allocatable :: temp_T  
     !
     !    .. NON-COLOCATED..
     real(8), dimension(:), allocatable :: u_n
@@ -378,6 +380,9 @@ contains
 
     allocate (V (M, N, P) )
     allocate (T (M, P) )
+
+    allocate (temp_V (3*M, N, 2) )
+    allocate (temp_T (3*M, 2) )
 ! ###
 
     ! COLOCATED FORMULATION WITH RANDOMLY SELECTED TRANING POINTS:
@@ -397,7 +402,8 @@ contains
 
 
        ! Z-MIDPLANE COMPUTATION: 
-       do k_boxCenter = zLower, zUpper
+       !do k_boxCenter = zLower, zUpper
+       do k_boxCenter = 23, 23
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
@@ -519,6 +525,38 @@ contains
              call progressBar(k_boxCenter, boxLast)
              end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
 
+! REBUILD V MATRIX WTIH ALL ON-DIAGONAL AND OFF-DIAGONAL components
+    !allocate (temp_V (3*M, N, P/3) )
+    !allocate (temp_T (3*M, P/3) )
+
+    ! V MATRIX
+    temp_V (1:M,:,1)        = V(1:M,:,1)
+    temp_V (M+1:2*M,:,1)    = V(1:M,:,4)
+    temp_V (2*M+1:3*M,:,1)  = V(1:M,:,6)
+
+    temp_V (1:M,:,2)        = V(1:M,:,2)
+    temp_V (M+1:2*M,:,2)    = V(1:M,:,3)
+    temp_V (2*M+1:3*M,:,2)  = V(1:M,:,5)
+
+    ! T MATRIX
+    temp_T (1:M,1)          = T(1:M,1)
+    temp_T (M+1:2*M,1)      = T(1:M,4)
+    temp_T (2*M+1:3*M,1)    = T(1:M,6)
+
+    temp_T (1:M,2)          = T(1:M,2)
+    temp_T (M+1:2*M,2)      = T(1:M,3)
+    temp_T (2*M+1:3*M,2)    = T(1:M,5)
+
+    !deallocate (V,T)
+    !allocate(V(3*M, N, P/3)) 
+    !allocate(T(3*M, P/3)) 
+
+    !V = temp_V
+    !T = temp_T
+
+    !deallocate (temp_V, temp_T)
+
+
 !DEBUG: Print V matrix 
 ! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
 !   ! Save V matrix
@@ -542,8 +580,8 @@ contains
 !call cpu_time (tic)
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
-                do idx = 1,6
-                   call LU(V(:,:,idx), T(:,idx), h_ij(:,idx))    ! DAMPED LEAST SQUARES 
+                do idx = 1,2
+                   call LU(temp_V(:,:,idx), temp_T(:,idx), h_ij(:,idx))    ! DAMPED LEAST SQUARES 
                 end do
                    ! call LU(V(1,1:M,1:N), T(1:M,1), h_ij(1:N,1))    ! DAMPED LEAST SQUARES
                    ! call LU(V(2,1:M,1:N), T(1:M,2), h_ij(1:N,2))    ! DAMPED LEAST SQUARES 
@@ -808,7 +846,12 @@ contains
           
           ! ZERO ORDER TERMS: [1]
           col_index = col_index + 1
-          T_ijOpt   (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
+          T_ijOpt   (1,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          T_ijOpt   (4,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          T_ijOpt   (6,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          T_ijOpt   (2,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
+          T_ijOpt   (3,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
+          T_ijOpt   (5,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
           
           ! 12
           do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
@@ -853,7 +896,12 @@ contains
           
           ! ZERO ORDER TERMS: [1]
           col_index = col_index + 1
-          tau_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,:) 
+          tau_ijOpt (1,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          tau_ijOpt (4,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          tau_ijOpt (6,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          tau_ijOpt (2,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
+          tau_ijOpt (3,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
+          tau_ijOpt (5,i_opt, j_opt, k_opt) = h_ij(col_index,2)
           
           do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
           do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES
@@ -902,11 +950,11 @@ contains
 
                 T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                 T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
              end do
 
              
@@ -917,11 +965,11 @@ contains
 
                    T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt(4,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                    T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt(5,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)    
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
                 end do
              end if
 
@@ -941,11 +989,11 @@ contains
                 col_index = col_index + 1
                 tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt)         &
                      +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                 tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt)         &
                      +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
              end do
              
@@ -955,10 +1003,10 @@ contains
                    col_index = col_index + 1
                    tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt) &
                         +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,4)
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
                     tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt) &
                         +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,5)
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
  
                 end do
              end if
@@ -980,11 +1028,11 @@ contains
 
                 T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
                 T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
              end do
 
              
@@ -995,11 +1043,11 @@ contains
 
                    T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt(3,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
                    T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt(6,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)    
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)    
                 end do
              end if
 
@@ -1019,11 +1067,11 @@ contains
                 col_index = col_index + 1
                 tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt)         &
                      +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
                 tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt)         &
                      +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)
+                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
              end do
              
@@ -1033,10 +1081,10 @@ contains
                    col_index = col_index + 1
                    tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt) &
                         +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,3)
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
                     tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt) &
                         +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,6)
+                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
  
                 end do
              end if             

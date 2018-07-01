@@ -143,7 +143,7 @@ module global
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
-  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
+  character(8) :: dataset        = trim (l_dataset(6) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
   integer      :: case_idx       = 20                                 ! [1 - CL14, ...]          
@@ -435,13 +435,13 @@ contains
     RES_PATH = RES_DIR
 
     ! GRID:
-    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
-!    i_GRID = 42;    j_GRID = 42;    k_GRID = 42
+!    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
+    i_GRID = 42;    j_GRID = 42;    k_GRID = 42
     
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 23!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'
@@ -456,8 +456,8 @@ contains
     
     ! TIMESTEPS:
     if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D' .or. dataset.eq.'jhu42') then
-!       time = '42'; time_init = 42; time_incr = 1; time_final = 42
-       time = '256'; time_init = 256; time_incr = 1; time_final = 256
+       time = '42'; time_init = 42; time_incr = 1; time_final = 42
+!       time = '256'; time_init = 256; time_incr = 1; time_final = 256
        nu = 1.85d-4
     end if
     if (dataset.eq.'nrl') time = '0460'
@@ -533,8 +533,8 @@ contains
             * (floor((real(box(3) - 1)) / trainingPointSkip) + 1)  
     ! RANDOM
     elseif (trainingPoints.eq.'random') then 
-       M = M_N_ratio * N ! Default
-!       M = 1000      ! change here for CP(*)3,5,7 = 27,64,125
+!       M = M_N_ratio * N ! Default
+       M = 1000      ! change here for CP(*)3,5,7 = 27,64,125
        trainingPointSkip = Delta_test
 
        if (scheme.eq.'global') then

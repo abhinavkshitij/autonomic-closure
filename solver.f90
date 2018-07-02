@@ -364,6 +364,7 @@ contains
     integer :: i_stencil,   j_stencil,   k_stencil 
     integer :: row_index, col_index, row, col, idx
     integer :: u_comp, uu_comp 
+    integer :: i, j
 
     
     real(8) :: error_cross_T_ij, error_cross_tau_ij
@@ -402,8 +403,8 @@ contains
 
 
        ! Z-MIDPLANE COMPUTATION: 
-       !do k_boxCenter = zLower, zUpper
-       do k_boxCenter = 23, 23
+       do k_boxCenter = zLower, zUpper
+       !do k_boxCenter = 23, 23
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
@@ -441,12 +442,12 @@ contains
                 do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
                 do i_stencil = i_train-Delta_test, i_train+Delta_test, Delta_test
               
-                   ! FIRST ORDER TERMS:
-                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
-                      col_index = col_index+1
-                      V(row_index,col_index,1) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index,col_index,2) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                   end do
+                   ! ! FIRST ORDER TERMS:
+                   ! do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
+                   !    col_index = col_index+1
+                   !    V(row_index,col_index,1) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   !    V(row_index,col_index,2) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   ! end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
@@ -469,12 +470,12 @@ contains
                 do i_stencil = i_train+Delta_test, i_train-Delta_test, -Delta_test
                 do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
               
-                   ! FIRST ORDER TERMS:
-                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
-                      col_index = col_index+1
-                      V(row_index,col_index,4) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index,col_index,5) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                   end do
+                   ! ! FIRST ORDER TERMS:
+                   ! do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
+                   !    col_index = col_index+1
+                   !    V(row_index,col_index,4) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   !    V(row_index,col_index,5) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   ! end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
@@ -496,12 +497,12 @@ contains
                 do i_stencil = i_train+Delta_test, i_train-Delta_test, -Delta_test
                 do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test 
               
-                   ! FIRST ORDER TERMS:
-                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
-                      col_index = col_index+1
-                      V(row_index,col_index,3) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index,col_index,6) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                   end do
+                   ! ! FIRST ORDER TERMS:
+                   ! do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
+                   !    col_index = col_index+1
+                   !    V(row_index,col_index,3) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   !    V(row_index,col_index,6) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
+                   ! end do
 
                    ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
                    if (order == 2) then
@@ -595,6 +596,24 @@ contains
                    print*, 'Choose correct solver: LU, SVD'
                    stop
                 end if
+! open(44,file='V_hat.dat',action='write')
+! do j= 1,10
+!     do i=1,10
+!         write(44,*) i,j, temp_V(i,j,2)
+!     end do
+! end do
+
+! open(45,file='T.dat',action='write')
+!      do i=1,1000
+!          write(45,*) i, T(i,2)
+!      end do
+
+! open(46,file='h_ij.dat',action='write')
+!     do i=1,163
+!         write(46,*) h_ij(i,2)
+!     end do
+
+! stop
 
 !DEBUG: Print h_ij matrix 
 ! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
@@ -859,17 +878,17 @@ contains
           do i_stencil = i_opt-Delta_test, i_opt+Delta_test, Delta_test
 
              ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
+             ! do u_comp = 1, n_u
+             !    col_index = col_index + 1
 
-                T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+             !    T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt)             &
+             !                            +                                          &
+             !         (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
-                T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-             end do
+             !    T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt)             &
+             !                            +                                          &
+             !         (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+             ! end do
 
              
              ! SECOND ORDER TERMS: 
@@ -907,18 +926,18 @@ contains
           do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES
           do i_stencil = i_opt-Delta_LES, i_opt+Delta_LES, Delta_LES
 
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-                tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+             ! ! FIRST ORDER TERMS:             
+             ! do u_comp = 1, n_u
+             !    col_index = col_index + 1
+             !    tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt)         &
+             !         +                                          &
+             !         (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
-                tau_ijOpt(2,i_opt,j_opt,k_opt) = tau_ijOpt(2,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+             !    tau_ijOpt(2,i_opt,j_opt,k_opt) = tau_ijOpt(2,i_opt,j_opt,k_opt)         &
+             !         +                                          &
+             !         (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
-             end do
+             ! end do
              
              ! SECOND ORDER TERMS: 
              if (order == 2) then
@@ -944,18 +963,18 @@ contains
           do i_stencil = i_opt+Delta_test, i_opt-Delta_test, -Delta_test
           do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
 
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
+             ! ! FIRST ORDER TERMS:             
+             ! do u_comp = 1, n_u
+             !    col_index = col_index + 1
 
-                T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+             !    T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt)             &
+             !                            +                                          &
+             !         (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
-                T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-             end do
+             !    T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt)             &
+             !                            +                                          &
+             !         (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+             ! end do
 
              
              ! SECOND ORDER TERMS: 
@@ -984,18 +1003,18 @@ contains
           do i_stencil = i_opt+Delta_LES, i_opt-Delta_LES, -Delta_LES
           do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES  
 
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-                tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+             ! ! FIRST ORDER TERMS:             
+             ! do u_comp = 1, n_u
+             !    col_index = col_index + 1
+             !    tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt)         &
+             !         +                                          &
+             !         (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
-                tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+             !    tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt)         &
+             !         +                                          &
+             !         (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
-             end do
+             ! end do
              
              ! SECOND ORDER TERMS: 
              if (order == 2) then
@@ -1022,18 +1041,18 @@ contains
           do i_stencil = i_opt+Delta_test, i_opt-Delta_test, -Delta_test
           do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
 
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
+             ! ! FIRST ORDER TERMS:             
+             ! do u_comp = 1, n_u
+             !    col_index = col_index + 1
 
-                T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+             !    T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt)             &
+             !                            +                                          &
+             !         (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
-                T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-             end do
+             !    T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt)             &
+             !                            +                                          &
+             !         (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+             ! end do
 
              
              ! SECOND ORDER TERMS: 
@@ -1062,18 +1081,18 @@ contains
           do i_stencil = i_opt+Delta_LES, i_opt-Delta_LES, -Delta_LES
           do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES  
 
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-                tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+             ! ! FIRST ORDER TERMS:             
+             ! do u_comp = 1, n_u
+             !    col_index = col_index + 1
+             !    tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt)         &
+             !         +                                          &
+             !         (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
-                tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+             !    tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt)         &
+             !         +                                          &
+             !         (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
-             end do
+             ! end do
              
              ! SECOND ORDER TERMS: 
              if (order == 2) then
@@ -1233,7 +1252,7 @@ contains
     integer :: NRHS 
     integer :: INFO
 
-    LWMAX = M * N
+    LWMAX = 3*M * N
     NRHS = 1 ! NOT P since it is computed ONE at a time
     !
     ! Allocate work arrays
@@ -1242,13 +1261,13 @@ contains
 
     ! 
     ! A(N,N) = V'(N,M) * V(M,N)
-    call DGEMM('T', 'N', N, N, M, alpha, V, M, V, M, beta, A, N)
+    call DGEMM('T', 'N', N, N, 3*M, alpha, V, 3*M, V, 3*M, beta, A, N)
 
     ! Apply damping: A = A + lambda*I
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 
-    call DGEMM('T', 'N', N, NRHS, M, alpha, V, M, T_ij, M, beta, b, N)
+    call DGEMM('T', 'N', N, NRHS, 3*M, alpha, V, 3*M, T_ij, 3*M, beta, b, N)
 
     !
     ! Solve Linear System: A(N,N) h_ij(N,P) = b(N,P)

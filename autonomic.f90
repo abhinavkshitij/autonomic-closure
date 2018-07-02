@@ -368,7 +368,7 @@ program autonomic
      ! 6] AUTONOMICALLY TUNED LAMBDA
      if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (6,i_GRID,j_GRID,zLower:zUpper))
      if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (6,i_GRID,j_GRID,zLower:zUpper))
-     if(allocated(h_ij).eqv..false.)               allocate (h_ij      (N,P/3))
+     if(allocated(h_ij).eqv..false.)               allocate (h_ij      (N,2))
 
      if (production_Term) then
         if(allocated(Pij_fOpt).eqv..false.)        allocate (Pij_fOpt  (i_GRID, j_GRID, zLower:zUpper))
@@ -411,7 +411,7 @@ program autonomic
   ! Ring an alarm:
    print*, '\a'
 !   print*, 'tau_ijOpt(:,1,1,1):', tau_ijOpt(:,1,1,1)
-   print*, 'tau_ijOpt(:,23,23,23):', tau_ijOpt(:,23,23,23)
+!   print*, 'tau_ijOpt(:,23,23,23):', tau_ijOpt(:,23,23,23)
 !   print*, 'tau_ijOpt(:,3,15,17):', tau_ijOpt(:,3,15,17)
 contains 
 

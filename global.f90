@@ -74,7 +74,7 @@ module global
                                          list('9a','CL1(7)','colocated_point_O1_7'),      & ! 17
                                          list('9b','CL2(7)','colocated_point_O2_7'),      & ! 18
                                          list('3a(o)','CL24o','colocated_local_O2_4N_O'), & ! 19
-                                          list('3a(t)','CL24t','colocated_local_O2_4N_T')]  ! 20
+                                          list('3a(t)','CL24t','colocated_local_O2_4N_temp')]  ! 20
 
 
   ! MACHINE TYPE 
@@ -455,9 +455,10 @@ contains
     dx = 2.d0*PI/dble(i_GRID) 
     
     ! TIMESTEPS:
-    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D' .or. dataset.eq.'jhu42') then
+    if (dataset.eq.'jhu256' .or. dataset.eq.'sin3D') then
+      time = '256'; time_init = 256; time_incr = 1; time_final = 256
+    elseif (dataset.eq.'jhu42') then
        time = '42'; time_init = 42; time_incr = 1; time_final = 42
-!       time = '256'; time_init = 256; time_incr = 1; time_final = 256
        nu = 1.85d-4
     end if
     if (dataset.eq.'nrl') time = '0460'
@@ -517,7 +518,8 @@ contains
              n_uu = n_uu + nCk(n_u, i)    ! NUMBER OF uu, [up, pp] PRODUCTS
           end do
        end if
-       N = 1 + ((n_u + n_uu) * (3*3*3))
+!       N = 1 + ((n_u + n_uu) * (3*3*3))
+       N = 163
     end if
 
     ! BOUNDING BOX: Set trainingPointSkip, box, M [ordered/random]

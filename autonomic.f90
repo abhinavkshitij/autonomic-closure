@@ -317,8 +317,8 @@ program autonomic
     if (plot_Stress)                    call plotOriginalStress('All')
       
 
-     if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
-     if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
+     ! if(allocated(Sij_f).eqv..false.)     allocate (Sij_f  (6, i_GRID,j_GRID,zLower:zUpper))
+     ! if(allocated(Sij_t).eqv..false.)     allocate (Sij_t  (6, i_GRID,j_GRID,zLower:zUpper))
 
      
      ! 5] ORIGINAL PRODUCTION FIELD 
@@ -368,7 +368,7 @@ program autonomic
      ! 6] AUTONOMICALLY TUNED LAMBDA
      if(allocated(T_ijOpt).eqv..false.)            allocate (T_ijOpt   (6,i_GRID,j_GRID,zLower:zUpper))
      if(allocated(tau_ijOpt).eqv..false.)          allocate (tau_ijOpt (6,i_GRID,j_GRID,zLower:zUpper))
-     if(allocated(h_ij).eqv..false.)               allocate (h_ij      (N,2))
+     if(allocated(h_ij).eqv..false.)               allocate (h_ij      (N,1))
 
      if (production_Term) then
         if(allocated(Pij_fOpt).eqv..false.)        allocate (Pij_fOpt  (i_GRID, j_GRID, zLower:zUpper))
@@ -395,6 +395,8 @@ program autonomic
         print('(a32,ES8.1)'), 'Autonomic closure, lambda = ', lambda, '\n'
         ! $$
         ! $$$ 
+!        allocate (Sij_t  (6, i_GRID,j_GRID,z_extLower:z_extUpper))
+!        call computeSij(u_t, Sij_t)
         call autonomicClosure (u_f, u_t, tau_ij, T_ij, T_ijB, h_ij, tau_ijOpt, T_ijOpt)
  !       call check_afterExtension()
      end do lambda_loop

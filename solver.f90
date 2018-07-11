@@ -31,8 +31,8 @@ module solver
   use actools
   implicit none
     integer :: i_boxCenter,    j_boxCenter,    k_boxCenter 
-    real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
-    real(8), dimension(:,:,:,:), allocatable :: uu_tB, uu_tG
+    real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_s
+    real(8), dimension(:,:,:,:), allocatable :: uu_sB, uu_sG
 contains
 
 
@@ -241,7 +241,7 @@ contains
   !      
   !      
   !      
-  ! FORM: subroutine autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
+  ! FORM: subroutine autonomicClosure (u_f, u_s, tau_ij, T_ij, h_ij)
   !       
   !      
   ! BEHAVIOR: Enter only one DAMPING value.
@@ -280,7 +280,7 @@ contains
   !  ###
   !   if(debug(2)) then
   !      print*,'shape tau_ij cutout:    ',shape(tau_ij)
-  !      print*,'shape uu_t cutout:      ',shape(uu_t)
+  !      print*,'shape uu_s cutout:      ',shape(uu_s)
   !      print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
   !   end if
   !
@@ -338,6 +338,7 @@ contains
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_t
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: T_ij
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: T_ijB
+!    real(8), dimension(1:,1:,1:,z_extLower:), intent(in) :: Sij_t
 
     real(8), dimension(:,:,:,:), intent(in) :: tau_ij
 
@@ -346,14 +347,17 @@ contains
     real(8), dimension(1:,1:,1:,zLower:), intent(out):: T_ijOpt
     !
     !    ..LOCAL ARRAYS..
-    real(8), dimension(:,:,:),   allocatable :: V  
-    real(8), dimension(:,:),     allocatable :: T  
-    real(8), dimension(:,:,:),   allocatable :: temp_V  
-    real(8), dimension(:,:),     allocatable :: temp_T  
+    real(8), dimension(:,:,:,:),allocatable :: u_s
+    real(8), dimension(:,:),   allocatable :: V  
+    real(8), dimension(:),     allocatable :: T  
+    real(8), dimension(:,:),   allocatable :: temp_V  
+    real(8), dimension(:),     allocatable :: temp_T  
     !
     !    .. NON-COLOCATED..
     real(8), dimension(:), allocatable :: u_n
-    integer :: non_col_1, non_col_2
+    real(8), dimension(27):: u_n1, u_n2, u_n3
+    real(8) :: u_G
+    integer :: non_col_1, non_col_2, col_1
     !
     !    ..RANDOM TRAINING POINTS (STENCIL-CENTERS)..
     integer :: rand_count
@@ -365,9 +369,14 @@ contains
     integer :: row_index, col_index, row, col, idx
     integer :: u_comp, uu_comp 
     integer :: i, j
-
-    
+    !
+    !   ..Cross-validation..
     real(8) :: error_cross_T_ij, error_cross_tau_ij
+    !
+    !   ..VELOCITY GRADIENTS..
+    real(8) :: du1dx1, du1dx2, du1dx3, du2dx1, du2dx2, du2dx3, du3dx1, du3dx2, du3dx3
+    real(8) :: dx_inv
+    real(8) :: Sij(6)
     !
     !    ..DEBUG..
     logical :: printval
@@ -378,35 +387,36 @@ contains
 
 ! ##
     
+    !
+    ! FIND 1/dx FOR CENTRAL DIFFERENCING
+    dx_inv = 1.d0/(2.d0*dble(Delta_test)*dx)
 
-    allocate (V (M, N, P) )
-    allocate (T (M, P) )
-
-    allocate (temp_V (3*M, N, 2) )
-    allocate (temp_T (3*M, 2) )
+    allocate(u_s(3,extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+    allocate (V (M, N) )
+    allocate (T (M) )
 ! ###
 
     ! COLOCATED FORMULATION WITH RANDOMLY SELECTED TRANING POINTS:
     if (formulation.eq.'colocated') then
 
-!call cpu_time(tic)
+!call cpu_sime(tic)
 
-       ! COMPUTE VELOCITY PRODUCTS: TAKE THIS STEP OUT - DON'T NEED TO SAVE EVERYTHING IN AN ARRAY
-       ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
-       ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
-       if (order == 2) then
-          if (allocated(uu_t).eqv..false.)allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
-          if (allocated(uu_f).eqv..false.)allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
-          call secondOrderProducts(uu_t, u_t)
-          call secondOrderProducts(uu_f, u_f)
-       end if
+       ! ! COMPUTE VELOCITY PRODUCTS: TAKE THIS STEP OUT - DON'T NEED TO SAVE EVERYTHING IN AN ARRAY
+       ! ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
+       ! ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
+       ! if (order == 2) then
+       !    if (allocated(uu_s).eqv..false.)allocate(uu_s(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+       !    if (allocated(uu_f).eqv..false.)allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+       !    call secondOrderProducts(uu_s, u_s)
+       !    call secondOrderProducts(uu_f, u_f)
+       ! end if
 
 
        ! Z-MIDPLANE COMPUTATION: 
-       do k_boxCenter = zLower, zUpper
-       !do k_boxCenter = 23, 23
-       do j_boxCenter = boxFirst, boxLast, boxCenterSkip
-       do i_boxCenter = boxFirst, boxLast, boxCenterSkip
+       !do k_boxCenter = zLower, zUpper
+       do k_boxCenter = 23, 23
+       do j_boxCenter = 23, 23!boxFirst, boxLast, boxCenterSkip
+       do i_boxCenter = 23, 23!boxFirst, boxLast, boxCenterSkip
 
 !print*, i_boxCenter, j_boxCenter, k_boxCenter
           if (trainingPoints.eq.'random') then
@@ -425,171 +435,304 @@ contains
                    if (any(randMask.eq.rand_count)) cycle
                 end if
 
-!print*, row_index, i_train, j_train, k_train
 
+                ! APPLY GALILEAN INVARIANCE
+                u_s = u_t
+
+                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test
+                do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
+                do i_stencil = i_train-Delta_test, i_train+Delta_test, Delta_test
+                    u_s(:,i_stencil,j_stencil,k_stencil) &
+                    = u_t (:,i_stencil,j_stencil,k_stencil) &
+                    - u_t (:,i_train, j_train, k_train)
+                end do 
+                end do 
+                end do 
+
+             
+                             
+                ! VELOCITY GRADIENTS:
+                du1dx1 = dx_inv * (u_s(1,i_train+Delta_test,j_train,k_train) &
+                                 - u_s(1,i_train-Delta_test,j_train,k_train))
+
+                du1dx2 = dx_inv * (u_s(1,i_train,j_train+Delta_test,k_train) &
+                                 - u_s(1,i_train,j_train-Delta_test,k_train))
+
+                du1dx3 = dx_inv * (u_s(1,i_train,j_train,k_train+Delta_test) &
+                                 - u_s(1,i_train,j_train,k_train-Delta_test))    
+
+                du2dx1 = dx_inv * (u_s(2,i_train+Delta_test,j_train,k_train) &
+                                 - u_s(2,i_train-Delta_test,j_train,k_train))
+
+                du2dx2 = dx_inv * (u_s(2,i_train,j_train+Delta_test,k_train) &
+                                 - u_s(2,i_train,j_train-Delta_test,k_train))
+
+                du2dx3 = dx_inv * (u_s(2,i_train,j_train,k_train+Delta_test) &
+                                 - u_s(2,i_train,j_train,k_train-Delta_test))
+
+                du3dx1 = dx_inv * (u_s(3,i_train+Delta_test,j_train,k_train) &
+                                 - u_s(3,i_train-Delta_test,j_train,k_train))
+
+                du3dx2 = dx_inv * (u_s(3,i_train,j_train+Delta_test,k_train) &
+                                 - u_s(3,i_train,j_train-Delta_test,k_train))
+
+                du3dx3 = dx_inv * (u_s(3,i_train,j_train,k_train+Delta_test) &
+                                 - u_s(3,i_train,j_train,k_train-Delta_test))
+
+               
+                ! STRAIN RATES
+                Sij(1) = du1dx1
+                Sij(2) = 0.5d0 * (du1dx2 + du2dx1)
+                Sij(3) = 0.5d0 * (du1dx3 + du3dx1)
+                Sij(4) = du2dx2
+                Sij(5) = 0.5d0 * (du2dx3 + du3dx2)
+                Sij(6) = du3dx3          
+           
+
+                ! VELOCITY PRODUCTS:   
+                u_n1 = reshape(u_s (1,i_train-Delta_test : i_train+Delta_test : Delta_test, & 
+                                      j_train-Delta_test : j_train+Delta_test : Delta_test, &
+                                      k_train-Delta_test : k_train+Delta_test : Delta_test), [27])
+
+                u_n2 = reshape(u_s (2,i_train-Delta_test : i_train+Delta_test : Delta_test, & 
+                                      j_train-Delta_test : j_train+Delta_test : Delta_test, &
+                                      k_train-Delta_test : k_train+Delta_test : Delta_test), [27])
+
+                u_n3 = reshape(u_s (3,i_train-Delta_test : i_train+Delta_test : Delta_test, & 
+                                      j_train-Delta_test : j_train+Delta_test : Delta_test, &
+                                      k_train-Delta_test : k_train+Delta_test : Delta_test), [27])
+
+
+                ! BUILD V MATRIX
+            ! 11 TENSOR COMPONENTS 
                 col_index = 0 
                 row_index = row_index + 1
 
-
-                ! ZERO ORDER TERMS:
+                ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index,:) = 1.d0
-               
+                V(row_index, col_index) = 1.d0
 
-                ! BUILD 3x3x3 STENCIL AT Delta_test SCALE:
-                ! V12
-                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test ! Vectorize using (PACK/UNPACK)
-                do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
-                do i_stencil = i_train-Delta_test, i_train+Delta_test, Delta_test
-              
-                   ! FIRST ORDER TERMS:
-                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
-                      col_index = col_index+1
-                      V(row_index,col_index,1) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index,col_index,2) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                   end do
+                ! STRAIN RATES:
+                col_index = col_index+1
+                V(row_index,col_index) = Sij(1)
 
-                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
-                   if (order == 2) then
-                      do uu_comp = 1, n_uu 
-                         col_index = col_index+1
-                         V(row_index,col_index,1) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(row_index,col_index,2) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                      end do
-                   end if
+                ! COLOCATED VELOCITY PRODUCTS:
+                 if(order == 2) then
+                 do col_1 = 1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index) = u_n1(col_1) * u_n1(col_1)
+                 end do
+                 end if
 
-                end do 
-                end do 
-                end do ! STENCIL
+                ! NON-COLOCATED VELOCITY PRODUCTS: 
+                 if(order == 2) then
+                 do non_col_1 = 1, 27
+                 do non_col_2 = non_col_1+1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index) = u_n1(non_col_1) * u_n1(non_col_2) &
+                                            +  u_n1(non_col_1) * u_n1(non_col_2)
+                 end do
+                 end do
+                 end if
+
+                 ! BUILD T VECTOR
+                 T(row_index) = T_ij(1,i_train,j_train,k_train) 
 
 
-                ! V45
-                col_index = 1 
+            ! 12 TENSOR COMPONENTS 
+                col_index = 0 
+                row_index = row_index + 1
 
-                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test
-                do i_stencil = i_train+Delta_test, i_train-Delta_test, -Delta_test
-                do j_stencil = j_train-Delta_test, j_train+Delta_test, Delta_test
-              
-                   ! FIRST ORDER TERMS:
-                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
-                      col_index = col_index+1
-                      V(row_index,col_index,4) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index,col_index,5) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                   end do
+                ! CONSTANT TERM:
+                col_index = col_index + 1        
+                V(row_index, col_index) = 1.d0
 
-                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
-                   if (order == 2) then
-                      do uu_comp = 1, n_uu 
-                         col_index = col_index+1
-                         V(row_index,col_index,4) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(row_index,col_index,5) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                      end do
-                   end if
+                ! STRAIN RATES:
+                col_index = col_index+1
+                V(row_index,col_index) = Sij(2)
 
-                end do 
-                end do 
-                end do ! STENCIL
+                ! COLOCATED VELOCITY PRODUCTS:
+                 if(order == 2) then
+                 do col_1 = 1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index) = u_n1(col_1) * u_n2(col_1)
+                 end do
+                 end if
 
-                ! V36
-                col_index = 1 
+                 ! NON-COLOCATED VELOCITY PRODUCTS: 
+                 if(order == 2) then
+                 do non_col_1 = 1, 27
+                 do non_col_2 = non_col_1+1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index)  = u_n1(non_col_1) * u_n2(non_col_2) &
+                                           +  u_n2(non_col_1) * u_n1(non_col_2)
+                 end do
+                 end do
+                 end if
 
-                do j_stencil = j_train+Delta_test, j_train-Delta_test, -Delta_test           
-                do i_stencil = i_train+Delta_test, i_train-Delta_test, -Delta_test
-                do k_stencil = k_train-Delta_test, k_train+Delta_test, Delta_test 
-              
-                   ! FIRST ORDER TERMS:
-                   do u_comp = 1, n_u ! 1 to 3 -> 3x(3x3x3) = 81
-                      col_index = col_index+1
-                      V(row_index,col_index,3) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                      V(row_index,col_index,6) = u_t(u_comp,i_stencil,j_stencil,k_stencil)
-                   end do
+                 ! BUILD T VECTOR
+                 T(row_index) = T_ij(2,i_train,j_train,k_train) 
 
-                   ! SECOND ORDER TERMS: 6x(3x3x3) = 162 (GIVES A TOTAL OF 243 TERMS)
-                   if (order == 2) then
-                      do uu_comp = 1, n_uu 
-                         col_index = col_index+1
-                         V(row_index,col_index,3) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                         V(row_index,col_index,6) = uu_t(uu_comp,i_stencil,j_stencil,k_stencil)
-                      end do
-                   end if
 
-                end do 
-                end do 
-                end do ! STENCIL
+            ! 13 TENSOR COMPONENTS 
+                col_index = 0 
+                row_index = row_index + 1
 
-                T(row_index,:) = T_ij(:,i_train,j_train,k_train) 
+                ! CONSTANT TERM:
+                col_index = col_index + 1        
+                V(row_index, col_index) = 1.d0
+
+                ! STRAIN RATES:
+                col_index = col_index+1
+                V(row_index,col_index) = Sij(3)
+
+                ! COLOCATED VELOCITY PRODUCTS:
+                 if(order == 2) then
+                 do col_1 = 1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index) = u_n1(col_1) * u_n3(col_1)
+                 end do
+                 end if
+
+                 ! NON-COLOCATED VELOCITY PRODUCTS: 
+                 if(order == 2) then
+                 do non_col_1 = 1, 27
+                 do non_col_2 = non_col_1+1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index)  = u_n1(non_col_1) * u_n3(non_col_2) &
+                                           +  u_n3(non_col_1) * u_n1(non_col_2)
+                 end do
+                 end do
+                 end if
+
+                 ! BUILD T VECTOR
+                 T(row_index) = T_ij(3,i_train,j_train,k_train) 
+
+
+            ! 22 TENSOR COMPONENTS 
+                col_index = 0 
+                row_index = row_index + 1
+
+                ! STRAIN RATES:
+                col_index = col_index+1
+                V(row_index,col_index) = Sij(4)
+
+                ! COLOCATED VELOCITY PRODUCTS:
+                 if(order == 2) then
+                 do col_1 = 1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index) = u_n2(col_1) * u_n2(col_1)
+                 end do
+                 end if
+
+                 ! NON-COLOCATED VELOCITY PRODUCTS: 
+                 if(order == 2) then
+                 do non_col_1 = 1, 27
+                 do non_col_2 = non_col_1+1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index)  = u_n2(non_col_1) * u_n2(non_col_2) &
+                                           +  u_n2(non_col_1) * u_n2(non_col_2)
+                 end do
+                 end do
+                 end if
+
+                 ! BUILD T VECTOR
+                 T(row_index) = T_ij(4,i_train,j_train,k_train) 
+
+            ! 23 TENSOR COMPONENTS 
+                col_index = 0 
+                row_index = row_index + 1
+
+                ! STRAIN RATES:
+                col_index = col_index+1
+                V(row_index,col_index) = Sij(5)
+
+                ! COLOCATED VELOCITY PRODUCTS:
+                 if(order == 2) then
+                 do col_1 = 1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index) = u_n2(col_1) * u_n3(col_1)
+                 end do
+                 end if
+
+                 ! NON-COLOCATED VELOCITY PRODUCTS: 
+                 if(order == 2) then
+                 do non_col_1 = 1, 27
+                 do non_col_2 = non_col_1+1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index)  = u_n2(non_col_1) * u_n3(non_col_2) &
+                                           +  u_n3(non_col_1) * u_n2(non_col_2)
+                 end do
+                 end do
+                 end if
+
+                 ! BUILD T VECTOR
+                 T(row_index) = T_ij(5,i_train,j_train,k_train) 
+
+            ! 33 TENSOR COMPONENTS 
+                col_index = 0 
+                row_index = row_index + 1
+
+                ! STRAIN RATES:
+                col_index = col_index+1
+                V(row_index,col_index) = Sij(6)
+
+                ! COLOCATED VELOCITY PRODUCTS:
+                 if(order == 2) then
+                 do col_1 = 1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index) = u_n3(col_1) * u_n3(col_1)
+                 end do
+                 end if
+
+                 ! NON-COLOCATED VELOCITY PRODUCTS: 
+                 if(order == 2) then
+                 do non_col_1 = 1, 27
+                 do non_col_2 = non_col_1+1, 27
+                    col_index = col_index + 1
+                    V(row_index,col_index)  = u_n3(non_col_1) * u_n3(non_col_2) &
+                                           +  u_n3(non_col_1) * u_n3(non_col_2)
+                 end do
+                 end do
+                 end if
+
+                 ! BUILD T VECTOR
+                 T(row_index) = T_ij(6,i_train,j_train,k_train) 
+
 
              end do
              call progressBar(j_boxCenter, boxLast)
-!             print*, i_boxCenter, j_boxCenter, k_boxCenter
              end do
-             !call progressBar(k_boxCenter, boxLast)
-             end do ! DONE VISITING ALL RANDOM TRANING POINTS IN A BOUNDING BOX
+             end do ! DONE VISITING ALL TRANING POINTS IN A BOUNDING BOX
 
-! REBUILD V MATRIX WTIH ALL ON-DIAGONAL AND OFF-DIAGONAL components
-    !allocate (temp_V (3*M, N, P/3) )
-    !allocate (temp_T (3*M, P/3) )
-
-    ! V MATRIX
-    temp_V (1:M,:,1)        = V(1:M,:,1)
-    temp_V (M+1:2*M,:,1)    = V(1:M,:,4)
-    temp_V (2*M+1:3*M,:,1)  = V(1:M,:,6)
-
-    temp_V (1:M,:,2)        = V(1:M,:,2)
-    temp_V (M+1:2*M,:,2)    = V(1:M,:,3)
-    temp_V (2*M+1:3*M,:,2)  = V(1:M,:,5)
-
-    ! T MATRIX
-    temp_T (1:M,1)          = T(1:M,1)
-    temp_T (M+1:2*M,1)      = T(1:M,4)
-    temp_T (2*M+1:3*M,1)    = T(1:M,6)
-
-    temp_T (1:M,2)          = T(1:M,2)
-    temp_T (M+1:2*M,2)      = T(1:M,3)
-    temp_T (2*M+1:3*M,2)    = T(1:M,5)
-
-    !deallocate (V,T)
-    !allocate(V(3*M, N, P/3)) 
-    !allocate(T(3*M, P/3)) 
-
-    !V = temp_V
-    !T = temp_T
-
-    !deallocate (temp_V, temp_T)
 
 
 !DEBUG: Print V matrix 
-! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
-!   ! Save V matrix
-!   open(47,file='V_42.dat')
-!   do i = 1,M
-!     do j = 1,N
-!       write(47,*) i,j,V(i,j)
-!   end do
-! end do
-!   close(47)
-!  stop
-! end if
+if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
+  ! Save V matrix
+  open(47,file='V_Smith_G.dat')
+  do i = 1,2
+    do j = 1,N
+      write(47,*) i,j,V(i,j)
+  end do
+end do
+  close(47)
+ stop
+end if
 
-!call cpu_time(toc)
+!call cpu_sime(toc)
 !print*, 'Time to build V matrix, t1 = ', toc-tic          
 
              !
              ! BEGIN SUPERVISED TRAINING: FEATURE SELECTION 
 !             do iter = 1, n_lambda
 !                lambda = lambda_0(1) * 10**(iter-1)
-!call cpu_time (tic)
+!call cpu_sime (tic)
                 ! CALL SOLVER:
                 if (solutionMethod.eq.'LU') then
-                do idx = 1,2
-                   call LU(temp_V(1:3000,1:N,idx), temp_T(1:3000,idx), h_ij(1:N,idx))    ! DAMPED LEAST SQUARES 
+                do idx = 1,1
+                   call LU(V, T, h_ij(1:N,1))    ! DAMPED LEAST SQUARES 
                 end do
-                   ! call LU(V(1,1:M,1:N), T(1:M,1), h_ij(1:N,1))    ! DAMPED LEAST SQUARES
-                   ! call LU(V(2,1:M,1:N), T(1:M,2), h_ij(1:N,2))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(3,1:M,1:N), T(1:M,3), h_ij(1:N,3))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(4,1:M,1:N), T(1:M,4), h_ij(1:N,4))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(5,1:M,1:N), T(1:M,5), h_ij(1:N,5))    ! DAMPED LEAST SQUARES 
-                   ! call LU(V(6,1:M,1:N), T(1:M,6), h_ij(1:N,6))    ! DAMPED LEAST SQUARES 
                 elseif(solutionMethod.eq.'SVD') then
                    !call SVD(V, T, h_ij, printval)             ! TSVD
                 else
@@ -608,12 +751,12 @@ contains
 !          write(45,*) i, temp_T(i,2)
 !      end do
 
-! open(46,file='h_ij.dat',action='write')
-!     do i=1,N
-!         write(46,*) h_ij(i,2)
-!     end do
+open(46,file='h_ij_Smith.dat',action='write')
+    do i=1,N
+        write(46,*) h_ij(i,1)
+    end do
 
-!stop
+stop
 
 !DEBUG: Print h_ij matrix 
 ! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
@@ -628,11 +771,11 @@ contains
 
 
 
-!call cpu_time(toc)
+!call cpu_sime(toc)
 !print*, 'Time to invert, t2 = ', toc-tic
 
 !$
-                call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+                call computedStress (u_f, u_s, h_ij, T_ijOpt, tau_ijOpt)
 ! $$
 
 !             end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX       
@@ -659,7 +802,7 @@ contains
 !        allocate (u_n(stencil_size))
 
 !        ! WHOLE DOMAIN COMPUTATION: 
-! !call cpu_time(tic)
+! !call cpu_sime(tic)
 ! !       do k_boxCenter = boxFirst, boxLast, boxCenterSkip
 !        do k_boxCenter = z_plane, z_plane                    
 !        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
@@ -694,7 +837,7 @@ contains
 
 
 !              ! ENTER 3x3x3 STENCIL: C-ORDER
-!              u_n = reshape(u_t (:, i_train-Delta_test : i_train+Delta_test : Delta_test, & 
+!              u_n = reshape(u_s (:, i_train-Delta_test : i_train+Delta_test : Delta_test, & 
 !                                    j_train-Delta_test : j_train+Delta_test : Delta_test, &
 !                                    k_train-Delta_test : k_train+Delta_test : Delta_test), [stencil_size])
 
@@ -720,7 +863,7 @@ contains
 !           end do
 !           end do ! DONE VISITING ALL TRAINING POINTS IN A BOUNDING BOX
           
-! !call cpu_time(toc)
+! !call cpu_sime(toc)
 ! !print*, 'Time to build V matrix, t1 = ', toc-tic          
 
 !           ! CHECK V,T: ^^
@@ -733,7 +876,7 @@ contains
 ! !             lambda = lambda_0(1) * 10**(iter-1)
 ! !             lambda = lambda_0(iter)
 ! !             print('(a8,ES10.2)'), 'lambda ',lambda
-! !call cpu_time (tic)
+! !call cpu_sime (tic)
 !              !
 !              ! CALL SOLVER: LATER SPLIT IT INTO 1) FACTORIZATION STEP (OUT OF LOOP)
 !              ! AND 2] SOLUTION USING LAMBDA (WITHIN LOOP)
@@ -745,7 +888,7 @@ contains
 !                 print*, 'Choose correct solver: LU, SVD'
 !                 stop
 !              end if
-! !call cpu_time(toc)
+! !call cpu_sime(toc)
 ! !print*, 'Time to invert, t2 = ', toc-tic
 !              ! CHECK h_ij:
 !              if (dataset.eq.'jhu256'.and.solutionMethod.eq.'SVD'.and.stress.eq.'dev') then
@@ -759,7 +902,7 @@ contains
 !              end if
 
 ! !              ! COMPUTE OPTIMIZED STRESS USING h_ij AT A GIVEN lambda
-!               call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+!               call computedStress (u_f, u_s, h_ij, T_ijOpt, tau_ijOpt)
 
 !               ! KEEP IT FOR THE LAMBDA LOOP:
              
@@ -806,7 +949,7 @@ contains
   !      
   
   !      
-  ! FORM: subroutine computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+  ! FORM: subroutine computedStress (u_f, u_s, h_ij, T_ijOpt, tau_ijOpt)
   !       
   !      
   ! BEHAVIOR: T_ijOpt and tau_ijOpt should be allocated before. 
@@ -828,11 +971,11 @@ contains
   !----------------------------------------------------------------
   
   
-  subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
+  subroutine computedStress(u_f, u_s, h_ij, T_ijOpt, tau_ijOpt)
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_f
-    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_t
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_s
     real(8), dimension(:,:),     intent(in) :: h_ij
     real(8), dimension(1:,1:,1:,zLower:), intent(out):: T_ijOpt
     real(8), dimension(1:,1:,1:,zLower:), intent(out):: tau_ijOpt 
@@ -843,7 +986,7 @@ contains
     !
     !    ..NON-COLOCATED FORMULATION..
     real(8), dimension(stencil_size) :: u_f_stencil
-    real(8), dimension(stencil_size) :: u_t_stencil
+    real(8), dimension(stencil_size) :: u_s_stencil
     !
     !    ..LOCAL INDICES.. 
     integer :: i_opt,     j_opt,     k_opt  
@@ -858,7 +1001,7 @@ contains
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
          
-!call cpu_time (tic)
+!call cpu_sime (tic)
 
           ! T_ij^F: Test scale
           col_index = 0 
@@ -883,11 +1026,11 @@ contains
 
                 T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                 T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
              end do
 
              
@@ -898,11 +1041,11 @@ contains
 
                    T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt(1,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                    T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt(2,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
+                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
                 end do
              end if
 
@@ -969,11 +1112,11 @@ contains
 
                 T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                 T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
              end do
 
              
@@ -984,11 +1127,11 @@ contains
 
                    T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt(4,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                    T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt(5,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
+                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
                 end do
              end if
 
@@ -1047,11 +1190,11 @@ contains
 
                 T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
                 T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
              end do
 
              
@@ -1062,11 +1205,11 @@ contains
 
                    T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt(3,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
                    T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt(6,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)    
+                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)    
                 end do
              end if
 
@@ -1107,7 +1250,7 @@ contains
  
                 end do
              end if             
-!call cpu_time(toc)
+!call cpu_sime(toc)
 !print*, 'Time to compute one cell, t3 = ', toc-tic
 !stop
 
@@ -1131,11 +1274,11 @@ contains
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
 
-!call cpu_time (tic)
+!call cpu_sime (tic)
           col_index = 0 
          
           ! ENTER 3x3x3 STENCIL: C-ORDER                                      
-          u_t_stencil = reshape(u_t (:, i_opt-Delta_test : i_opt+Delta_test : Delta_test, &
+          u_s_stencil = reshape(u_s (:, i_opt-Delta_test : i_opt+Delta_test : Delta_test, &
                                         j_opt-Delta_test : j_opt+Delta_test : Delta_test, &
                                         k_opt-Delta_test : k_opt+Delta_test : Delta_test),  [stencil_size]) 
 
@@ -1155,7 +1298,7 @@ contains
 
              T_ijOpt(:,i_opt,j_opt,k_opt) = T_ijOpt (:,i_opt,j_opt,k_opt)             &
                                          +                                          &
-                                         (u_t_stencil(non_col_1) * h_ij(col_index,:))
+                                         (u_s_stencil(non_col_1) * h_ij(col_index,:))
 
              tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt)         &
                                           +                                          &
@@ -1170,7 +1313,7 @@ contains
 
              T_ijOpt(:,i_opt,j_opt,k_opt) = T_ijOpt(:,i_opt,j_opt,k_opt) &
                                          +                             &
-                                         (u_t_stencil(non_col_1) * u_t_stencil(non_col_2) * h_ij(col_index,:))
+                                         (u_s_stencil(non_col_1) * u_s_stencil(non_col_2) * h_ij(col_index,:))
 
              tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
                                             +                                &
@@ -1178,7 +1321,7 @@ contains
           end do
           end do
           end if
-!call cpu_time(toc)
+!call cpu_sime(toc)
 !print*, 'Time to compute one cell, t3 = ', toc-tic
 !stop
        end do
@@ -1252,7 +1395,7 @@ contains
     integer :: NRHS 
     integer :: INFO
 
-    LWMAX = 3*M * N
+    LWMAX = M * N
     NRHS = 1 ! NOT P since it is computed ONE at a time
     !
     ! Allocate work arrays
@@ -1261,13 +1404,13 @@ contains
 
     ! 
     ! A(N,N) = V'(N,M) * V(M,N)
-    call DGEMM('T', 'N', N, N, 3*M, alpha, V, 3*M, V, 3*M, beta, A, N)
+    call DGEMM('T', 'N', N, N, M, alpha, V, M, V, M, beta, A, N)
 
     ! Apply damping: A = A + lambda*I
     forall(i=1:N) A(i,i) = A(i,i) + lambda 
 
     ! b(N,P) = V'(N,M) * T_ij(M,P) 
-    call DGEMM('T', 'N', N, NRHS, 3*M, alpha, V, 3*M, T_ij, 3*M, beta, b, N)
+    call DGEMM('T', 'N', N, NRHS, M, alpha, V, M, T_ij, M, beta, b, N)
 
     !
     ! Solve Linear System: A(N,N) h_ij(N,P) = b(N,P)

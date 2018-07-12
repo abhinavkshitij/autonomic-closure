@@ -1020,13 +1020,14 @@ contains
           ! ZERO ORDER TERMS: [1]
           col_index = col_index + 1
           T_ijOpt   (1,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          T_ijOpt   (2,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          T_ijOpt   (3,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
           T_ijOpt   (4,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          T_ijOpt   (5,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
           T_ijOpt   (6,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          T_ijOpt   (2,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
-          T_ijOpt   (3,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
-          T_ijOpt   (5,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
+
           
-          ! 12
+          !
           do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
           do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
           do i_stencil = i_opt-Delta_test, i_opt+Delta_test, Delta_test
@@ -1111,164 +1112,7 @@ contains
           end do
           end do
 
-        ! 45
-          col_index = 1
-          do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
-          do i_stencil = i_opt+Delta_test, i_opt-Delta_test, -Delta_test
-          do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
-
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-
-                T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-
-                T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-             end do
-
-             
-             ! SECOND ORDER TERMS: 
-             if (order == 2) then
-                do uu_comp = 1, n_uu
-                   col_index = col_index + 1
-
-                   T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt(4,i_opt,j_opt,k_opt)               &
-                        +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-
-                   T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt(5,i_opt,j_opt,k_opt)               &
-                        +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
-                end do
-             end if
-
-          end do
-          end do
-          end do
-
-          ! tau_ij^F: LES scale
-          col_index = 1
-          
-          do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
-          do i_stencil = i_opt+Delta_LES, i_opt-Delta_LES, -Delta_LES
-          do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES  
-
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-                tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-
-                tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-
-             end do
-             
-             ! SECOND ORDER TERMS: 
-             if (order == 2) then
-                do uu_comp = 1, n_uu
-                   col_index = col_index + 1
-                   tau_ijOpt(4,i_opt,j_opt,k_opt) = tau_ijOpt(4,i_opt,j_opt,k_opt) &
-                        +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-                    tau_ijOpt(5,i_opt,j_opt,k_opt) = tau_ijOpt(5,i_opt,j_opt,k_opt) &
-                        +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
- 
-                end do
-             end if
-
-          end do
-          end do
-          end do
-
-          ! 36
-          col_index = 1
-          
-          do j_stencil = j_opt+Delta_test, j_opt-Delta_test, -Delta_test
-          do i_stencil = i_opt+Delta_test, i_opt-Delta_test, -Delta_test
-          do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
-
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-
-                T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-
-                T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-             end do
-
-             
-             ! SECOND ORDER TERMS: 
-             if (order == 2) then
-                do uu_comp = 1, n_uu
-                   col_index = col_index + 1
-
-                   T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt(3,i_opt,j_opt,k_opt)               &
-                        +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-
-                   T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt(6,i_opt,j_opt,k_opt)               &
-                        +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)    
-                end do
-             end if
-
-          end do
-          end do
-          end do
-
-          ! tau_ij^F: LES scale
-          col_index = 1
-            
-          do j_stencil = j_opt+Delta_LES, j_opt-Delta_LES, -Delta_LES
-          do i_stencil = i_opt+Delta_LES, i_opt-Delta_LES, -Delta_LES
-          do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES  
-
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-                tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-
-                tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-
-             end do
-             
-             ! SECOND ORDER TERMS: 
-             if (order == 2) then
-                do uu_comp = 1, n_uu
-                   col_index = col_index + 1
-                   tau_ijOpt(3,i_opt,j_opt,k_opt) = tau_ijOpt(3,i_opt,j_opt,k_opt) &
-                        +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-                    tau_ijOpt(6,i_opt,j_opt,k_opt) = tau_ijOpt(6,i_opt,j_opt,k_opt) &
-                        +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
- 
-                end do
-             end if             
-!call cpu_time(toc)
-!print*, 'Time to compute one cell, t3 = ', toc-tic
-!stop
-
-          end do
-          end do
-          end do
-
+        
        end do
        end do
        end do

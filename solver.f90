@@ -545,7 +545,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 1.d0
+                V(row_index, col_index) = 0.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -580,7 +580,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 1.d0
+                V(row_index, col_index) = 0.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -613,6 +613,10 @@ contains
                 col_index = 0 
                 row_index = row_index + 1
 
+                ! CONSTANT TERM:
+                col_index = col_index + 1        
+                V(row_index, col_index) = 1.d0
+
                 ! STRAIN RATES:
                 col_index = col_index+1
                 V(row_index,col_index) = Sij(4)
@@ -643,6 +647,10 @@ contains
                 col_index = 0 
                 row_index = row_index + 1
 
+                ! CONSTANT TERM:
+                col_index = col_index + 1        
+                V(row_index, col_index) = 0.d0
+
                 ! STRAIN RATES:
                 col_index = col_index+1
                 V(row_index,col_index) = Sij(5)
@@ -672,6 +680,10 @@ contains
             ! 33 TENSOR COMPONENTS 
                 col_index = 0 
                 row_index = row_index + 1
+
+                ! CONSTANT TERM:
+                col_index = col_index + 1        
+                V(row_index, col_index) = 1.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1

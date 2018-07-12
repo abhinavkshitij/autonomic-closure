@@ -241,7 +241,7 @@ contains
   !      
   !      
   !      
-  ! FORM: subroutine autonomicClosure (u_f, u_s, tau_ij, T_ij, h_ij)
+  ! FORM: subroutine autonomicClosure (u_f, u_t, tau_ij, T_ij, h_ij)
   !       
   !      
   ! BEHAVIOR: Enter only one DAMPING value.

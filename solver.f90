@@ -488,7 +488,7 @@ contains
                 Sij(5) = 0.5d0 * (du2dx3 + du3dx2)
                 Sij(6) = du3dx3          
            
-
+        
                 ! VELOCITY PRODUCTS:   
                 u_n1 = reshape(u_s (1,i_train-Delta_test : i_train+Delta_test : Delta_test, & 
                                       j_train-Delta_test : j_train+Delta_test : Delta_test, &
@@ -711,7 +711,6 @@ contains
                  ! BUILD T VECTOR
                  T(row_index) = T_ij(6,i_train,j_train,k_train) 
 
-
              end do
              call progressBar(j_boxCenter, boxLast)
              end do
@@ -720,17 +719,17 @@ contains
 
 
 !DEBUG: Print V matrix 
-if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
-  ! Save V matrix
-  open(47,file='V_Smith_G.dat')
-  do i = 1,2
-    do j = 1,N
-      write(47,*) i,j,V(i,j)
-  end do
-end do
-  close(47)
- stop
-end if
+! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
+!   ! Save V matrix
+!   open(47,file='V_Smith_G_30x35.dat')
+!   do i = 1,10
+!     do j = 1,10
+!       write(47,*) i,j,V(i,j)
+!   end do
+! end do
+!   close(47)
+!  stop
+! end if
 
 !call cpu_sime(toc)
 !print*, 'Time to build V matrix, t1 = ', toc-tic          
@@ -763,12 +762,12 @@ end if
 !          write(45,*) i, temp_T(i,2)
 !      end do
 
-open(46,file='h_ij_Smith.dat',action='write')
-    do i=1,N
-        write(46,*) h_ij(i,1)
-    end do
+! open(46,file='h_ij_Smith_G.dat',action='write')
+!     do i=1,N
+!         write(46,*) h_ij(i,1)
+!     end do
 
-stop
+! stop
 
 !DEBUG: Print h_ij matrix 
 ! if(i_boxCenter.eq.23.and.j_boxCenter.eq.23.and.k_boxCenter.eq.23) then
@@ -983,11 +982,11 @@ stop
   !----------------------------------------------------------------
   
   
-  subroutine computedStress(u_f, u_s, h_ij, T_ijOpt, tau_ijOpt)
+  subroutine computedStress(u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
     !
     !    ..ARRAY ARGUMENTS..
     real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_f
-    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_s
+    real(8), dimension(1:,extLower:,extLower:,z_extLower:), intent(in) :: u_t
     real(8), dimension(:,:),     intent(in) :: h_ij
     real(8), dimension(1:,1:,1:,zLower:), intent(out):: T_ijOpt
     real(8), dimension(1:,1:,1:,zLower:), intent(out):: tau_ijOpt 
@@ -998,7 +997,7 @@ stop
     !
     !    ..NON-COLOCATED FORMULATION..
     real(8), dimension(stencil_size) :: u_f_stencil
-    real(8), dimension(stencil_size) :: u_s_stencil
+    real(8), dimension(stencil_size) :: u_t_stencil
     !
     !    ..LOCAL INDICES.. 
     integer :: i_opt,     j_opt,     k_opt  
@@ -1013,7 +1012,7 @@ stop
        do j_opt = j_boxCenter-optLower, j_boxCenter+optUpper
        do i_opt = i_boxCenter-optLower, i_boxCenter+optUpper
          
-!call cpu_sime (tic)
+!call cpu_time (tic)
 
           ! T_ij^F: Test scale
           col_index = 0 
@@ -1038,11 +1037,11 @@ stop
 
                 T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                 T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
              end do
 
              
@@ -1053,11 +1052,11 @@ stop
 
                    T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt(1,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                    T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt(2,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
                 end do
              end if
 
@@ -1124,11 +1123,11 @@ stop
 
                 T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                 T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
              end do
 
              
@@ -1139,11 +1138,11 @@ stop
 
                    T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt(4,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
 
                    T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt(5,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
                 end do
              end if
 
@@ -1202,11 +1201,11 @@ stop
 
                 T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
                 T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt)             &
                                         +                                          &
-                     (u_s(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
              end do
 
              
@@ -1217,11 +1216,11 @@ stop
 
                    T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt(3,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
 
                    T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt(6,i_opt,j_opt,k_opt)               &
                         +                                            &
-                        (uu_s(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)    
+                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)    
                 end do
              end if
 
@@ -1262,7 +1261,7 @@ stop
  
                 end do
              end if             
-!call cpu_sime(toc)
+!call cpu_time(toc)
 !print*, 'Time to compute one cell, t3 = ', toc-tic
 !stop
 
@@ -1290,7 +1289,7 @@ stop
           col_index = 0 
          
           ! ENTER 3x3x3 STENCIL: C-ORDER                                      
-          u_s_stencil = reshape(u_s (:, i_opt-Delta_test : i_opt+Delta_test : Delta_test, &
+          u_t_stencil = reshape(u_t (:, i_opt-Delta_test : i_opt+Delta_test : Delta_test, &
                                         j_opt-Delta_test : j_opt+Delta_test : Delta_test, &
                                         k_opt-Delta_test : k_opt+Delta_test : Delta_test),  [stencil_size]) 
 
@@ -1310,7 +1309,7 @@ stop
 
              T_ijOpt(:,i_opt,j_opt,k_opt) = T_ijOpt (:,i_opt,j_opt,k_opt)             &
                                          +                                          &
-                                         (u_s_stencil(non_col_1) * h_ij(col_index,:))
+                                         (u_t_stencil(non_col_1) * h_ij(col_index,:))
 
              tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt)         &
                                           +                                          &
@@ -1325,7 +1324,7 @@ stop
 
              T_ijOpt(:,i_opt,j_opt,k_opt) = T_ijOpt(:,i_opt,j_opt,k_opt) &
                                          +                             &
-                                         (u_s_stencil(non_col_1) * u_s_stencil(non_col_2) * h_ij(col_index,:))
+                                         (u_t_stencil(non_col_1) * u_t_stencil(non_col_2) * h_ij(col_index,:))
 
              tau_ijOpt(:,i_opt,j_opt,k_opt) = tau_ijOpt(:,i_opt,j_opt,k_opt) &
                                             +                                &

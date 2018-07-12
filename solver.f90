@@ -31,8 +31,8 @@ module solver
   use actools
   implicit none
     integer :: i_boxCenter,    j_boxCenter,    k_boxCenter 
-    real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_s
-    real(8), dimension(:,:,:,:), allocatable :: uu_sB, uu_sG
+    real(8), dimension(:,:,:,:), allocatable :: uu_f, uu_t
+    real(8), dimension(:,:,:,:), allocatable :: uu_tB, uu_tG
 contains
 
 
@@ -280,7 +280,7 @@ contains
   !  ###
   !   if(debug(2)) then
   !      print*,'shape tau_ij cutout:    ',shape(tau_ij)
-  !      print*,'shape uu_s cutout:      ',shape(uu_s)
+  !      print*,'shape uu_t cutout:      ',shape(uu_t)
   !      print*,'shape tau_ijOpt cutout: ',shape(tau_ijOpt)
   !   end if
   !
@@ -405,9 +405,9 @@ contains
        ! ! BUT IF I DO IT THEN I WILL HAVE TO USE AN "IF" STATEMENT INSIDE THE LOOP. SO THIS MIGHT
        ! ! TAKE UP EXTRA MEMORY BUT CUTS COMPUTATION TIME.
        ! if (order == 2) then
-       !    if (allocated(uu_s).eqv..false.)allocate(uu_s(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+       !    if (allocated(uu_t).eqv..false.)allocate(uu_t(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
        !    if (allocated(uu_f).eqv..false.)allocate(uu_f(n_uu, extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
-       !    call secondOrderProducts(uu_s, u_s)
+       !    call secondOrderProducts(uu_t, u_t)
        !    call secondOrderProducts(uu_f, u_f)
        ! end if
 

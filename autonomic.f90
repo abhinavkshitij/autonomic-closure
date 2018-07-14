@@ -413,7 +413,7 @@ program autonomic
   ! Ring an alarm:
    print*, '\a'
 !   print*, 'tau_ijOpt(:,1,1,1):', tau_ijOpt(:,1,1,1)
-!   print*, 'tau_ijOpt(:,23,23,23):', tau_ijOpt(:,23,23,23)
+   print*, 'tau_ijOpt(:,23,23,23):', tau_ijOpt(:,23,23,23)
 !   print*, 'tau_ijOpt(:,3,15,17):', tau_ijOpt(:,3,15,17)
 contains 
 

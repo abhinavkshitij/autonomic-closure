@@ -55,7 +55,7 @@ module global
   end type list
 
   ! CASES
-  type(list), parameter :: l_case(20) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
+  type(list), parameter :: l_case(21) = [list('1a','CL14',  'colocated_local_O1_4N'),     & ! 1
                                          list('1b','CL14''','colocated_local_O1_4N_P'),   & ! 2
                                          list('2a','CL18',  'colocated_local_O1_8N'),     & ! 3
                                          list('2b','CL18''','colocated_local_O1_8N_P'),   & ! 4
@@ -74,7 +74,8 @@ module global
                                          list('9a','CL1(7)','colocated_point_O1_7'),      & ! 17
                                          list('9b','CL2(7)','colocated_point_O2_7'),      & ! 18
                                          list('3a(o)','CL24o','colocated_local_O2_4N_O'), & ! 19
-                                          list('3a(t)','CL24t','colocated_local_O2_4N_temp1')]  ! 20
+                                         list('3a(t)','CL24t','colocated_local_O2_4N_temp1'), &  ! 20
+                                         list('3a(s)','CL24s','colocated_local_O2_4N_Smith')]  ! 21
 
 
   ! MACHINE TYPE 
@@ -146,7 +147,7 @@ module global
   character(8) :: dataset        = trim (l_dataset(6) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
-  integer      :: case_idx       = 20                                 ! [1 - CL14, ...]          
+  integer      :: case_idx       = 21                                ! [1 - CL14, ...]          
   character(8) :: solutionMethod = trim (l_solutionMethod(1) % name) ! [LU, SVD]
   character(2) :: hst_set        = 'S6'                              ! [S1, S3, S6]
   character(3) :: stress         = 'abs'                             ! [dev[DS], abs[BD]]

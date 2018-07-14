@@ -415,8 +415,8 @@ contains
        ! Z-MIDPLANE COMPUTATION: 
        !do k_boxCenter = zLower, zUpper
        do k_boxCenter = 23, 23
-       do j_boxCenter = 23, 23!boxFirst, boxLast, boxCenterSkip
-       do i_boxCenter = 23, 23!boxFirst, boxLast, boxCenterSkip
+       do j_boxCenter = boxFirst, boxLast, boxCenterSkip
+       do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
 !print*, i_boxCenter, j_boxCenter, k_boxCenter
           if (trainingPoints.eq.'random') then
@@ -786,7 +786,7 @@ contains
 !print*, 'Time to invert, t2 = ', toc-tic
 
 !$
-                call computedStress (u_f, u_s, h_ij, T_ijOpt, tau_ijOpt)
+                call computedStress (u_f, u_t, h_ij, T_ijOpt, tau_ijOpt)
 ! $$
 
 !             end do ! DONE COMPUTING OPTIMIZED STRESS. MOVE ON TO THE NEXT BOUNDING BOX       
@@ -992,17 +992,26 @@ contains
     real(8), dimension(1:,1:,1:,zLower:), intent(out):: tau_ijOpt 
     !
     !    ..LOCAL VARS..
+    real(8), dimension(:,:,:,:),allocatable :: u_s
     integer                :: col_index
     integer                :: u_comp, uu_comp 
     !
     !    ..NON-COLOCATED FORMULATION..
     real(8), dimension(stencil_size) :: u_f_stencil
     real(8), dimension(stencil_size) :: u_t_stencil
+    real(8), dimension(27):: u_n1, u_n2, u_n3
     !
     !    ..LOCAL INDICES.. 
     integer :: i_opt,     j_opt,     k_opt  
     integer :: i_stencil, j_stencil, k_stencil
-    integer :: non_col_1, non_col_2
+    integer :: non_col_1, non_col_2, col_1
+    !
+    !   ..VELOCITY GRADIENTS..
+    real(8) :: du1dx1, du1dx2, du1dx3, du2dx1, du2dx2, du2dx3, du3dx1, du3dx2, du3dx3
+    real(8) :: dx_inv
+    real(8) :: Sij(6)
+
+    allocate(u_s(3,extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
 
     if (formulation.eq.'colocated') then
 ! Whole domain:
@@ -1014,104 +1023,277 @@ contains
          
 !call cpu_time (tic)
 
-          ! T_ij^F: Test scale
-          col_index = 0 
-          
-          ! ZERO ORDER TERMS: [1]
-          col_index = col_index + 1
-          T_ijOpt   (1,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          T_ijOpt   (2,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          T_ijOpt   (3,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          T_ijOpt   (4,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          T_ijOpt   (5,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          T_ijOpt   (6,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+!  T_ij^F: test scale
+           ! APPLY GALILEAN INVARIANCE
+                u_s = u_t
 
-          
-          !
-          do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
-          do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
-          do i_stencil = i_opt-Delta_test, i_opt+Delta_test, Delta_test
+                do k_stencil = k_opt-Delta_test, k_opt+Delta_test, Delta_test
+                do j_stencil = j_opt-Delta_test, j_opt+Delta_test, Delta_test
+                do i_stencil = i_opt-Delta_test, i_opt+Delta_test, Delta_test
+                    u_s(:,i_stencil,j_stencil,k_stencil) &
+                    = u_t (:,i_stencil,j_stencil,k_stencil) &
+                    - u_t (:,i_opt, j_opt, k_opt)
+                end do 
+                end do 
+                end do 
 
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
+           ! VELOCITY GRADIENTS:
+                du1dx1 = dx_inv * (u_s(1,i_opt+Delta_test,j_opt,k_opt) &
+                                 - u_s(1,i_opt-Delta_test,j_opt,k_opt))
 
-                T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                du1dx2 = dx_inv * (u_s(1,i_opt,j_opt+Delta_test,k_opt) &
+                                 - u_s(1,i_opt,j_opt-Delta_test,k_opt))
 
-                T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt)             &
-                                        +                                          &
-                     (u_t(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-             end do
+                du1dx3 = dx_inv * (u_s(1,i_opt,j_opt,k_opt+Delta_test) &
+                                 - u_s(1,i_opt,j_opt,k_opt-Delta_test))    
 
-             
-             ! SECOND ORDER TERMS: 
-             if (order == 2) then
-                do uu_comp = 1, n_uu
-                   col_index = col_index + 1
+                du2dx1 = dx_inv * (u_s(2,i_opt+Delta_test,j_opt,k_opt) &
+                                 - u_s(2,i_opt-Delta_test,j_opt,k_opt))
 
-                   T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt(1,i_opt,j_opt,k_opt)               &
-                        +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
+                du2dx2 = dx_inv * (u_s(2,i_opt,j_opt+Delta_test,k_opt) &
+                                 - u_s(2,i_opt,j_opt-Delta_test,k_opt))
 
-                   T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt(2,i_opt,j_opt,k_opt)               &
-                        +                                            &
-                        (uu_t(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)    
-                end do
-             end if
+                du2dx3 = dx_inv * (u_s(2,i_opt,j_opt,k_opt+Delta_test) &
+                                 - u_s(2,i_opt,j_opt,k_opt-Delta_test))
 
-          end do
-          end do
-          end do
+                du3dx1 = dx_inv * (u_s(3,i_opt+Delta_test,j_opt,k_opt) &
+                                 - u_s(3,i_opt-Delta_test,j_opt,k_opt))
 
-          ! tau_ij^F: LES scale
+                du3dx2 = dx_inv * (u_s(3,i_opt,j_opt+Delta_test,k_opt) &
+                                 - u_s(3,i_opt,j_opt-Delta_test,k_opt))
+
+                du3dx3 = dx_inv * (u_s(3,i_opt,j_opt,k_opt+Delta_test) &
+                                 - u_s(3,i_opt,j_opt,k_opt-Delta_test))    
+
+             ! STRAIN RATES
+                Sij(1) = du1dx1
+                Sij(2) = 0.5d0 * (du1dx2 + du2dx1)
+                Sij(3) = 0.5d0 * (du1dx3 + du3dx1)
+                Sij(4) = du2dx2
+                Sij(5) = 0.5d0 * (du2dx3 + du3dx2)
+                Sij(6) = du3dx3    
+
+            ! VELOCITY PRODUCTS:   
+                u_n1 = reshape(u_s (1,i_opt-Delta_test : i_opt+Delta_test : Delta_test, & 
+                                      j_opt-Delta_test : j_opt+Delta_test : Delta_test, &
+                                      k_opt-Delta_test : k_opt+Delta_test : Delta_test), [27])
+
+                u_n2 = reshape(u_s (2,i_opt-Delta_test : i_opt+Delta_test : Delta_test, & 
+                                      j_opt-Delta_test : j_opt+Delta_test : Delta_test, &
+                                      k_opt-Delta_test : k_opt+Delta_test : Delta_test), [27])
+
+                u_n3 = reshape(u_s (3,i_opt-Delta_test : i_opt+Delta_test : Delta_test, & 
+                                      j_opt-Delta_test : j_opt+Delta_test : Delta_test, &
+                                      k_opt-Delta_test : k_opt+Delta_test : Delta_test), [27])
+
+        ! Compute T_ij^F: test scale
           col_index = 0
           
-          ! ZERO ORDER TERMS: [1]
+          ! CONSTANT TERM:
           col_index = col_index + 1
-          tau_ijOpt (1,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          tau_ijOpt (4,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          tau_ijOpt (6,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
-          tau_ijOpt (2,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
-          tau_ijOpt (3,i_opt, j_opt, k_opt) = h_ij(col_index,2) 
-          tau_ijOpt (5,i_opt, j_opt, k_opt) = h_ij(col_index,2)
+          T_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+
+          ! STRAIN RATES:
+          col_index = col_index + 1
+          do uu_comp = 1,6
+            T_ijOpt (uu_comp,i_opt,j_opt,k_opt) = T_ijOpt (uu_comp,i_opt,j_opt,k_opt)             &
+            + (Sij(uu_comp) * h_ij(col_index,1))
+          end do
+
+          ! COLOCATED VELOCITY PRODUCTS:
+          if(order == 2) then
+            do col_1 = 1, 27
+              col_index = col_index + 1
+                T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt) &
+                +  (u_n1(col_1) * u_n1(col_1)) * h_ij(col_index,1)
+
+                T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt) &
+                +  (u_n1(col_1) * u_n2(col_1)) * h_ij(col_index,1)
+
+                T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt) &
+                +  (u_n1(col_1) * u_n3(col_1)) * h_ij(col_index,1)
+
+                T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt) &
+                +  (u_n2(col_1) * u_n2(col_1)) * h_ij(col_index,1)
+
+                T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt) &
+                +  (u_n2(col_1) * u_n3(col_1)) * h_ij(col_index,1)
+
+                T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt) &
+                +  (u_n3(col_1) * u_n3(col_1)) * h_ij(col_index,1)
+            end do
+          end if
+
+
+          ! NON-COLOCATED VELOCITY PRODUCTS: 
+          if(order == 2) then
+           do non_col_1 = 1, 27
+             do non_col_2 = non_col_1+1, 27
+              col_index = col_index + 1
+
+              T_ijOpt (1,i_opt,j_opt,k_opt) = T_ijOpt (1,i_opt,j_opt,k_opt) &
+                +  (( u_n1(non_col_1) * u_n1(non_col_2) &
+                +     u_n1(non_col_1) * u_n1(non_col_2) )) * h_ij(col_index,1)
+
+              T_ijOpt (2,i_opt,j_opt,k_opt) = T_ijOpt (2,i_opt,j_opt,k_opt) &
+                +  (( u_n1(non_col_1) * u_n2(non_col_2) &
+                +     u_n2(non_col_1) * u_n1(non_col_2) )) * h_ij(col_index,1) 
+
+              T_ijOpt (3,i_opt,j_opt,k_opt) = T_ijOpt (3,i_opt,j_opt,k_opt) &
+                +  (( u_n1(non_col_1) * u_n3(non_col_2) &
+                +     u_n3(non_col_1) * u_n1(non_col_2) )) * h_ij(col_index,1) 
+
+              T_ijOpt (4,i_opt,j_opt,k_opt) = T_ijOpt (4,i_opt,j_opt,k_opt) &
+                +  (( u_n2(non_col_1) * u_n2(non_col_2) &
+                +     u_n2(non_col_1) * u_n2(non_col_2) )) * h_ij(col_index,1) 
+
+              T_ijOpt (5,i_opt,j_opt,k_opt) = T_ijOpt (5,i_opt,j_opt,k_opt) &
+                +  (( u_n2(non_col_1) * u_n3(non_col_2) &
+                +     u_n3(non_col_1) * u_n2(non_col_2) )) * h_ij(col_index,1) 
+
+              T_ijOpt (6,i_opt,j_opt,k_opt) = T_ijOpt (6,i_opt,j_opt,k_opt) &
+                +  (( u_n3(non_col_1) * u_n3(non_col_2) &
+                +     u_n3(non_col_1) * u_n3(non_col_2) )) * h_ij(col_index,1)                
+            end do
+          end do
+        end if
+
+
+
+        ! tau_ij^F: LES scale
+          ! APPLY GALILEAN INVARIANCE
+                u_s = u_t
+
+                do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
+                do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES
+                do i_stencil = i_opt-Delta_LES, i_opt+Delta_LES, Delta_LES
+                    u_s(:,i_stencil,j_stencil,k_stencil) &
+                    = u_t (:,i_stencil,j_stencil,k_stencil) &
+                    - u_t (:,i_opt, j_opt, k_opt)
+                end do 
+                end do 
+                end do 
+
+          ! VELOCITY GRADIENTS:
+                du1dx1 = dx_inv * (u_s(1,i_opt+Delta_LES,j_opt,k_opt) &
+                                 - u_s(1,i_opt-Delta_LES,j_opt,k_opt))
+
+                du1dx2 = dx_inv * (u_s(1,i_opt,j_opt+Delta_LES,k_opt) &
+                                 - u_s(1,i_opt,j_opt-Delta_LES,k_opt))
+
+                du1dx3 = dx_inv * (u_s(1,i_opt,j_opt,k_opt+Delta_LES) &
+                                 - u_s(1,i_opt,j_opt,k_opt-Delta_LES))    
+
+                du2dx1 = dx_inv * (u_s(2,i_opt+Delta_LES,j_opt,k_opt) &
+                                 - u_s(2,i_opt-Delta_LES,j_opt,k_opt))
+
+                du2dx2 = dx_inv * (u_s(2,i_opt,j_opt+Delta_LES,k_opt) &
+                                 - u_s(2,i_opt,j_opt-Delta_LES,k_opt))
+
+                du2dx3 = dx_inv * (u_s(2,i_opt,j_opt,k_opt+Delta_LES) &
+                                 - u_s(2,i_opt,j_opt,k_opt-Delta_LES))
+
+                du3dx1 = dx_inv * (u_s(3,i_opt+Delta_LES,j_opt,k_opt) &
+                                 - u_s(3,i_opt-Delta_LES,j_opt,k_opt))
+
+                du3dx2 = dx_inv * (u_s(3,i_opt,j_opt+Delta_LES,k_opt) &
+                                 - u_s(3,i_opt,j_opt-Delta_LES,k_opt))
+
+                du3dx3 = dx_inv * (u_s(3,i_opt,j_opt,k_opt+Delta_LES) &
+                                 - u_s(3,i_opt,j_opt,k_opt-Delta_LES))    
+
+             ! STRAIN RATES
+                Sij(1) = du1dx1
+                Sij(2) = 0.5d0 * (du1dx2 + du2dx1)
+                Sij(3) = 0.5d0 * (du1dx3 + du3dx1)
+                Sij(4) = du2dx2
+                Sij(5) = 0.5d0 * (du2dx3 + du3dx2)
+                Sij(6) = du3dx3           
+
+              ! VELOCITY PRODUCTS:   
+                u_n1 = reshape(u_s (1,i_opt-Delta_LES : i_opt+Delta_LES : Delta_LES, & 
+                                      j_opt-Delta_LES : j_opt+Delta_LES : Delta_LES, &
+                                      k_opt-Delta_LES : k_opt+Delta_LES : Delta_LES), [27])
+
+                u_n2 = reshape(u_s (2,i_opt-Delta_LES : i_opt+Delta_LES : Delta_LES, & 
+                                      j_opt-Delta_LES : j_opt+Delta_LES : Delta_LES, &
+                                      k_opt-Delta_LES : k_opt+Delta_LES : Delta_LES), [27])
+
+                u_n3 = reshape(u_s (3,i_opt-Delta_LES : i_opt+Delta_LES : Delta_LES, & 
+                                      j_opt-Delta_LES : j_opt+Delta_LES : Delta_LES, &
+                                      k_opt-Delta_LES : k_opt+Delta_LES : Delta_LES), [27])
+
+          ! Compute tau_ij^F: test scale
+          col_index = 0
           
-          do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
-          do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES
-          do i_stencil = i_opt-Delta_LES, i_opt+Delta_LES, Delta_LES
+          ! CONSTANT TERM:
+          col_index = col_index + 1
+          tau_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
 
-             ! FIRST ORDER TERMS:             
-             do u_comp = 1, n_u
-                col_index = col_index + 1
-                tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-
-                tau_ijOpt(2,i_opt,j_opt,k_opt) = tau_ijOpt(2,i_opt,j_opt,k_opt)         &
-                     +                                          &
-                     (u_f(u_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
-
-             end do
-             
-             ! SECOND ORDER TERMS: 
-             if (order == 2) then
-                do uu_comp = 1, n_uu
-                   col_index = col_index + 1
-                   tau_ijOpt(1,i_opt,j_opt,k_opt) = tau_ijOpt(1,i_opt,j_opt,k_opt) &
-                        +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,1)
-                    tau_ijOpt(2,i_opt,j_opt,k_opt) = tau_ijOpt(2,i_opt,j_opt,k_opt) &
-                        +                                &
-                        (uu_f(uu_comp,i_stencil,j_stencil,k_stencil)) * h_ij(col_index,2)
- 
-                end do
-             end if
-
-          end do
-          end do
+          ! STRAIN RATES:
+          col_index = col_index + 1
+          do uu_comp = 1,6
+            tau_ijOpt (uu_comp,i_opt,j_opt,k_opt) = tau_ijOpt (uu_comp,i_opt,j_opt,k_opt)             &
+            + (Sij(uu_comp) * h_ij(col_index,1))
           end do
 
+          ! COLOCATED VELOCITY PRODUCTS:
+          if(order == 2) then
+            do col_1 = 1, 27
+              col_index = col_index + 1
+                tau_ijOpt (1,i_opt,j_opt,k_opt) = tau_ijOpt (1,i_opt,j_opt,k_opt) &
+                +  (u_n1(col_1) * u_n1(col_1)) * h_ij(col_index,1)
+
+                tau_ijOpt (2,i_opt,j_opt,k_opt) = tau_ijOpt (2,i_opt,j_opt,k_opt) &
+                +  (u_n1(col_1) * u_n2(col_1)) * h_ij(col_index,1)
+
+                tau_ijOpt (3,i_opt,j_opt,k_opt) = tau_ijOpt (3,i_opt,j_opt,k_opt) &
+                +  (u_n1(col_1) * u_n3(col_1)) * h_ij(col_index,1)
+
+                tau_ijOpt (4,i_opt,j_opt,k_opt) = tau_ijOpt (4,i_opt,j_opt,k_opt) &
+                +  (u_n2(col_1) * u_n2(col_1)) * h_ij(col_index,1)
+
+                tau_ijOpt (5,i_opt,j_opt,k_opt) = tau_ijOpt (5,i_opt,j_opt,k_opt) &
+                +  (u_n2(col_1) * u_n3(col_1)) * h_ij(col_index,1)
+
+                tau_ijOpt (6,i_opt,j_opt,k_opt) = tau_ijOpt (6,i_opt,j_opt,k_opt) &
+                +  (u_n3(col_1) * u_n3(col_1)) * h_ij(col_index,1)
+            end do
+          end if
+
+
+          ! NON-COLOCATED VELOCITY PRODUCTS: 
+          if(order == 2) then
+           do non_col_1 = 1, 27
+             do non_col_2 = non_col_1+1, 27
+              col_index = col_index + 1
+
+              tau_ijOpt (1,i_opt,j_opt,k_opt) = tau_ijOpt (1,i_opt,j_opt,k_opt) &
+                +  (( u_n1(non_col_1) * u_n1(non_col_2) &
+                +     u_n1(non_col_1) * u_n1(non_col_2) )) * h_ij(col_index,1)
+
+              tau_ijOpt (2,i_opt,j_opt,k_opt) = tau_ijOpt (2,i_opt,j_opt,k_opt) &
+                +  (( u_n1(non_col_1) * u_n2(non_col_2) &
+                +     u_n2(non_col_1) * u_n1(non_col_2) )) * h_ij(col_index,1) 
+
+              tau_ijOpt (3,i_opt,j_opt,k_opt) = tau_ijOpt (3,i_opt,j_opt,k_opt) &
+                +  (( u_n1(non_col_1) * u_n3(non_col_2) &
+                +     u_n3(non_col_1) * u_n1(non_col_2) )) * h_ij(col_index,1) 
+
+              tau_ijOpt (4,i_opt,j_opt,k_opt) = tau_ijOpt (4,i_opt,j_opt,k_opt) &
+                +  (( u_n2(non_col_1) * u_n2(non_col_2) &
+                +     u_n2(non_col_1) * u_n2(non_col_2) )) * h_ij(col_index,1) 
+
+              tau_ijOpt (5,i_opt,j_opt,k_opt) = tau_ijOpt (5,i_opt,j_opt,k_opt) &
+                +  (( u_n2(non_col_1) * u_n3(non_col_2) &
+                +     u_n3(non_col_1) * u_n2(non_col_2) )) * h_ij(col_index,1) 
+
+              tau_ijOpt (6,i_opt,j_opt,k_opt) = tau_ijOpt (6,i_opt,j_opt,k_opt) &
+                +  (( u_n3(non_col_1) * u_n3(non_col_2) &
+                +     u_n3(non_col_1) * u_n3(non_col_2) )) * h_ij(col_index,1)                
+            end do
+          end do
+        end if
         
        end do
        end do

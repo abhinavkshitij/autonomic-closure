@@ -413,8 +413,8 @@ contains
 
 
        ! Z-MIDPLANE COMPUTATION: 
-       !do k_boxCenter = zLower, zUpper
-       do k_boxCenter = 23, 23
+       do k_boxCenter = zLower, zUpper
+!       do k_boxCenter = 23, 23
        do j_boxCenter = boxFirst, boxLast, boxCenterSkip
        do i_boxCenter = boxFirst, boxLast, boxCenterSkip
 
@@ -510,7 +510,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 1.d0
+                V(row_index, col_index) = 0.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -615,7 +615,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 1.d0
+                V(row_index, col_index) = 0.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -683,7 +683,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 1.d0
+                V(row_index, col_index) = 0.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -1162,14 +1162,14 @@ contains
 
         ! tau_ij^F: LES scale
           ! APPLY GALILEAN INVARIANCE
-                u_s = u_t
+                u_s = u_f
 
                 do k_stencil = k_opt-Delta_LES, k_opt+Delta_LES, Delta_LES
                 do j_stencil = j_opt-Delta_LES, j_opt+Delta_LES, Delta_LES
                 do i_stencil = i_opt-Delta_LES, i_opt+Delta_LES, Delta_LES
                     u_s(:,i_stencil,j_stencil,k_stencil) &
-                    = u_t (:,i_stencil,j_stencil,k_stencil) &
-                    - u_t (:,i_opt, j_opt, k_opt)
+                    = u_f (:,i_stencil,j_stencil,k_stencil) &
+                    - u_f (:,i_opt, j_opt, k_opt)
                 end do 
                 end do 
                 end do 

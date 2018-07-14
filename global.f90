@@ -144,7 +144,7 @@ module global
   !*****************************************************************
               
   character(8) :: machine        = trim (l_machine(1) % name)        ! [local, remote]
-  character(8) :: dataset        = trim (l_dataset(6) % name)        ! [...,JHU[2], HST[3],...]
+  character(8) :: dataset        = trim (l_dataset(2) % name)        ! [...,JHU[2], HST[3],...]
   logical      :: withPressure   = 0                                 ! [pressure[1], no pressure[0]]
 
   integer      :: case_idx       = 21                                ! [1 - CL14, ...]          
@@ -195,7 +195,7 @@ module global
 
   logical :: computeDS            =  0
   logical :: compute_vorticity    =  0
-  logical :: plot_Stress          =  0
+  logical :: plot_Stress          =  1
   logical :: production_Term      =  0
   logical :: save_ProductionTerm  =  0
   logical :: compute_Stress       =  0
@@ -436,13 +436,13 @@ contains
     RES_PATH = RES_DIR
 
     ! GRID:
-!    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
-    i_GRID = 42;    j_GRID = 42;    k_GRID = 42
+    i_GRID = 256;    j_GRID = 256;    k_GRID = 256
+!    i_GRID = 42;    j_GRID = 42;    k_GRID = 42
     
     Freq_Nyq = i_GRID/2
 
     ! CASE_NAME:
-    z_plane = 23!bigHalf(k_GRID) [43, 129, 212]
+    z_plane = 129!bigHalf(k_GRID) [43, 129, 212]
     write(z_plane_name,'(i0)'), z_plane
     if (case_idx == 0) then
       CASE_NAME = 'scratch-col'

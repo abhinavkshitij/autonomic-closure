@@ -510,7 +510,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 0.d0
+                V(row_index, col_index) = 1.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -615,7 +615,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 0.d0
+                V(row_index, col_index) = 1.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -683,7 +683,7 @@ contains
 
                 ! CONSTANT TERM:
                 col_index = col_index + 1        
-                V(row_index, col_index) = 0.d0
+                V(row_index, col_index) = 1.d0
 
                 ! STRAIN RATES:
                 col_index = col_index+1
@@ -1091,7 +1091,12 @@ contains
           
           ! CONSTANT TERM:
           col_index = col_index + 1
-          T_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          T_ijOpt (1,i_opt, j_opt, k_opt) = 1.d0 * h_ij(col_index,1)
+          T_ijOpt (2,i_opt, j_opt, k_opt) = 0.d0 * h_ij(col_index,1)
+          T_ijOpt (3,i_opt, j_opt, k_opt) = 0.d0 * h_ij(col_index,1)
+          T_ijOpt (4,i_opt, j_opt, k_opt) = 1.d0 * h_ij(col_index,1)
+          T_ijOpt (5,i_opt, j_opt, k_opt) = 0.d0 * h_ij(col_index,1) 
+          T_ijOpt (6,i_opt, j_opt, k_opt) = 1.d0 * h_ij(col_index,1)  
 
           ! STRAIN RATES:
           col_index = col_index + 1
@@ -1228,7 +1233,12 @@ contains
           
           ! CONSTANT TERM:
           col_index = col_index + 1
-          tau_ijOpt (:,i_opt, j_opt, k_opt) = h_ij(col_index,1) 
+          tau_ijOpt (1,i_opt, j_opt, k_opt) = 1.d0 * h_ij(col_index,1)
+          tau_ijOpt (2,i_opt, j_opt, k_opt) = 0.d0 * h_ij(col_index,1)
+          tau_ijOpt (3,i_opt, j_opt, k_opt) = 0.d0 * h_ij(col_index,1)
+          tau_ijOpt (4,i_opt, j_opt, k_opt) = 1.d0 * h_ij(col_index,1)
+          tau_ijOpt (5,i_opt, j_opt, k_opt) = 0.d0 * h_ij(col_index,1) 
+          tau_ijOpt (6,i_opt, j_opt, k_opt) = 1.d0 * h_ij(col_index,1) 
 
           ! STRAIN RATES:
           col_index = col_index + 1

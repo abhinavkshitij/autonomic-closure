@@ -1008,10 +1008,16 @@ contains
     !
     !   ..VELOCITY GRADIENTS..
     real(8) :: du1dx1, du1dx2, du1dx3, du2dx1, du2dx2, du2dx3, du3dx1, du3dx2, du3dx3
-    real(8) :: dx_inv
+    real(8) :: dx_inv_tilde, dx_inv_hat
     real(8) :: Sij(6)
 
     allocate(u_s(3,extLower:extUpper,extLower:extUpper,z_extLower:z_extUpper))
+
+!
+    ! FIND 1/dx FOR CENTRAL DIFFERENCING
+    dx_inv_hat = 1.d0/(2.d0*dble(Delta_test)*dx)
+    dx_inv_tilde = 1.d0/(2.d0*dble(Delta_LES)*dx)
+
 
     if (formulation.eq.'colocated') then
 ! Whole domain:
@@ -1024,6 +1030,8 @@ contains
 !call cpu_time (tic)
 
 !  T_ij^F: test scale
+
+
            ! APPLY GALILEAN INVARIANCE
                 u_s = u_t
 
@@ -1038,31 +1046,31 @@ contains
                 end do 
 
            ! VELOCITY GRADIENTS:
-                du1dx1 = dx_inv * (u_s(1,i_opt+Delta_test,j_opt,k_opt) &
+                du1dx1 = dx_inv_hat * (u_s(1,i_opt+Delta_test,j_opt,k_opt) &
                                  - u_s(1,i_opt-Delta_test,j_opt,k_opt))
 
-                du1dx2 = dx_inv * (u_s(1,i_opt,j_opt+Delta_test,k_opt) &
+                du1dx2 = dx_inv_hat * (u_s(1,i_opt,j_opt+Delta_test,k_opt) &
                                  - u_s(1,i_opt,j_opt-Delta_test,k_opt))
 
-                du1dx3 = dx_inv * (u_s(1,i_opt,j_opt,k_opt+Delta_test) &
+                du1dx3 = dx_inv_hat * (u_s(1,i_opt,j_opt,k_opt+Delta_test) &
                                  - u_s(1,i_opt,j_opt,k_opt-Delta_test))    
 
-                du2dx1 = dx_inv * (u_s(2,i_opt+Delta_test,j_opt,k_opt) &
+                du2dx1 = dx_inv_hat * (u_s(2,i_opt+Delta_test,j_opt,k_opt) &
                                  - u_s(2,i_opt-Delta_test,j_opt,k_opt))
 
-                du2dx2 = dx_inv * (u_s(2,i_opt,j_opt+Delta_test,k_opt) &
+                du2dx2 = dx_inv_hat * (u_s(2,i_opt,j_opt+Delta_test,k_opt) &
                                  - u_s(2,i_opt,j_opt-Delta_test,k_opt))
 
-                du2dx3 = dx_inv * (u_s(2,i_opt,j_opt,k_opt+Delta_test) &
+                du2dx3 = dx_inv_hat * (u_s(2,i_opt,j_opt,k_opt+Delta_test) &
                                  - u_s(2,i_opt,j_opt,k_opt-Delta_test))
 
-                du3dx1 = dx_inv * (u_s(3,i_opt+Delta_test,j_opt,k_opt) &
+                du3dx1 = dx_inv_hat * (u_s(3,i_opt+Delta_test,j_opt,k_opt) &
                                  - u_s(3,i_opt-Delta_test,j_opt,k_opt))
 
-                du3dx2 = dx_inv * (u_s(3,i_opt,j_opt+Delta_test,k_opt) &
+                du3dx2 = dx_inv_hat * (u_s(3,i_opt,j_opt+Delta_test,k_opt) &
                                  - u_s(3,i_opt,j_opt-Delta_test,k_opt))
 
-                du3dx3 = dx_inv * (u_s(3,i_opt,j_opt,k_opt+Delta_test) &
+                du3dx3 = dx_inv_hat * (u_s(3,i_opt,j_opt,k_opt+Delta_test) &
                                  - u_s(3,i_opt,j_opt,k_opt-Delta_test))    
 
              ! STRAIN RATES
@@ -1180,31 +1188,31 @@ contains
                 end do 
 
           ! VELOCITY GRADIENTS:
-                du1dx1 = dx_inv * (u_s(1,i_opt+Delta_LES,j_opt,k_opt) &
+                du1dx1 = dx_inv_tilde * (u_s(1,i_opt+Delta_LES,j_opt,k_opt) &
                                  - u_s(1,i_opt-Delta_LES,j_opt,k_opt))
 
-                du1dx2 = dx_inv * (u_s(1,i_opt,j_opt+Delta_LES,k_opt) &
+                du1dx2 = dx_inv_tilde * (u_s(1,i_opt,j_opt+Delta_LES,k_opt) &
                                  - u_s(1,i_opt,j_opt-Delta_LES,k_opt))
 
-                du1dx3 = dx_inv * (u_s(1,i_opt,j_opt,k_opt+Delta_LES) &
+                du1dx3 = dx_inv_tilde * (u_s(1,i_opt,j_opt,k_opt+Delta_LES) &
                                  - u_s(1,i_opt,j_opt,k_opt-Delta_LES))    
 
-                du2dx1 = dx_inv * (u_s(2,i_opt+Delta_LES,j_opt,k_opt) &
+                du2dx1 = dx_inv_tilde * (u_s(2,i_opt+Delta_LES,j_opt,k_opt) &
                                  - u_s(2,i_opt-Delta_LES,j_opt,k_opt))
 
-                du2dx2 = dx_inv * (u_s(2,i_opt,j_opt+Delta_LES,k_opt) &
+                du2dx2 = dx_inv_tilde * (u_s(2,i_opt,j_opt+Delta_LES,k_opt) &
                                  - u_s(2,i_opt,j_opt-Delta_LES,k_opt))
 
-                du2dx3 = dx_inv * (u_s(2,i_opt,j_opt,k_opt+Delta_LES) &
+                du2dx3 = dx_inv_tilde * (u_s(2,i_opt,j_opt,k_opt+Delta_LES) &
                                  - u_s(2,i_opt,j_opt,k_opt-Delta_LES))
 
-                du3dx1 = dx_inv * (u_s(3,i_opt+Delta_LES,j_opt,k_opt) &
+                du3dx1 = dx_inv_tilde * (u_s(3,i_opt+Delta_LES,j_opt,k_opt) &
                                  - u_s(3,i_opt-Delta_LES,j_opt,k_opt))
 
-                du3dx2 = dx_inv * (u_s(3,i_opt,j_opt+Delta_LES,k_opt) &
+                du3dx2 = dx_inv_tilde * (u_s(3,i_opt,j_opt+Delta_LES,k_opt) &
                                  - u_s(3,i_opt,j_opt-Delta_LES,k_opt))
 
-                du3dx3 = dx_inv * (u_s(3,i_opt,j_opt,k_opt+Delta_LES) &
+                du3dx3 = dx_inv_tilde * (u_s(3,i_opt,j_opt,k_opt+Delta_LES) &
                                  - u_s(3,i_opt,j_opt,k_opt-Delta_LES))    
 
              ! STRAIN RATES
